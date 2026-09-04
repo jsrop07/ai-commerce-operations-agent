@@ -1,0 +1,10 @@
+{
+  "description": "Unifies online orders, offline sales, and inventory data to help Korean B2B operators detect risks and support informed commerce decisions.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

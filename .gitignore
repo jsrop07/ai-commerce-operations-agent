@@ -1,0 +1,47 @@
+# Secrets and environment
+.env
+.env.*
+.env.example
+*.pem
+*.key
+credentials*.json
+secrets*.json
+
+# Python
+ai_venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node, Vite, Vitest, Playwright
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+
+# Private and local data
+ai-private-validation/
+private_validation/
+data/private/
+artifacts/**/private/
+artifacts/**/raw/
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE, OS and temporary files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+alembic.ini
+pyproject.toml

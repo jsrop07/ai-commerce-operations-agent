@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "canonical-commerce-event.v1",
+  "title": "CanonicalCommerceEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "tenant_id",
+    "source",
+    "source_event_id",
+    "occurred_at",
+    "ingested_at",
+    "idempotency_key",
+    "correlation_id",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "event_type": {"type": "string"},
+    "schema_version": {"type": "string", "pattern": "^1(?:\\.\\d+)?$"},
+    "tenant_id": {"type": "string", "minLength": 1},
+    "source": {"enum": ["CAFE24", "TOSS_POS", "ECOUNT", "DEMO"]},
+    "source_event_id": {"type": "string", "minLength": 1},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "ingested_at": {"type": "string", "format": "date-time"},
+    "idempotency_key": {"type": "string", "minLength": 1},
+    "correlation_id": {"type": "string", "minLength": 1},
+    "payload": {"type": "object", "minProperties": 1}
+  }
+}
+

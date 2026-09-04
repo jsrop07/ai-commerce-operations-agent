@@ -1,0 +1,206 @@
+{
+  "schema_version": "class-balance-report.v0.1",
+  "total_records": 10,
+  "fields": {
+    "intent": {
+      "field": "intent",
+      "total_records": 10,
+      "class_count": 6,
+      "max_support": 3,
+      "minority_threshold_ratio": 0.5,
+      "minority_classes": [
+        "COMPATIBILITY",
+        "REFUND_CANCEL",
+        "RESTOCK"
+      ],
+      "classes": [
+        {
+          "label": "PRODUCT_INFO",
+          "support": 3,
+          "share": 0.3,
+          "ratio_to_max": 1.0,
+          "balance_status": "NORMAL",
+          "recommendations": [
+            "NONE"
+          ]
+        },
+        {
+          "label": "DELIVERY",
+          "support": 2,
+          "share": 0.2,
+          "ratio_to_max": 0.6667,
+          "balance_status": "NORMAL",
+          "recommendations": [
+            "NONE"
+          ]
+        },
+        {
+          "label": "STOCK_AVAILABILITY",
+          "support": 2,
+          "share": 0.2,
+          "ratio_to_max": 0.6667,
+          "balance_status": "NORMAL",
+          "recommendations": [
+            "NONE"
+          ]
+        },
+        {
+          "label": "COMPATIBILITY",
+          "support": 1,
+          "share": 0.1,
+          "ratio_to_max": 0.3333,
+          "balance_status": "MINORITY",
+          "recommendations": [
+            "REVIEW_LABEL_COVERAGE",
+            "LOSS_WEIGHTING_CANDIDATE",
+            "TARGETED_SYNTHETIC_CANDIDATE"
+          ]
+        },
+        {
+          "label": "REFUND_CANCEL",
+          "support": 1,
+          "share": 0.1,
+          "ratio_to_max": 0.3333,
+          "balance_status": "MINORITY",
+          "recommendations": [
+            "REVIEW_LABEL_COVERAGE",
+            "LOSS_WEIGHTING_CANDIDATE",
+            "TARGETED_SYNTHETIC_CANDIDATE"
+          ]
+        },
+        {
+          "label": "RESTOCK",
+          "support": 1,
+          "share": 0.1,
+          "ratio_to_max": 0.3333,
+          "balance_status": "MINORITY",
+          "recommendations": [
+            "REVIEW_LABEL_COVERAGE",
+            "LOSS_WEIGHTING_CANDIDATE",
+            "TARGETED_SYNTHETIC_CANDIDATE"
+          ]
+        }
+      ]
+    },
+    "category": {
+      "field": "category",
+      "total_records": 10,
+      "class_count": 3,
+      "max_support": 6,
+      "minority_threshold_ratio": 0.5,
+      "minority_classes": [
+        "ACCESSORY"
+      ],
+      "classes": [
+        {
+          "label": "BOARD_GAME",
+          "support": 6,
+          "share": 0.6,
+          "ratio_to_max": 1.0,
+          "balance_status": "NORMAL",
+          "recommendations": [
+            "NONE"
+          ]
+        },
+        {
+          "label": "EXPANSION",
+          "support": 3,
+          "share": 0.3,
+          "ratio_to_max": 0.5,
+          "balance_status": "NORMAL",
+          "recommendations": [
+            "NONE"
+          ]
+        },
+        {
+          "label": "ACCESSORY",
+          "support": 1,
+          "share": 0.1,
+          "ratio_to_max": 0.1667,
+          "balance_status": "MINORITY",
+          "recommendations": [
+            "REVIEW_LABEL_COVERAGE",
+            "LOSS_WEIGHTING_CANDIDATE",
+            "TARGETED_SYNTHETIC_CANDIDATE"
+          ]
+        }
+      ]
+    },
+    "issue": {
+      "field": "issue",
+      "total_records": 10,
+      "class_count": 5,
+      "max_support": 3,
+      "minority_threshold_ratio": 0.5,
+      "minority_classes": [
+        "COMPATIBILITY",
+        "REFUND_CANCEL"
+      ],
+      "classes": [
+        {
+          "label": "INVENTORY",
+          "support": 3,
+          "share": 0.3,
+          "ratio_to_max": 1.0,
+          "balance_status": "NORMAL",
+          "recommendations": [
+            "NONE"
+          ]
+        },
+        {
+          "label": "NONE",
+          "support": 3,
+          "share": 0.3,
+          "ratio_to_max": 1.0,
+          "balance_status": "NORMAL",
+          "recommendations": [
+            "NONE"
+          ]
+        },
+        {
+          "label": "DELIVERY_DELAY",
+          "support": 2,
+          "share": 0.2,
+          "ratio_to_max": 0.6667,
+          "balance_status": "NORMAL",
+          "recommendations": [
+            "NONE"
+          ]
+        },
+        {
+          "label": "COMPATIBILITY",
+          "support": 1,
+          "share": 0.1,
+          "ratio_to_max": 0.3333,
+          "balance_status": "MINORITY",
+          "recommendations": [
+            "REVIEW_LABEL_COVERAGE",
+            "LOSS_WEIGHTING_CANDIDATE",
+            "TARGETED_SYNTHETIC_CANDIDATE"
+          ]
+        },
+        {
+          "label": "REFUND_CANCEL",
+          "support": 1,
+          "share": 0.1,
+          "ratio_to_max": 0.3333,
+          "balance_status": "MINORITY",
+          "recommendations": [
+            "REVIEW_LABEL_COVERAGE",
+            "LOSS_WEIGHTING_CANDIDATE",
+            "TARGETED_SYNTHETIC_CANDIDATE"
+          ]
+        }
+      ]
+    }
+  },
+  "policy": {
+    "minority_rule": "support / max_support < 0.5",
+    "automatic_oversampling": false,
+    "recommended_order": [
+      "REVIEW_LABEL_COVERAGE",
+      "LOSS_WEIGHTING_CANDIDATE",
+      "TARGETED_SYNTHETIC_CANDIDATE"
+    ]
+  }
+}

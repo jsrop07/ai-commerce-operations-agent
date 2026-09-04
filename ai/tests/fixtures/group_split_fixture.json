@@ -1,0 +1,75 @@
+{
+  "schema_version": "group-split-fixture.v0.1",
+  "records": [
+    {
+      "record_id": "rec_001",
+      "customer_group": "cust_demo_a",
+      "thread_group": "thread_demo_a",
+      "occurred_at": "2026-01-05T10:00:00Z",
+      "intent": "PRODUCT_INFO"
+    },
+    {
+      "record_id": "rec_002",
+      "customer_group": "cust_demo_a",
+      "thread_group": "thread_demo_a",
+      "occurred_at": "2026-01-05T10:05:00Z",
+      "intent": "PRODUCT_INFO"
+    },
+    {
+      "record_id": "rec_003",
+      "customer_group": "cust_demo_b",
+      "thread_group": "thread_demo_b",
+      "occurred_at": "2026-01-15T12:00:00Z",
+      "intent": "STOCK_AVAILABILITY"
+    },
+    {
+      "record_id": "rec_004",
+      "customer_group": "cust_demo_c",
+      "thread_group": "thread_demo_c",
+      "occurred_at": "2026-02-01T09:00:00Z",
+      "intent": "RESTOCK"
+    },
+    {
+      "record_id": "rec_005",
+      "customer_group": "cust_demo_d",
+      "thread_group": "thread_demo_d",
+      "occurred_at": "2026-02-10T11:00:00Z",
+      "intent": "DELIVERY"
+    },
+    {
+      "record_id": "rec_006",
+      "customer_group": "cust_demo_e",
+      "thread_group": "thread_demo_e",
+      "occurred_at": "2026-02-20T13:00:00Z",
+      "intent": "ORDER_STATUS"
+    },
+    {
+      "record_id": "rec_007",
+      "customer_group": "cust_demo_f",
+      "thread_group": "thread_demo_f",
+      "occurred_at": "2026-03-01T15:00:00Z",
+      "intent": "COMPATIBILITY"
+    },
+    {
+      "record_id": "rec_008",
+      "customer_group": "cust_demo_g",
+      "thread_group": "thread_demo_g",
+      "occurred_at": "2026-03-10T16:00:00Z",
+      "intent": "RESERVATION_PREORDER"
+    },
+    {
+      "record_id": "rec_009",
+      "customer_group": "cust_demo_h",
+      "thread_group": "thread_demo_h",
+      "occurred_at": "2026-03-20T17:00:00Z",
+      "intent": "RETURN_EXCHANGE"
+    },
+    {
+      "record_id": "rec_010",
+      "customer_group": "cust_demo_i",
+      "thread_group": "thread_demo_i",
+      "occurred_at": "2026-04-01T18:00:00Z",
+      "intent": "REFUND_CANCEL"
+    }
+  ]
+}

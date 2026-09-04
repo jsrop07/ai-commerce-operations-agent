@@ -1,0 +1,54 @@
+schema_version: "active-prompt.v0.1"
+
+task_type: "inquiry_classification"
+
+status: "ADOPTED_FOR_DAY04_INTEGRATION_ONLY"
+
+selected:
+  prompt_id: "inquiry_fewshot"
+  version: "0.1.0"
+  path: "ai/prompts/inquiry/v2_fewshot.yaml"
+  sha256: "36a4aae31f3a4c8df55e2becf20b6a617d64e60b5649bdf178ea3b1c3769144f"
+
+experiment:
+  experiment_id: "PROMPT-01"
+  result_path: "artifacts/experiments/PROMPT-01/result.json"
+  dataset_version: "v0.1"
+  dataset_split: "validation"
+  sample_count: 8
+
+selection_reason:
+  - "No unsafe routing error was observed in the Day 3 validation safety slice."
+  - "Few-shot achieved the highest Entity F1: 0.8889."
+  - "Few-shot had the fewest error samples: 2 of 8."
+  - "JSON Valid Rate was 1.0."
+  - "The prompt is suitable as the temporary Day 4 Mock integration contract."
+
+known_limitations:
+  - "Validation sample count is only 8."
+  - "High-risk routing was measured on only 1 eligible sample."
+  - "Intent Macro F1 0.8333 was lower than zero-shot 1.0."
+  - "Reservation/preorder vs delivery confusion remains."
+  - "Observed p95 latency was 9802.13 ms."
+  - "Few-shot had the highest token usage and cost."
+  - "Golden Entity annotation guideline requires review."
+
+rejected_for_day04:
+  zero_shot:
+    reason:
+      - "Intent score was strongest, but Entity F1 was 0.5."
+      - "7 of 8 samples contained errors, primarily Entity over-generation."
+
+  structured:
+    reason:
+      - "Entity F1 was lowest at 0.4706."
+      - "Intent Macro F1 was 0.8333."
+      - "7 of 8 samples contained errors."
+      - "Higher token/cost than zero-shot without quality improvement."
+
+final_production_decision: false
+
+decision_note: >
+  This is a temporary prompt lock for Day 4 integration only.
+  It must not be interpreted as final production model or prompt selection.
+  Larger evaluation and later Base sLLM, QLoRA, and API model comparison are required.

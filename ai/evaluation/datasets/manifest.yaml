@@ -1,0 +1,80 @@
+schema_version: "dataset-manifest.v0.1"
+split_policy_version: "split-policy.v0.1"
+
+global_rules:
+  split_unit:
+    - customer
+    - thread
+    - time
+  train_validation_test_isolation: true
+  synthetic_test_answer_visibility: false
+  pii_required_status: CLEAN
+  real_data_publication_allowed: false
+  manifest_hash_required_before_measured_run: true
+
+datasets:
+  golden_nlu:
+    purpose: "문의 intent/entity/risk 평가 정답셋"
+    owner: "AI_ML"
+    version: "v0.1"
+    expected_hash: "17f86dcefa6401bb93fb9e8c8274da4e37724d79a1971f6aa034aed7b96a93f5"
+    visibility: PRIVATE_EVAL
+    contains_real_data: false
+    pii_status: CLEAN
+    split_strategy: THREAD_GROUP
+    status: READY
+
+  golden_retrieval:
+    purpose: "query에서 관련 source 검색 품질 평가"
+    owner: "AI_ML"
+    version: "v0.1"
+    expected_hash: "PENDING_DATASET_BUILD"
+    visibility: PRIVATE_EVAL
+    contains_real_data: false
+    pii_status: CLEAN
+    split_strategy: QUERY_SOURCE_GROUP
+    status: PLANNED
+
+  golden_graph:
+    purpose: "entity/path/multi-hop relation 평가"
+    owner: "AI_ML"
+    version: "v0.1"
+    expected_hash: "PENDING_DATASET_BUILD"
+    visibility: PRIVATE_EVAL
+    contains_real_data: false
+    pii_status: CLEAN
+    split_strategy: ENTITY_RELATION_GROUP
+    status: PLANNED
+
+  memory_scenarios:
+    purpose: "entity carryover, contradiction, summary drift 평가"
+    owner: "AI_ML"
+    version: "v0.1"
+    expected_hash: "PENDING_DATASET_BUILD"
+    visibility: PRIVATE_EVAL
+    contains_real_data: false
+    pii_status: CLEAN
+    split_strategy: THREAD_GROUP
+    status: PLANNED
+
+  agent_scenarios:
+    purpose: "state transition, failure recovery, HITL 평가"
+    owner: "AI_ML"
+    version: "v0.1"
+    expected_hash: "PENDING_DATASET_BUILD"
+    visibility: PRIVATE_EVAL
+    contains_real_data: false
+    pii_status: CLEAN
+    split_strategy: SCENARIO_GROUP
+    status: PLANNED
+
+  private_business_validation:
+    purpose: "비식별 실제 사업 데이터 기반 비공개 검증"
+    owner: "AI_ML"
+    version: "v0.1"
+    expected_hash: "PENDING_PRIVATE_DATA"
+    visibility: PRIVATE_RESTRICTED
+    contains_real_data: true
+    pii_status: MUST_BE_SANITIZED_BEFORE_USE
+    split_strategy: CUSTOMER_THREAD_TIME_GROUP
+    status: NOT_INGESTED

@@ -1,0 +1,92 @@
+{
+  "schema_version": "privacy-fixture.v0.1",
+  "pii_cases": [
+    {
+      "case_id": "phone_01",
+      "input": "연락처는 010-1234-5678입니다.",
+      "expected_tokens": ["<PHONE>"]
+    },
+    {
+      "case_id": "phone_02",
+      "input": "01012345678로 연락주세요.",
+      "expected_tokens": ["<PHONE>"]
+    },
+    {
+      "case_id": "email_01",
+      "input": "문의 메일은 demo.user@example.com 입니다.",
+      "expected_tokens": ["<EMAIL>"]
+    },
+    {
+      "case_id": "resident_id_01",
+      "input": "주민번호 예시는 900101-1234567 입니다.",
+      "expected_tokens": ["<RESIDENT_ID>"]
+    },
+    {
+      "case_id": "card_01",
+      "input": "테스트 카드번호는 4111-1111-1111-1111 입니다.",
+      "expected_tokens": ["<CARD>"]
+    }
+  ],
+  "safe_cases": [
+    {
+      "case_id": "product_code",
+      "input": "상품코드는 BG-2026-001입니다."
+    },
+    {
+      "case_id": "demo_order_ref",
+      "input": "주문 참조는 ord_demo_001입니다."
+    },
+    {
+      "case_id": "date",
+      "input": "입고 예정일은 2026-09-10입니다."
+    },
+    {
+      "case_id": "quantity",
+      "input": "현재 재고는 10개입니다."
+    }
+  ],
+  "structured_cases": [
+  {
+    "case_id": "structured_customer",
+    "input": {
+      "customer_name": "테스트고객",
+      "shipping_address": "서울시 테스트구 테스트로 10",
+      "phone": "010-1234-5678",
+      "email": "demo.user@example.com",
+      "order_id": "ORDER-PRIVATE-001",
+      "product_name": "별빛 탐험대"
+    },
+    "expected": {
+      "customer_name": "<CUSTOMER>",
+      "shipping_address": "<ADDRESS>",
+      "phone": "<PHONE>",
+      "email": "<EMAIL>",
+      "order_id": "<ORDER_REF>",
+      "product_name": "별빛 탐험대"
+    }
+  },
+  {
+    "case_id": "structured_nested",
+    "input": {
+      "order": {
+        "external_order_id": "EXT-PRIVATE-999"
+      },
+      "recipient": {
+        "recipient_name": "테스트수령인",
+        "recipient_address": "부산시 테스트구 샘플길 22"
+      },
+      "sku_id": "sku_demo_001"
+    },
+    "expected": {
+      "order": {
+        "external_order_id": "<ORDER_REF>"
+      },
+      "recipient": {
+        "recipient_name": "<CUSTOMER>",
+        "recipient_address": "<ADDRESS>"
+      },
+      "sku_id": "sku_demo_001"
+    }
+  }
+]
+}

@@ -1,0 +1,10 @@
+{
+  "experiment_id": "PROMPT-01",
+  "dataset_version": "golden-nlu.v0.1",
+  "dataset_manifest_hash": "sha256:PENDING_DAY1",
+  "baseline": {},
+  "candidate": {},
+  "latency_cost": {},
+  "error_analysis": [],
+  "decision": "PENDING"
+}

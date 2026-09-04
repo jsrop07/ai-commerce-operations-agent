@@ -1,0 +1,8 @@
+{
+  "schema_version": "private-overlap-report.v0.1",
+  "private_corpus_pii_status": "SANITIZED",
+  "private_unique_string_count": 2,
+  "overlap_count": 0,
+  "overlap_fingerprints": [],
+  "raw_private_strings_written": false
+}

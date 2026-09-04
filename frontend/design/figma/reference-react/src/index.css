@@ -1,0 +1,180 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+html, body, #root {
+  height: 100%;
+  min-width: 1280px;
+}
+
+:root {
+  --font-sans: 'Noto Sans KR', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Base */
+  --bg: #F5F6F8;
+  --surface: #FFFFFF;
+  --surface-2: #F0F2F5;
+  --border: #E2E5EA;
+  --border-strong: #C9CDD6;
+
+  /* Text */
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-tertiary: #9CA3AF;
+  --text-inverse: #FFFFFF;
+
+  /* Rule / Source — Blue */
+  --rule-bg: #EFF6FF;
+  --rule-border: #BFDBFE;
+  --rule-text: #1D4ED8;
+  --rule-accent: #2563EB;
+
+  /* AI Result — Violet */
+  --ai-bg: #F5F3FF;
+  --ai-border: #DDD6FE;
+  --ai-text: #6D28D9;
+  --ai-accent: #7C3AED;
+
+  /* Human Decision — Gray/Green */
+  --human-bg: #F0FDF4;
+  --human-border: #BBF7D0;
+  --human-text: #15803D;
+  --human-accent: #16A34A;
+
+  /* Warning — Amber */
+  --warn-bg: #FFFBEB;
+  --warn-border: #FDE68A;
+  --warn-text: #B45309;
+  --warn-accent: #D97706;
+
+  /* Critical — Red */
+  --crit-bg: #FEF2F2;
+  --crit-border: #FECACA;
+  --crit-text: #B91C1C;
+  --crit-accent: #DC2626;
+
+  /* Nav */
+  --nav-bg: #1E2433;
+  --nav-active: #2563EB;
+  --nav-hover: #2A3348;
+  --nav-text: #94A3B8;
+  --nav-text-active: #FFFFFF;
+
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+/* Focus rings */
+:focus-visible {
+  outline: 2px solid var(--rule-accent);
+  outline-offset: 2px;
+}
+
+/* Mono data */
+.mono { font-family: var(--font-mono); }
+
+/* Dense table */
+.dense-table { border-collapse: collapse; width: 100%; }
+.dense-table th {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.dense-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  font-size: 12.5px;
+}
+.dense-table tr:hover td { background: #F8F9FB; }
+.dense-table tr:last-child td { border-bottom: none; }
+
+/* Transitions */
+.transition-fast { transition: all 0.15s ease; }
+
+/* Drawer overlay */
+.drawer-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 40;
+  animation: fadeIn 0.15s ease;
+}
+.drawer-panel {
+  position: fixed; right: 0; top: 0; bottom: 0;
+  width: 480px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  z-index: 50;
+  overflow-y: auto;
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+/* Toast */
+.toast-container {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 100;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  background: var(--nav-bg);
+  color: white;
+  font-size: 13px;
+  min-width: 280px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  animation: toastIn 0.2s ease;
+  display: flex; align-items: center; gap: 8px;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Skeleton */
+.skeleton {
+  background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Risk pulse */
+.risk-pulse {
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}

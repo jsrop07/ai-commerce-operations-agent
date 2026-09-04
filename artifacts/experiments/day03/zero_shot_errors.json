@@ -1,0 +1,225 @@
+{
+  "schema_version": "prompt-error-analysis.v0.1",
+  "variant": "inquiry_zero_shot",
+  "model": "gpt-5.6-luna",
+  "temperature": 0.0,
+  "seed": null,
+  "seed_supported": false,
+  "sample_count": 8,
+  "error_sample_count": 7,
+  "category_counts": {
+    "WRONG_INTENT": 0,
+    "ENTITY_MISS": 0,
+    "SCHEMA_ERROR": 0,
+    "UNSAFE_ROUTE": 0,
+    "OVER_ANSWER": 7
+  },
+  "errors": [
+    {
+      "id": "nlu_validation_001",
+      "categories": [
+        "OVER_ANSWER"
+      ],
+      "expected": {
+        "intent": "PRODUCT_INFO",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "PRODUCT_INFO",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          },
+          {
+            "type": "ISSUE_TYPE",
+            "value": "플레이 시간"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true
+    },
+    {
+      "id": "nlu_validation_002",
+      "categories": [
+        "OVER_ANSWER"
+      ],
+      "expected": {
+        "intent": "COMPATIBILITY",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "별빛 탐험대 붉은 달 확장"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "COMPATIBILITY",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "별빛 탐험대 붉은 달 확장"
+          },
+          {
+            "type": "PRODUCT",
+            "value": "본판"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true
+    },
+    {
+      "id": "nlu_validation_004",
+      "categories": [
+        "OVER_ANSWER"
+      ],
+      "expected": {
+        "intent": "RESTOCK",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "RESTOCK",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          },
+          {
+            "type": "ISSUE_TYPE",
+            "value": "품절"
+          },
+          {
+            "type": "ISSUE_TYPE",
+            "value": "다음 입고 일정"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true
+    },
+    {
+      "id": "nlu_validation_005",
+      "categories": [
+        "OVER_ANSWER"
+      ],
+      "expected": {
+        "intent": "DELIVERY",
+        "entities": [],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "DELIVERY",
+        "entities": [
+          {
+            "type": "DATE_TIME",
+            "value": "이번 주 안"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.98
+      },
+      "json_valid": true
+    },
+    {
+      "id": "nlu_validation_006",
+      "categories": [
+        "OVER_ANSWER"
+      ],
+      "expected": {
+        "intent": "RESERVATION_PREORDER",
+        "entities": [],
+        "risk": "MEDIUM",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "RESERVATION_PREORDER",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "상품"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.98
+      },
+      "json_valid": true
+    },
+    {
+      "id": "nlu_validation_007",
+      "categories": [
+        "OVER_ANSWER"
+      ],
+      "expected": {
+        "intent": "RETURN_EXCHANGE",
+        "entities": [],
+        "risk": "MEDIUM",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "RETURN_EXCHANGE",
+        "entities": [
+          {
+            "type": "ISSUE_TYPE",
+            "value": "교환"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true
+    },
+    {
+      "id": "nlu_validation_008",
+      "categories": [
+        "OVER_ANSWER"
+      ],
+      "expected": {
+        "intent": "REFUND_CANCEL",
+        "entities": [],
+        "risk": "PROHIBITED",
+        "route": "HUMAN_REVIEW"
+      },
+      "prediction": {
+        "intent": "REFUND_CANCEL",
+        "entities": [
+          {
+            "type": "ISSUE_TYPE",
+            "value": "주문 취소"
+          }
+        ],
+        "risk": "HIGH",
+        "route": "HUMAN_REVIEW",
+        "confidence": 0.99
+      },
+      "json_valid": true
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": "ai-trace.v0.1",
+  "request_id": "req_day04_ai_001",
+  "trace_id": "trace_day04_ai_001",
+  "execution_type": "MOCK",
+  "task_type": "inquiry_classification",
+  "intent": "REFUND_CANCEL",
+  "route": "POLICY_DENY",
+  "route_reason": "PROHIBITED_ACTION_REQUIRES_HUMAN_OPERATION",
+  "evidence_ids": [],
+  "prompt": {
+    "prompt_id": "inquiry_fewshot",
+    "version": "0.1.0",
+    "path": "ai/prompts/inquiry/v2_fewshot.yaml",
+    "sha256": "36a4aae31f3a4c8df55e2becf20b6a617d64e60b5649bdf178ea3b1c3769144f"
+  },
+  "model": {
+    "model_run_id": null,
+    "model_id": null,
+    "execution_note": "No external model was called. This is a deterministic Day 4 Mock Runtime trace."
+  },
+  "token": {
+    "input": 0,
+    "output": 0,
+    "cache": 0
+  },
+  "cost": {
+    "estimated": 0.0,
+    "currency": "USD",
+    "meaning": "No API or GPU cost was incurred by this Mock Runtime execution."
+  },
+  "safety": {
+    "risk": "PROHIBITED",
+    "external_model_calls": 0,
+    "tool_calls": 0,
+    "provider_calls": 0,
+    "auto_send_count": 0,
+    "production_write": false
+  },
+  "integration": {
+    "active_prompt_status": "ADOPTED_FOR_DAY04_INTEGRATION_ONLY",
+    "ai_response_schema": "ai-response.v0.1",
+    "mock_runtime": true,
+    "deterministic": true
+  }
+}

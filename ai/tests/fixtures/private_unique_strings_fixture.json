@@ -1,0 +1,10 @@
+{
+  "schema_version": "private-unique-strings-fixture.v0.1",
+  "note": "Synthetic test-only forbidden strings. Not real business or customer data.",
+  "forbidden_strings": [
+    "PRIVATE_PRODUCT_ALPHA_98765",
+    "PRIVATE_SKU_ZETA_54321",
+    "PRIVATE_THREAD_24680",
+    "PRIVATE_ORDER_13579"
+  ]
+}

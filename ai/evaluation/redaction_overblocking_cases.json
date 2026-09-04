@@ -1,0 +1,29 @@
+{
+  "schema_version": "redaction-overblocking.v0.1",
+  "cases": [
+    {
+      "case_id": "name_detection_not_enabled",
+      "input_type": "PERSON_NAME",
+      "example": "홍길동 게임",
+      "current_behavior": "NOT_REDACTED",
+      "reason": "한국어 인명 정규식만으로 탐지하면 상품명과 사람 이름을 안정적으로 구별하기 어려워 과잉 제거 위험이 큼",
+      "decision": "DEFER_TO_STRUCTURED_FIELD_OR_PII_DETECTOR"
+    },
+    {
+      "case_id": "address_detection_not_enabled",
+      "input_type": "ADDRESS",
+      "example": "서울 보드게임 행사",
+      "current_behavior": "NOT_REDACTED",
+      "reason": "지역명만으로 주소를 판단하면 상품·행사·매장 설명까지 제거할 수 있음",
+      "decision": "DEFER_TO_STRUCTURED_FIELD_OR_PII_DETECTOR"
+    },
+    {
+      "case_id": "product_code_preserved",
+      "input_type": "PRODUCT_CODE",
+      "example": "BG-2026-001",
+      "current_behavior": "PRESERVED",
+      "reason": "상품 식별용 합성 코드이며 현재 PII Pattern과 충돌하지 않음",
+      "decision": "KEEP"
+    }
+  ]
+}

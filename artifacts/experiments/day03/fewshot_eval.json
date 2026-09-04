@@ -1,0 +1,41 @@
+{
+  "schema_version": "prompt-eval-result.v0.1",
+  "variant": "fewshot",
+  "dataset": {
+    "version": "v0.1",
+    "sha256": "17f86dcefa6401bb93fb9e8c8274da4e37724d79a1971f6aa034aed7b96a93f5"
+  },
+  "model": "gpt-5.6-luna",
+  "seed": null,
+  "seed_supported": false,
+  "temperature": 0.0,
+  "execution_status": "MODEL_API",
+  "metrics": {
+    "sample_count": 8,
+    "intent": {
+      "macro_f1": 0.8333,
+      "micro_f1": 0.875
+    },
+    "entity_f1": 0.8889,
+    "json_valid_rate": 1.0,
+    "high_risk_routing": {
+      "sample_count": 1,
+      "correct": 1,
+      "rate": 1.0
+    },
+    "latency": {
+      "p50_ms": 1651.91,
+      "p95_ms": 9802.13
+    },
+    "token": {
+      "input": 15063,
+      "output": 357
+    },
+    "cost": {
+      "total": 0.003441,
+      "currency": "USD"
+    },
+    "error_count": 2
+  },
+  "source_predictions": "artifacts\\experiments\\day03\\fewshot_predictions.json"
+}

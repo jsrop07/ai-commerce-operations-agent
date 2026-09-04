@@ -1,0 +1,64 @@
+{
+  "version": "0.1.0",
+  "paths": {
+    "/api/v1/demo/events": ["post"],
+    "/api/v1/health": ["get"],
+    "/api/v1/insights": ["get"],
+    "/api/v1/meta": ["get"],
+    "/api/v1/ready": ["get"]
+  },
+  "required_event_fields": [
+    "correlation_id",
+    "event_id",
+    "event_type",
+    "idempotency_key",
+    "ingested_at",
+    "occurred_at",
+    "payload",
+    "schema_version",
+    "source",
+    "source_event_id",
+    "tenant_id"
+  ],
+  "event_id_type": "string",
+  "event_types": [
+    "action.denied",
+    "discrepancy_detected",
+    "expected_changed",
+    "incoming.delayed",
+    "incoming.updated",
+    "inquiry.received",
+    "inventory.snapshot_received",
+    "offline_sale.recorded",
+    "order.created",
+    "order.updated",
+    "reservation.created",
+    "reservation.shortage_detected",
+    "return.recorded"
+  ],
+  "providers": [
+    "CAFE24",
+    "DEMO",
+    "ECOUNT",
+    "TOSS_POS"
+  ],
+  "api_envelope": {
+    "required_fields": [
+      "as_of",
+      "data",
+      "request_id",
+      "tenant_id",
+      "trace_id"
+    ],
+    "critical_fields": {
+      "schema_version": {"type": "string", "default": "1.0"},
+      "tenant_id": {"type": "string"},
+      "request_id": {"type": "string"},
+      "trace_id": {"type": "string"},
+      "data": {"type": "array", "items_type": "object"},
+      "evidence_ids": {"type": "array", "items_type": "string"},
+      "warnings": {"type": "array", "items_type": "string"},
+      "as_of": {"type": "string", "format": "date-time"}
+    }
+  }
+}

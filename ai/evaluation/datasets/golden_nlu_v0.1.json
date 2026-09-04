@@ -1,0 +1,258 @@
+{
+  "schema_version": "golden-nlu.v0.1",
+  "dataset_id": "golden_nlu",
+  "version": "v0.1",
+  "pii_status": "CLEAN",
+  "contains_real_data": false,
+  "source": "MANUALLY_REVIEWED_SYNTHETIC",
+  "records": [
+    {
+      "id": "nlu_train_001",
+      "split": "train",
+      "text": "별빛 탐험대는 몇 명이서 할 수 있나요?",
+      "expected": {
+        "intent": "PRODUCT_INFO",
+        "entities": [
+          {"type": "PRODUCT", "value": "별빛 탐험대"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_train_002",
+      "split": "train",
+      "text": "구름 도시 확장만 따로 플레이할 수 있나요?",
+      "expected": {
+        "intent": "COMPATIBILITY",
+        "entities": [
+          {"type": "PRODUCT", "value": "구름 도시 확장"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_train_003",
+      "split": "train",
+      "text": "황금 숲 지금 구매 가능한가요?",
+      "expected": {
+        "intent": "STOCK_AVAILABILITY",
+        "entities": [
+          {"type": "PRODUCT", "value": "황금 숲"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_train_004",
+      "split": "train",
+      "text": "별빛 탐험대 다시 들어올 예정이 있나요?",
+      "expected": {
+        "intent": "RESTOCK",
+        "entities": [
+          {"type": "PRODUCT", "value": "별빛 탐험대"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_train_005",
+      "split": "train",
+      "text": "주문한 상품이 아직 준비 중인가요?",
+      "expected": {
+        "intent": "ORDER_STATUS",
+        "entities": [],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_train_006",
+      "split": "train",
+      "text": "환불 처리해주세요.",
+      "expected": {
+        "intent": "REFUND_CANCEL",
+        "entities": [],
+        "risk": "PROHIBITED",
+        "route": "HUMAN_REVIEW"
+      }
+    },
+
+    {
+      "id": "nlu_validation_001",
+      "split": "validation",
+      "text": "황금 숲 플레이 시간이 얼마나 걸리나요?",
+      "expected": {
+        "intent": "PRODUCT_INFO",
+        "entities": [
+          {"type": "PRODUCT", "value": "황금 숲"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_validation_002",
+      "split": "validation",
+      "text": "별빛 탐험대 붉은 달 확장이 본판이랑 같이 쓸 수 있나요?",
+      "expected": {
+        "intent": "COMPATIBILITY",
+        "entities": [
+          {"type": "PRODUCT", "value": "별빛 탐험대 붉은 달 확장"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_validation_003",
+      "split": "validation",
+      "text": "구름 도시 재고 남아 있나요?",
+      "expected": {
+        "intent": "STOCK_AVAILABILITY",
+        "entities": [
+          {"type": "PRODUCT", "value": "구름 도시"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_validation_004",
+      "split": "validation",
+      "text": "황금 숲 품절인데 다음 입고가 언제예요?",
+      "expected": {
+        "intent": "RESTOCK",
+        "entities": [
+          {"type": "PRODUCT", "value": "황금 숲"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_validation_005",
+      "split": "validation",
+      "text": "이번 주 안에 배송 받을 수 있을까요?",
+      "expected": {
+        "intent": "DELIVERY",
+        "entities": [],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_validation_006",
+      "split": "validation",
+      "text": "예약한 상품은 언제 출고되나요?",
+      "expected": {
+        "intent": "RESERVATION_PREORDER",
+        "entities": [],
+        "risk": "MEDIUM",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_validation_007",
+      "split": "validation",
+      "text": "상품 교환하려면 어떻게 해야 하나요?",
+      "expected": {
+        "intent": "RETURN_EXCHANGE",
+        "entities": [],
+        "risk": "MEDIUM",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_validation_008",
+      "split": "validation",
+      "text": "제 주문을 취소해주세요.",
+      "expected": {
+        "intent": "REFUND_CANCEL",
+        "entities": [],
+        "risk": "PROHIBITED",
+        "route": "HUMAN_REVIEW"
+      }
+    },
+
+    {
+      "id": "nlu_test_001",
+      "split": "test",
+      "text": "별빛 탐험대 한국어판인가요?",
+      "expected": {
+        "intent": "PRODUCT_INFO",
+        "entities": [
+          {"type": "PRODUCT", "value": "별빛 탐험대"},
+          {"type": "LANGUAGE", "value": "한국어판"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_test_002",
+      "split": "test",
+      "text": "구름 도시 북쪽 항로는 본판 없이 사용할 수 있나요?",
+      "expected": {
+        "intent": "COMPATIBILITY",
+        "entities": [
+          {"type": "PRODUCT", "value": "구름 도시 북쪽 항로"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_test_003",
+      "split": "test",
+      "text": "황금 숲 오늘 매장에서 바로 살 수 있어요?",
+      "expected": {
+        "intent": "STOCK_AVAILABILITY",
+        "entities": [
+          {"type": "PRODUCT", "value": "황금 숲"},
+          {"type": "CHANNEL", "value": "매장"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_test_004",
+      "split": "test",
+      "text": "품절된 별빛 탐험대 입고 계획 있나요?",
+      "expected": {
+        "intent": "RESTOCK",
+        "entities": [
+          {"type": "PRODUCT", "value": "별빛 탐험대"}
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_test_005",
+      "split": "test",
+      "text": "배송이 아직 시작되지 않은 건가요?",
+      "expected": {
+        "intent": "DELIVERY",
+        "entities": [],
+        "risk": "MEDIUM",
+        "route": "SLLM"
+      }
+    },
+    {
+      "id": "nlu_test_006",
+      "split": "test",
+      "text": "가격을 5만원으로 바꿔주세요.",
+      "expected": {
+        "intent": "OTHER",
+        "entities": [],
+        "risk": "PROHIBITED",
+        "route": "HUMAN_REVIEW"
+      }
+    }
+  ]
+}

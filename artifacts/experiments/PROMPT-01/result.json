@@ -1,0 +1,270 @@
+{
+  "schema_version": "prompt-comparison.v0.1",
+  "experiment_id": "PROMPT-01",
+  "status": "MEASURED_SMALL_VALIDATION",
+  "dataset": {
+    "version": "v0.1",
+    "split": "validation",
+    "sample_count": 8,
+    "sha256": "17f86dcefa6401bb93fb9e8c8274da4e37724d79a1971f6aa034aed7b96a93f5"
+  },
+  "statistics": {
+    "confidence_level": 0.95,
+    "bootstrap_runs": 5000,
+    "bootstrap_seed": 42,
+    "bootstrap_seed_scope": "STATISTICAL_RESAMPLING_ONLY"
+  },
+  "variants": {
+    "zero_shot": {
+      "variant": "zero_shot",
+      "prompt_id": "inquiry_zero_shot",
+      "prompt_version": "0.1.0",
+      "sample_count": 8,
+      "metrics": {
+        "intent_macro_f1": 1.0,
+        "intent_macro_f1_ci95": {
+          "lower": 1.0,
+          "upper": 1.0,
+          "method": "percentile_bootstrap"
+        },
+        "intent_micro_f1": 1.0,
+        "intent_micro_f1_ci95": {
+          "lower": 0.6756,
+          "upper": 1.0,
+          "method": "wilson",
+          "sample_count": 8
+        },
+        "entity_f1": 0.5,
+        "entity_f1_ci95": {
+          "lower": 0.2,
+          "upper": 0.6667,
+          "method": "percentile_bootstrap"
+        },
+        "json_valid_rate": 1.0,
+        "json_valid_rate_ci95": {
+          "lower": 0.6756,
+          "upper": 1.0,
+          "method": "wilson",
+          "sample_count": 8
+        },
+        "high_risk_routing": 1.0,
+        "high_risk_routing_ci95": {
+          "lower": 0.2065,
+          "upper": 1.0,
+          "method": "wilson",
+          "sample_count": 1,
+          "correct": 1
+        },
+        "latency": {
+          "p50_ms": 1847.46,
+          "p95_ms": 3282.44
+        },
+        "token": {
+          "input": 5127,
+          "output": 438
+        },
+        "cost": {
+          "total": 0.001551,
+          "currency": "USD"
+        },
+        "error_count": 7
+      },
+      "execution": {
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "temperature": 0.0,
+        "model_seed": null,
+        "model_seed_supported": false,
+        "reasoning_effort": "none",
+        "store": false,
+        "execution_status": "MODEL_API"
+      }
+    },
+    "structured": {
+      "variant": "structured",
+      "prompt_id": "inquiry_structured",
+      "prompt_version": "0.1.0",
+      "sample_count": 8,
+      "metrics": {
+        "intent_macro_f1": 0.8333,
+        "intent_macro_f1_ci95": {
+          "lower": 0.6,
+          "upper": 1.0,
+          "method": "percentile_bootstrap"
+        },
+        "intent_micro_f1": 0.875,
+        "intent_micro_f1_ci95": {
+          "lower": 0.5291,
+          "upper": 0.9776,
+          "method": "wilson",
+          "sample_count": 8
+        },
+        "entity_f1": 0.4706,
+        "entity_f1_ci95": {
+          "lower": 0.1818,
+          "upper": 0.6667,
+          "method": "percentile_bootstrap"
+        },
+        "json_valid_rate": 1.0,
+        "json_valid_rate_ci95": {
+          "lower": 0.6756,
+          "upper": 1.0,
+          "method": "wilson",
+          "sample_count": 8
+        },
+        "high_risk_routing": 1.0,
+        "high_risk_routing_ci95": {
+          "lower": 0.2065,
+          "upper": 1.0,
+          "method": "wilson",
+          "sample_count": 1,
+          "correct": 1
+        },
+        "latency": {
+          "p50_ms": 1331.86,
+          "p95_ms": 1839.49
+        },
+        "token": {
+          "input": 10535,
+          "output": 449
+        },
+        "cost": {
+          "total": 0.0026458,
+          "currency": "USD"
+        },
+        "error_count": 7
+      },
+      "execution": {
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "temperature": 0.0,
+        "model_seed": null,
+        "model_seed_supported": false,
+        "reasoning_effort": "none",
+        "store": false,
+        "execution_status": "MODEL_API"
+      }
+    },
+    "fewshot": {
+      "variant": "fewshot",
+      "prompt_id": "inquiry_fewshot",
+      "prompt_version": "0.1.0",
+      "sample_count": 8,
+      "metrics": {
+        "intent_macro_f1": 0.8333,
+        "intent_macro_f1_ci95": {
+          "lower": 0.6,
+          "upper": 1.0,
+          "method": "percentile_bootstrap"
+        },
+        "intent_micro_f1": 0.875,
+        "intent_micro_f1_ci95": {
+          "lower": 0.5291,
+          "upper": 0.9776,
+          "method": "wilson",
+          "sample_count": 8
+        },
+        "entity_f1": 0.8889,
+        "entity_f1_ci95": {
+          "lower": 0.5,
+          "upper": 1.0,
+          "method": "percentile_bootstrap"
+        },
+        "json_valid_rate": 1.0,
+        "json_valid_rate_ci95": {
+          "lower": 0.6756,
+          "upper": 1.0,
+          "method": "wilson",
+          "sample_count": 8
+        },
+        "high_risk_routing": 1.0,
+        "high_risk_routing_ci95": {
+          "lower": 0.2065,
+          "upper": 1.0,
+          "method": "wilson",
+          "sample_count": 1,
+          "correct": 1
+        },
+        "latency": {
+          "p50_ms": 1651.91,
+          "p95_ms": 9802.13
+        },
+        "token": {
+          "input": 15063,
+          "output": 357
+        },
+        "cost": {
+          "total": 0.003441,
+          "currency": "USD"
+        },
+        "error_count": 2
+      },
+      "execution": {
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "temperature": 0.0,
+        "model_seed": null,
+        "model_seed_supported": false,
+        "reasoning_effort": "none",
+        "store": false,
+        "execution_status": "MODEL_API"
+      }
+    }
+  },
+  "tradeoff_summary": {
+    "zero_shot": {
+      "strengths": [
+        "highest intent score",
+        "lowest total cost"
+      ],
+      "weaknesses": [
+        "entity over-generation",
+        "7 of 8 error samples"
+      ]
+    },
+    "structured": {
+      "strengths": [
+        "lowest observed p50/p95 latency",
+        "high-risk route preserved"
+      ],
+      "weaknesses": [
+        "intent score below zero-shot",
+        "lowest entity F1",
+        "higher token/cost than zero-shot",
+        "7 of 8 error samples"
+      ]
+    },
+    "fewshot": {
+      "strengths": [
+        "highest entity F1",
+        "fewest error samples",
+        "high-risk route preserved"
+      ],
+      "weaknesses": [
+        "higher token/cost",
+        "observed p95 latency outlier",
+        "reservation vs delivery confusion remains"
+      ]
+    }
+  },
+  "safety_notes": [
+    "High-risk routing had only 1 eligible validation sample.",
+    "Routing success does not imply risk-label correctness.",
+    "PROHIBITED->HIGH was observed while HUMAN_REVIEW remained correct."
+  ],
+  "data_quality_notes": [
+    "DATE_TIME annotation ambiguity was observed.",
+    "Golden entity annotation guideline requires review."
+  ],
+  "limitations": [
+    "Validation contains only 8 samples.",
+    "Confidence intervals are wide and unstable at this sample size.",
+    "Results must not be generalized as final production performance.",
+    "Validation results are for Day 4 integration candidate selection only.",
+    "The final decision requires larger evaluation and later Base sLLM/QLoRA/API comparison."
+  ],
+  "decision": "PENDING_DAY04_CANDIDATE_LOCK",
+  "external_api_calls_day04": 0,
+  "additional_api_cost_usd_day04": 0.0,
+  "gpu_cost_usd_day04": 0.0
+}

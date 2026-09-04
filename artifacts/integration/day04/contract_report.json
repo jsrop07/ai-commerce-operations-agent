@@ -1,0 +1,71 @@
+{
+  "work_id": "D04-BE-02",
+  "status": "PASS_WITH_INTEGRATION_FINDINGS",
+  "contracts": {
+    "openapi": {
+      "version": "0.1.0",
+      "status": "VERIFIED"
+    },
+    "canonical_event": {
+      "version": "1.0",
+      "status": "VERIFIED"
+    },
+    "api_envelope_error": {
+      "version": "1.0",
+      "status": "VERIFIED"
+    },
+    "backend_fixture": {
+      "version": "demo-scenarios.v1",
+      "status": "VERIFIED"
+    },
+    "ai_response": {
+      "version": "ai-response.v0.1",
+      "status": "VERIFIED"
+    },
+    "ai_active_prompt": {
+      "version": "0.1.0",
+      "status": "VERIFIED",
+      "adoption_status": "ADOPTED_FOR_DAY04_INTEGRATION_ONLY"
+    },
+    "frontend_consumer": {
+      "status": "VERIFIED_WITH_FINDING"
+    }
+  },
+  "breaking_differences": 0,
+  "integration_findings": [
+    {
+      "id": "D04-CONTRACT-001",
+      "title": "Inventory Rule and Inquiry AI Runtime have different responsibilities",
+      "status": "RESOLVED_BY_BOUNDARY",
+      "resolution": "Offline-sale inventory remains deterministic Rule/SQL. MockAIRuntime is used only for inquiry-classification integration."
+    },
+    {
+      "id": "D04-CONTRACT-002",
+      "title": "AI Response and Frontend InsightSummary are different contracts",
+      "status": "OPEN_NON_BLOCKING",
+      "resolution": "Do not insert raw ai-response.v0.1 objects directly into /api/v1/insights. A Backend projection boundary is required."
+    },
+    {
+      "id": "D04-CONTRACT-003",
+      "title": "model_run_id null cannot distinguish Rule from AI Mock",
+      "status": "OPEN_NON_BLOCKING",
+      "resolution": "Frontend provenance must not rely only on model_run_id. Additive source/provenance contract should be agreed in a later integration task."
+    },
+    {
+      "id": "D04-CONTRACT-004",
+      "title": "Duplicate inquiry replay invoked the AI consumer more than once",
+      "status": "RESOLVED_BY_IDEMPOTENCY",
+      "resolution": "The mock_ai_inquiry consumer now checks and records its own business-effect identity after a validated response, so accepted/replayed inbox counts remain separate from one AI effect."
+    },
+    {
+      "id": "D04-CONTRACT-005",
+      "title": "Pipeline mutation made a validated AI response fail its schema",
+      "status": "RESOLVED_BY_BOUNDARY",
+      "resolution": "Validated ai-response.v0.1 objects are stored unchanged. correlation_id remains in the pipeline structured-log context rather than being added to the closed AI response schema."
+    }
+  ],
+  "legacy_resolution": [
+    "schedule payload_ref replaced by current payload event envelope",
+    "legacy NFR-COMP-001 not created as a requirement"
+  ]
+}

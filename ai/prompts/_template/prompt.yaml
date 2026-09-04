@@ -1,0 +1,52 @@
+prompt_id: "_template"
+version: "0.1.0"
+
+task_type: "REPLACE_ME"
+
+system:
+  role: "AI Commerce Operations Agent"
+  policy:
+    - "Production은 Read-Only다."
+    - "실재고·가격·환불·결제·주문취소·PII 변경을 자동 실행하지 않는다."
+    - "근거가 부족하면 추측하지 않는다."
+
+instruction:
+  objective: "REPLACE_ME"
+  success_conditions: []
+
+context:
+  trusted_sources: []
+  untrusted_sources: []
+  tenant_id: null
+  as_of: null
+
+examples:
+  positive: []
+  boundary: []
+  abstain: []
+
+output_schema:
+  schema_id: "REPLACE_ME"
+  schema_version: "0.1"
+
+verification:
+  require_evidence_ids: true
+  require_confidence: true
+  require_risk_level: true
+  require_missing_fields: true
+  schema_check: true
+  evidence_check: true
+  policy_check: true
+
+safety:
+  autonomous_external_write: false
+  high_risk_route: HUMAN_REVIEW
+  stale_source_route: HUMAN_REVIEW
+  low_confidence_route: HUMAN_REVIEW
+
+registry:
+  compatible_models: []
+  input_schema_version: "0.1"
+  output_schema_version: "0.1"
+  change_reason: "Initial template"
+  eval_run: null

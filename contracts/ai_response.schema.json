@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ai-response.v0.1",
+  "title": "AI Service Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "trace_id",
+    "task_type",
+    "route",
+    "route_reason",
+    "confidence",
+    "evidence_ids",
+    "warnings",
+    "model",
+    "token",
+    "latency",
+    "cost"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ai-response.v0.1"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "intent": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "route": {
+      "type": "string",
+      "enum": [
+        "RULE_SQL",
+        "RULE_GRAPH",
+        "RETRIEVAL",
+        "SLLM",
+        "SMALL_LLM",
+        "LARGE_LLM",
+        "HUMAN_REVIEW",
+        "POLICY_DENY"
+      ]
+    },
+    "route_reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "confidence": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "model": {
+      "type": ["object", "null"],
+      "properties": {
+        "model_run_id": {
+          "type": ["string", "null"]
+        },
+        "model_id": {
+          "type": ["string", "null"]
+        },
+        "prompt_version": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": [
+        "model_run_id",
+        "model_id",
+        "prompt_version"
+      ],
+      "additionalProperties": false
+    },
+    "token": {
+      "type": "object",
+      "required": [
+        "input",
+        "output",
+        "cache"
+      ],
+      "properties": {
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "latency": {
+      "type": "object",
+      "required": ["total_ms"],
+      "properties": {
+        "total_ms": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "cost": {
+      "type": "object",
+      "required": [
+        "estimated",
+        "currency"
+      ],
+      "properties": {
+        "estimated": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,362 @@
+{
+  "schema_version": "synthetic-dataset.v0.1",
+  "generator_version": "synthetic-generator.v0.1",
+  "seed": 42,
+  "count": 20,
+  "records": [
+    {
+      "record_id": "syn_0001",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "STOCK_AVAILABILITY",
+      "text": "별빛 탐험대 오늘 구매 가능한가요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "별빛 탐험대",
+          "canonical_id": "demo_product_001"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0002",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "DELIVERY",
+      "text": "별빛 탐험대 주문하면 언제 출고되나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "별빛 탐험대",
+          "canonical_id": "demo_product_001"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0003",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "STOCK_AVAILABILITY",
+      "text": "황금 숲 오늘 구매 가능한가요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "황금 숲",
+          "canonical_id": "demo_product_003"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0004",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "COMPATIBILITY",
+      "text": "별빛 탐험대: 붉은 달만으로 플레이 가능한가요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "별빛 탐험대",
+          "canonical_id": "demo_product_001"
+        },
+        {
+          "type": "PRODUCT",
+          "value": "별빛 탐험대: 붉은 달",
+          "canonical_id": "demo_expansion_001"
+        }
+      ],
+      "relations": [
+        {
+          "relation_type": "EXPANSION_OF",
+          "from_id": "demo_expansion_001",
+          "to_id": "demo_product_001"
+        }
+      ],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0005",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "DELIVERY",
+      "text": "황금 숲 주문하면 언제 출고되나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "황금 숲",
+          "canonical_id": "demo_product_003"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0006",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "STOCK_AVAILABILITY",
+      "text": "황금 숲 지금 재고 있나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "황금 숲",
+          "canonical_id": "demo_product_003"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0007",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "RESERVATION_PREORDER",
+      "text": "황금 숲 예약 구매 가능한가요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "황금 숲",
+          "canonical_id": "demo_product_003"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0008",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "DELIVERY",
+      "text": "황금 숲 이번 주 안에 받을 수 있나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "황금 숲",
+          "canonical_id": "demo_product_003"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0009",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "PRODUCT_INFO",
+      "text": "별빛 탐험대의 플레이 시간은 어느 정도인가요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "별빛 탐험대",
+          "canonical_id": "demo_product_001"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0010",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "COMPATIBILITY",
+      "text": "구름 도시: 북쪽 항로만으로 플레이 가능한가요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "별빛 탐험대",
+          "canonical_id": "demo_product_001"
+        },
+        {
+          "type": "PRODUCT",
+          "value": "구름 도시: 북쪽 항로",
+          "canonical_id": "demo_expansion_002"
+        }
+      ],
+      "relations": [
+        {
+          "relation_type": "EXPANSION_OF",
+          "from_id": "demo_expansion_002",
+          "to_id": "demo_product_002"
+        }
+      ],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0011",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "PRODUCT_INFO",
+      "text": "구름 도시은 몇 명이서 플레이할 수 있나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "구름 도시",
+          "canonical_id": "demo_product_002"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0012",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "STOCK_AVAILABILITY",
+      "text": "구름 도시 오늘 구매 가능한가요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "구름 도시",
+          "canonical_id": "demo_product_002"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0013",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "COMPATIBILITY",
+      "text": "구름 도시: 북쪽 항로이 황금 숲과 호환되나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "황금 숲",
+          "canonical_id": "demo_product_003"
+        },
+        {
+          "type": "PRODUCT",
+          "value": "구름 도시: 북쪽 항로",
+          "canonical_id": "demo_expansion_002"
+        }
+      ],
+      "relations": [
+        {
+          "relation_type": "EXPANSION_OF",
+          "from_id": "demo_expansion_002",
+          "to_id": "demo_product_002"
+        }
+      ],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0014",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "RESTOCK",
+      "text": "별빛 탐험대 재입고 예정이 있나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "별빛 탐험대",
+          "canonical_id": "demo_product_001"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0015",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "STOCK_AVAILABILITY",
+      "text": "별빛 탐험대 지금 재고 있나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "별빛 탐험대",
+          "canonical_id": "demo_product_001"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0016",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "DELIVERY",
+      "text": "별빛 탐험대 이번 주 안에 받을 수 있나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "별빛 탐험대",
+          "canonical_id": "demo_product_001"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0017",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "RESERVATION_PREORDER",
+      "text": "황금 숲 예약 구매 가능한가요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "황금 숲",
+          "canonical_id": "demo_product_003"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0018",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "PRODUCT_INFO",
+      "text": "구름 도시의 플레이 시간은 어느 정도인가요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "구름 도시",
+          "canonical_id": "demo_product_002"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0019",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "STOCK_AVAILABILITY",
+      "text": "황금 숲 지금 재고 있나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "황금 숲",
+          "canonical_id": "demo_product_003"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    },
+    {
+      "record_id": "syn_0020",
+      "source": "SYNTHETIC",
+      "generator_version": "synthetic-generator.v0.1",
+      "intent": "RESTOCK",
+      "text": "황금 숲 재입고 예정이 있나요?",
+      "entities": [
+        {
+          "type": "PRODUCT",
+          "value": "황금 숲",
+          "canonical_id": "demo_product_003"
+        }
+      ],
+      "relations": [],
+      "human_validated": false
+    }
+  ],
+  "dataset_hash": "d8a9ab9f67eda39c123a66b481f14a36c661cfc71e039577143d30b5d8c69d42"
+}

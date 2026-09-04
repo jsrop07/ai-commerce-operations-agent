@@ -1,0 +1,22 @@
+{
+  "event_id": "evt_fe_day04_001",
+  "event_type": "offline_sale.recorded",
+  "schema_version": "1.0",
+  "tenant_id": "demo_store",
+  "source": "DEMO",
+  "source_event_id": "fe-day04-sale-001",
+  "occurred_at": "2026-09-03T11:10:00Z",
+  "ingested_at": "2026-09-03T11:10:01Z",
+  "idempotency_key": "DEMO:fe-day04-sale-001:v1",
+  "correlation_id": "corr_fe_day04_001",
+  "payload": {
+    "external_product_text": "Demo Board Game KR",
+    "sku_id": "sku_demo_001",
+    "mapping_confidence": 1.0,
+    "quantity": 2,
+    "amount": {
+      "currency": "KRW",
+      "value": 39000
+    }
+  }
+}

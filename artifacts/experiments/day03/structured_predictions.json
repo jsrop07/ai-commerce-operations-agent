@@ -1,0 +1,296 @@
+{
+  "schema_version": "prompt-predictions.v0.1",
+  "provider": "openai",
+  "model": "gpt-5.6-luna",
+  "temperature": 0.0,
+  "seed": null,
+  "seed_supported": false,
+  "reasoning_effort": "none",
+  "store": false,
+  "split": "validation",
+  "prompt_id": "inquiry_structured",
+  "prompt_version": "0.1.0",
+  "execution_status": "MODEL_API",
+  "records": [
+    {
+      "id": "nlu_validation_001",
+      "expected": {
+        "intent": "PRODUCT_INFO",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "PRODUCT_INFO",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          },
+          {
+            "type": "ISSUE_TYPE",
+            "value": "플레이 시간"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true,
+      "latency_ms": 2046.64,
+      "token": {
+        "input": 1316,
+        "output": 59,
+        "cache": 0
+      },
+      "cost": 0.000334,
+      "raw_output": null
+    },
+    {
+      "id": "nlu_validation_002",
+      "expected": {
+        "intent": "COMPATIBILITY",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "별빛 탐험대 붉은 달 확장"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "COMPATIBILITY",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "별빛 탐험대 붉은 달 확장"
+          },
+          {
+            "type": "CATEGORY",
+            "value": "본판"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true,
+      "latency_ms": 1368.63,
+      "token": {
+        "input": 1327,
+        "output": 64,
+        "cache": 0
+      },
+      "cost": 0.0003422,
+      "raw_output": null
+    },
+    {
+      "id": "nlu_validation_003",
+      "expected": {
+        "intent": "STOCK_AVAILABILITY",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "구름 도시"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "STOCK_AVAILABILITY",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "구름 도시"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true,
+      "latency_ms": 1129.86,
+      "token": {
+        "input": 1315,
+        "output": 49,
+        "cache": 0
+      },
+      "cost": 0.0003218,
+      "raw_output": null
+    },
+    {
+      "id": "nlu_validation_004",
+      "expected": {
+        "intent": "RESTOCK",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "RESTOCK",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          },
+          {
+            "type": "ISSUE_TYPE",
+            "value": "품절"
+          },
+          {
+            "type": "DATE_TIME",
+            "value": "다음 입고"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true,
+      "latency_ms": 1303.91,
+      "token": {
+        "input": 1320,
+        "output": 70,
+        "cache": 0
+      },
+      "cost": 0.000348,
+      "raw_output": null
+    },
+    {
+      "id": "nlu_validation_005",
+      "expected": {
+        "intent": "DELIVERY",
+        "entities": [],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "DELIVERY",
+        "entities": [
+          {
+            "type": "DATE_TIME",
+            "value": "이번 주 안에"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true,
+      "latency_ms": 1312.95,
+      "token": {
+        "input": 1315,
+        "output": 48,
+        "cache": 0
+      },
+      "cost": 0.0003206,
+      "raw_output": null
+    },
+    {
+      "id": "nlu_validation_006",
+      "expected": {
+        "intent": "RESERVATION_PREORDER",
+        "entities": [],
+        "risk": "MEDIUM",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "DELIVERY",
+        "entities": [
+          {
+            "type": "ISSUE_TYPE",
+            "value": "출고"
+          },
+          {
+            "type": "PRODUCT",
+            "value": "예약한 상품"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.98
+      },
+      "json_valid": true,
+      "latency_ms": 1350.76,
+      "token": {
+        "input": 1315,
+        "output": 57,
+        "cache": 0
+      },
+      "cost": 0.0003314,
+      "raw_output": null
+    },
+    {
+      "id": "nlu_validation_007",
+      "expected": {
+        "intent": "RETURN_EXCHANGE",
+        "entities": [],
+        "risk": "MEDIUM",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "RETURN_EXCHANGE",
+        "entities": [
+          {
+            "type": "ISSUE_TYPE",
+            "value": "교환"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true,
+      "latency_ms": 1171.75,
+      "token": {
+        "input": 1315,
+        "output": 48,
+        "cache": 0
+      },
+      "cost": 0.0003206,
+      "raw_output": null
+    },
+    {
+      "id": "nlu_validation_008",
+      "expected": {
+        "intent": "REFUND_CANCEL",
+        "entities": [],
+        "risk": "PROHIBITED",
+        "route": "HUMAN_REVIEW"
+      },
+      "prediction": {
+        "intent": "REFUND_CANCEL",
+        "entities": [
+          {
+            "type": "ISSUE_TYPE",
+            "value": "주문 취소"
+          }
+        ],
+        "risk": "PROHIBITED",
+        "route": "HUMAN_REVIEW",
+        "confidence": 0.99
+      },
+      "json_valid": true,
+      "latency_ms": 1454.78,
+      "token": {
+        "input": 1312,
+        "output": 54,
+        "cache": 0
+      },
+      "cost": 0.0003272,
+      "raw_output": null
+    }
+  ]
+}

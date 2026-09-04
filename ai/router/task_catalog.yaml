@@ -1,0 +1,90 @@
+schema_version: "task-catalog.v0.1"
+
+routing_principles:
+  deterministic_first: true
+  large_model_default: false
+  production_write_allowed: false
+  low_confidence_route: HUMAN_REVIEW
+  stale_source_route: HUMAN_REVIEW
+  prohibited_action_route: POLICY_DENY
+
+tasks:
+  inventory_calculation:
+    description: "재고 Snapshot과 Ledger를 이용한 예상 재고 계산"
+    primary_route: RULE_SQL
+    retrieval_required: false
+    model_required: false
+    large_model_allowed: false
+    large_model_not_used_reason: "결정론적 산술 문제이며 Rule/SQL이 더 정확하고 저렴함"
+    risk_level: LOW
+
+  reservation_shortage:
+    description: "예약수량, 확보재고, 입고예정을 이용한 부족수량 계산"
+    primary_route: RULE_SQL
+    retrieval_required: false
+    model_required: false
+    large_model_allowed: false
+    large_model_not_used_reason: "부족수량은 결정론적 계산으로 해결 가능함"
+    risk_level: LOW
+
+  schedule_conflict:
+    description: "Task dependency와 일정 충돌 탐지"
+    primary_route: RULE_GRAPH
+    retrieval_required: false
+    model_required: false
+    escalation_route: SMALL_LLM
+    large_model_allowed: true
+    large_model_condition: "여러 일정과 근거를 종합해 설명해야 하는 복합 충돌"
+    large_model_not_used_reason: "충돌 판정 자체는 Rule/Graph가 담당하며 LLM은 설명에만 사용"
+    risk_level: MEDIUM
+
+  inquiry_classification:
+    description: "고객문의 intent, entity, risk, lookup flag 구조화"
+    primary_route: SLLM
+    retrieval_required: false
+    model_required: true
+    escalation_route: LARGE_LLM
+    escalation_conditions:
+      - LOW_CONFIDENCE
+      - SCHEMA_REPAIR_FAILED
+      - RARE_INTENT
+    large_model_allowed: true
+    large_model_not_used_reason: "routine 문의는 sLLM으로 처리하여 비용과 지연을 줄임"
+    risk_level: MEDIUM
+
+  grounded_answer_draft:
+    description: "상품·정책 근거를 이용한 고객문의 답변 초안"
+    primary_route: RETRIEVAL_SMALL_LLM
+    retrieval_required: true
+    model_required: true
+    escalation_route: LARGE_LLM
+    escalation_conditions:
+      - CONFLICTING_EVIDENCE
+      - COMPLEX_MULTI_SOURCE
+    large_model_allowed: true
+    large_model_not_used_reason: "근거가 명확한 일반 문의는 small model로 충분한지 먼저 평가"
+    risk_level: MEDIUM
+    autonomous_send_allowed: false
+
+  complex_operations_judgment:
+    description: "여러 운영 근거를 종합한 복합 판단과 설명"
+    primary_route: RULE_RETRIEVAL
+    retrieval_required: true
+    model_required: false
+    escalation_route: LARGE_LLM
+    escalation_conditions:
+      - COMPLEX_MULTI_SOURCE
+      - EXPLANATION_REQUIRED
+    large_model_allowed: true
+    large_model_not_used_reason: "Rule과 Retrieval 결과가 충분하면 모델 호출을 생략"
+    risk_level: MEDIUM
+
+  refund_cancel_price_pii:
+    description: "환불·취소·가격·결제·고객 PII 변경 요청"
+    primary_route: POLICY_DENY
+    retrieval_required: false
+    model_required: false
+    large_model_allowed: false
+    large_model_not_used_reason: "Core Build에서 AI 자동 실행이 금지된 R3 행동"
+    risk_level: PROHIBITED
+    human_required: true

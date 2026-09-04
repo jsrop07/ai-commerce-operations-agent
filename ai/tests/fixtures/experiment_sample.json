@@ -1,0 +1,27 @@
+{
+  "experiment_id": "PROMPT-01",
+  "dataset_version": "golden-nlu.v0.1",
+  "dataset_manifest_hash": "sha256:PENDING_DAY1",
+  "split_version": "v0.1",
+  "code_commit": null,
+  "seed": 42,
+  "baseline": {
+    "name": "zero-shot"
+  },
+  "candidate": {
+    "name": "structured-zero-shot"
+  },
+  "metrics": {
+    "json_valid_rate": null
+  },
+  "latency_cost": {
+    "p50_ms": null,
+    "p95_ms": null,
+    "estimated_cost": null
+  },
+  "slice_results": {},
+  "error_analysis": [],
+  "decision": "PENDING",
+  "decision_reason": null,
+  "artifacts": []
+}

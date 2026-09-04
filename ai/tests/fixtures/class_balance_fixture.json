@@ -1,0 +1,65 @@
+{
+  "schema_version": "class-balance-fixture.v0.1",
+  "records": [
+    {
+      "record_id": "cb_001",
+      "intent": "PRODUCT_INFO",
+      "category": "BOARD_GAME",
+      "issue": "NONE"
+    },
+    {
+      "record_id": "cb_002",
+      "intent": "PRODUCT_INFO",
+      "category": "BOARD_GAME",
+      "issue": "NONE"
+    },
+    {
+      "record_id": "cb_003",
+      "intent": "PRODUCT_INFO",
+      "category": "EXPANSION",
+      "issue": "NONE"
+    },
+    {
+      "record_id": "cb_004",
+      "intent": "STOCK_AVAILABILITY",
+      "category": "BOARD_GAME",
+      "issue": "INVENTORY"
+    },
+    {
+      "record_id": "cb_005",
+      "intent": "STOCK_AVAILABILITY",
+      "category": "BOARD_GAME",
+      "issue": "INVENTORY"
+    },
+    {
+      "record_id": "cb_006",
+      "intent": "DELIVERY",
+      "category": "BOARD_GAME",
+      "issue": "DELIVERY_DELAY"
+    },
+    {
+      "record_id": "cb_007",
+      "intent": "DELIVERY",
+      "category": "EXPANSION",
+      "issue": "DELIVERY_DELAY"
+    },
+    {
+      "record_id": "cb_008",
+      "intent": "RESTOCK",
+      "category": "ACCESSORY",
+      "issue": "INVENTORY"
+    },
+    {
+      "record_id": "cb_009",
+      "intent": "COMPATIBILITY",
+      "category": "EXPANSION",
+      "issue": "COMPATIBILITY"
+    },
+    {
+      "record_id": "cb_010",
+      "intent": "REFUND_CANCEL",
+      "category": "BOARD_GAME",
+      "issue": "REFUND_CANCEL"
+    }
+  ]
+}

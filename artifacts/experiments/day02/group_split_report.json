@@ -1,0 +1,39 @@
+{
+  "schema_version": "group-split-report.v0.1",
+  "total_records": 10,
+  "counts": {
+    "train": 6,
+    "validation": 2,
+    "test": 2
+  },
+  "ratios": {
+    "train": 0.6,
+    "validation": 0.2,
+    "test": 0.2
+  },
+  "customer_overlap": {
+    "train_validation": [],
+    "train_test": [],
+    "validation_test": []
+  },
+  "thread_overlap": {
+    "train_validation": [],
+    "train_test": [],
+    "validation_test": []
+  },
+  "group_overlap_count": 0,
+  "time_ranges": {
+    "train": {
+      "min": "2026-01-05T10:00:00+00:00",
+      "max": "2026-02-20T13:00:00+00:00"
+    },
+    "validation": {
+      "min": "2026-03-01T15:00:00+00:00",
+      "max": "2026-03-10T16:00:00+00:00"
+    },
+    "test": {
+      "min": "2026-03-20T17:00:00+00:00",
+      "max": "2026-04-01T18:00:00+00:00"
+    }
+  }
+}

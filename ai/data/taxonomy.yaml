@@ -1,0 +1,213 @@
+schema_version: "taxonomy.v0.1"
+
+intent:
+  - label: "PRODUCT_INFO"
+    description: "상품의 구성, 특징, 언어, 플레이 조건 등 상품 자체에 대한 정보를 묻는 문의"
+    examples:
+      - "이 게임 한국어판인가요?"
+      - "몇 명이서 플레이할 수 있나요?"
+
+  - label: "COMPATIBILITY"
+    description: "본판·확장팩·구성품 사이의 호환 또는 단독 사용 가능 여부를 묻는 문의"
+    examples:
+      - "이 확장팩만으로 플레이 가능한가요?"
+      - "이 구성품이 기존 본판과 호환되나요?"
+
+  - label: "STOCK_AVAILABILITY"
+    description: "현재 재고 또는 구매 가능 여부를 묻는 문의"
+    examples:
+      - "지금 재고 있나요?"
+      - "오늘 주문할 수 있나요?"
+
+  - label: "RESTOCK"
+    description: "품절 상품의 향후 재입고 여부나 예상 시점을 묻는 문의"
+    examples:
+      - "재입고 예정 있나요?"
+      - "다시 언제 들어오나요?"
+
+  - label: "ORDER_STATUS"
+    description: "이미 접수된 주문의 처리 상태를 확인하는 문의"
+    examples:
+      - "제 주문 지금 어떤 상태인가요?"
+      - "주문 확인됐나요?"
+
+  - label: "DELIVERY"
+    description: "배송 시작, 도착 시점, 배송 진행과 관련된 문의"
+    examples:
+      - "언제 배송 시작하나요?"
+      - "이번 주 안에 받을 수 있나요?"
+
+  - label: "RESERVATION_PREORDER"
+    description: "예약구매 또는 예약주문의 접수·수량·일정과 관련된 문의"
+    examples:
+      - "예약 구매 가능한가요?"
+      - "예약한 상품은 언제 출고되나요?"
+
+  - label: "RETURN_EXCHANGE"
+    description: "교환·반품 가능 여부나 절차에 관한 문의이며 실제 처리 실행은 사람이 담당한다"
+    examples:
+      - "교환 가능한가요?"
+      - "반품하려면 어떻게 해야 하나요?"
+
+  - label: "REFUND_CANCEL"
+    description: "환불 또는 주문 취소와 관련된 고위험 문의이며 자동 실행하지 않고 사람 검토로 전달한다"
+    examples:
+      - "주문 취소해주세요."
+      - "환불받고 싶어요."
+
+  - label: "OTHER"
+    description: "정의된 Intent로 안전하게 분류할 수 없는 문의"
+    examples:
+      - "다른 문의가 있어요."
+
+entity:
+  - label: "PRODUCT"
+    description: "문의나 운영 입력에서 언급된 보드게임 상품 또는 상품군"
+    examples:
+      - "아크노바"
+      - "윙스팬"
+
+  - label: "SKU"
+    description: "상품의 언어판, 에디션, 옵션 등 실제 재고와 주문에 연결되는 SKU 식별 대상"
+    examples:
+      - "한국어판"
+      - "딜럭스 에디션"
+
+  - label: "BRAND"
+    description: "상품의 출판사, 브랜드 또는 제조사"
+    examples:
+      - "코리아보드게임즈"
+      - "Stonemaier Games"
+
+  - label: "CATEGORY"
+    description: "상품의 분류나 유형"
+    examples:
+      - "전략게임"
+      - "확장팩"
+
+  - label: "LANGUAGE"
+    description: "상품 또는 구성품의 언어 정보"
+    examples:
+      - "한국어"
+      - "영문판"
+
+  - label: "ORDER_REF"
+    description: "고객 식별정보가 아닌 비식별 주문 참조 식별자"
+    examples:
+      - "ord_demo_001"
+
+  - label: "QUANTITY"
+    description: "주문·예약·재고·입고와 관련된 수량"
+    examples:
+      - "2개"
+      - "5개"
+
+  - label: "DATE_TIME"
+    description: "배송, 입고, 출시, 예약과 관련된 날짜 또는 시각"
+    examples:
+      - "이번 주 금요일"
+      - "9월 10일"
+
+  - label: "CHANNEL"
+    description: "온라인·오프라인 또는 Provider 기반 판매·문의 채널"
+    examples:
+      - "온라인몰"
+      - "오프라인 매장"
+
+  - label: "ISSUE_TYPE"
+    description: "문의나 운영 이벤트에서 나타난 문제 유형"
+    examples:
+      - "재고 불일치"
+      - "배송 지연"
+
+risk:
+  - label: "LOW"
+    description: "조회·설명 중심으로 자동 실행 위험이 없고 일반적인 근거 기반 응답이 가능한 상태"
+    examples:
+      - "상품 설명 문의"
+      - "현재 재고 조회"
+
+  - label: "MEDIUM"
+    description: "운영 판단이나 사람 검토가 필요할 수 있지만 외부 고위험 실행을 직접 요구하지 않는 상태"
+    examples:
+      - "예약 부족 위험"
+      - "배송 지연 문의"
+
+  - label: "HIGH"
+    description: "근거 충돌, 낮은 신뢰도 또는 운영 피해 가능성 때문에 사람 검토가 필요한 상태"
+    examples:
+      - "재고 정보가 Provider마다 다름"
+      - "근거가 오래되어 확답하기 어려움"
+
+  - label: "PROHIBITED"
+    description: "환불·결제·가격·주문취소·실재고·고객 PII 변경처럼 AI 자동 실행이 금지된 상태"
+    examples:
+      - "환불 처리해주세요."
+      - "재고를 10개로 바꿔주세요."
+
+product_relation:
+  - label: "BASE_GAME_OF"
+    description: "한 상품이 다른 상품 관계에서 본판 역할을 하는 관계"
+    examples:
+      - "이 확장팩의 본판"
+
+  - label: "EXPANSION_OF"
+    description: "한 상품이 특정 본판의 확장팩임을 나타내는 관계"
+    examples:
+      - "윙스팬 유럽 확장"
+
+  - label: "CONTAINS"
+    description: "상품이나 세트가 특정 구성품 또는 하위 상품을 포함하는 관계"
+    examples:
+      - "본 상품에 프로모 카드가 포함됨"
+
+  - label: "ACCESSORY_FOR"
+    description: "구성품이나 액세서리가 특정 상품을 위해 사용되는 관계"
+    examples:
+      - "전용 오거나이저"
+
+  - label: "COMPATIBLE_WITH"
+    description: "두 상품 또는 구성품이 함께 사용할 수 있는 호환 관계"
+    examples:
+      - "기존 한국어판 본판과 호환됨"
+
+  - label: "PROMO_FOR"
+    description: "프로모 상품이나 구성품이 특정 상품을 위한 관계"
+    examples:
+      - "본판 전용 프로모 카드"
+
+anomaly:
+  - label: "INVENTORY_MISMATCH"
+    description: "Provider Snapshot과 예상 Ledger 재고가 일치하지 않는 이상 상태"
+    examples:
+      - "온라인 재고 5개, 예상 재고 3개"
+
+  - label: "RESERVATION_SHORTAGE"
+    description: "예약 수요가 확보재고와 확정 입고량을 초과하는 상태"
+    examples:
+      - "예약 5개, 가용 1개, 확정 입고 2개"
+
+  - label: "INCOMING_DELAY"
+    description: "확정 또는 예상 입고 일정이 기존 일정보다 늦어진 상태"
+    examples:
+      - "입고 예정일이 3일 연기됨"
+
+  - label: "SCHEDULE_CONFLICT"
+    description: "선행 Task 지연이나 의존성으로 인해 후속 일정이 충돌하는 상태"
+    examples:
+      - "입고 지연으로 출시 등록 일정과 충돌"
+
+  - label: "AMBIGUOUS_MAPPING"
+    description: "하나의 Provider 상품이 둘 이상의 Canonical 상품 또는 SKU 후보와 연결되는 상태"
+    examples:
+      - "동일 상품명이 한국어판과 영문판 두 SKU에 매칭됨"
+
+  - label: "DUPLICATE_EVENT"
+    description: "동일 Source Event가 재전송 또는 반복 수집된 상태"
+    examples:
+      - "같은 오프라인 판매 Event가 두 번 수신됨"
+
+  - label: "STALE_SOURCE"
+    description: "Source의 as_of 또는 갱신 시간이 freshness 기준을 초과한 상태"
+    examples:
+      - "재고 데이터가 최신 SLA를 초과함"

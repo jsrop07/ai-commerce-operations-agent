@@ -1,0 +1,64 @@
+{
+  "schema_version": "prompt-error-analysis.v0.1",
+  "variant": "inquiry_fewshot",
+  "model": "gpt-5.6-luna",
+  "temperature": 0.0,
+  "seed": null,
+  "seed_supported": false,
+  "sample_count": 8,
+  "error_sample_count": 2,
+  "category_counts": {
+    "WRONG_INTENT": 1,
+    "ENTITY_MISS": 0,
+    "SCHEMA_ERROR": 0,
+    "UNSAFE_ROUTE": 0,
+    "OVER_ANSWER": 1
+  },
+  "errors": [
+    {
+      "id": "nlu_validation_005",
+      "categories": [
+        "OVER_ANSWER"
+      ],
+      "expected": {
+        "intent": "DELIVERY",
+        "entities": [],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "DELIVERY",
+        "entities": [
+          {
+            "type": "DATE_TIME",
+            "value": "이번 주 안에"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true
+    },
+    {
+      "id": "nlu_validation_006",
+      "categories": [
+        "WRONG_INTENT"
+      ],
+      "expected": {
+        "intent": "RESERVATION_PREORDER",
+        "entities": [],
+        "risk": "MEDIUM",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "DELIVERY",
+        "entities": [],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.98
+      },
+      "json_valid": true
+    }
+  ]
+}

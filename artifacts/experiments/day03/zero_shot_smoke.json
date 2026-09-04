@@ -1,0 +1,55 @@
+{
+  "schema_version": "prompt-predictions.v0.1",
+  "provider": "openai",
+  "model": "gpt-5.6-luna",
+  "temperature": 0.0,
+  "seed": null,
+  "seed_supported": false,
+  "reasoning_effort": "none",
+  "store": false,
+  "split": "validation",
+  "prompt_id": "inquiry_zero_shot",
+  "prompt_version": "0.1.0",
+  "execution_status": "MODEL_API",
+  "records": [
+    {
+      "id": "nlu_validation_001",
+      "expected": {
+        "intent": "PRODUCT_INFO",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM"
+      },
+      "prediction": {
+        "intent": "PRODUCT_INFO",
+        "entities": [
+          {
+            "type": "PRODUCT",
+            "value": "황금 숲"
+          },
+          {
+            "type": "ISSUE_TYPE",
+            "value": "플레이 시간"
+          }
+        ],
+        "risk": "LOW",
+        "route": "SLLM",
+        "confidence": 0.99
+      },
+      "json_valid": true,
+      "latency_ms": 8453.57,
+      "token": {
+        "input": 640,
+        "output": 59,
+        "cache": 0
+      },
+      "cost": 0.0001988,
+      "raw_output": null
+    }
+  ]
+}
