@@ -1,44 +1,418 @@
-import { RiskBadge, SourceBadge } from "../../components/Badges";
-import InternalTaskAction from "../../components/InternalTaskAction";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import InventoryFilters, {
+  type InventoryFilterValue,
+} from "../../features/inventory/filters";
+import InventoryDetailPanel from "../../features/inventory/InventoryDetailPanel";
+import { SourceBadge } from "../../components/Badges";
+import FreshnessLabel from "../../components/FreshnessLabel";
+import SystemState from "../../components/SystemStates";
+import { mockApiGet } from "../../mocks/handlers";
+import type {
+  ApiEnvelope,
+  InventorySnapshot,
+  ProductSummary,
+  SkuSummary,
+  TaskSummary,
+} from "../../types/contracts";
 
-const products = [
-  ["레드벨벳 케이크 500g", "CAKE-RV-500", "12", "3", "-9", "20 / 9월 6일", "critical", "3분 전"],
-  ["티라미수 케이크 세트", "CAKE-TM-SET", "24", "18", "-6", "30 / 9월 8일", "critical", "12분 전"],
-  ["딸기 생크림 케이크", "CAKE-STR-WC", "15", "15", "0", "—", "ok", "5분 전"],
-  ["초코 가나슈 롤케이크", "ROLL-CHO-GAN", "8", "6", "-2", "10 / 9월 5일", "warning", "47분 전"],
-  ["말차 라떼 케이크", "CAKE-MT-LAT", "5", "0", "-5", "15 / 9월 7일", "critical", "47분 전"],
-];
+interface ProductCatalogData {
+  products: ProductSummary[];
+  skus: SkuSummary[];
+}
+
+const freshnessOrder = {
+  STALE: 0,
+  UNKNOWN: 1,
+  FRESH: 2,
+} as const;
+
+function sortInventory(
+  items: InventorySnapshot[],
+): InventorySnapshot[] {
+  return [...items].sort((a, b) => {
+    const freshnessDiff =
+      freshnessOrder[a.freshness] -
+      freshnessOrder[b.freshness];
+
+    if (freshnessDiff !== 0) {
+      return freshnessDiff;
+    }
+
+    const skuDiff = a.sku_id.localeCompare(b.sku_id);
+
+    if (skuDiff !== 0) {
+      return skuDiff;
+    }
+
+    return a.provider.localeCompare(b.provider);
+  });
+}
 
 export default function InventoryPage() {
+  const [inventory, setInventory] =
+    useState<ApiEnvelope<InventorySnapshot[]> | null>(null);
+  const [catalog, setCatalog] =
+    useState<ApiEnvelope<ProductCatalogData> | null>(null);
+  const [tasks, setTasks] =
+    useState<ApiEnvelope<TaskSummary[]> | null>(null);
+
+  const [filters, setFilters] =
+    useState<InventoryFilterValue>({
+      brand: "",
+      category: "",
+    });
+
+  const [selectedInventory, setSelectedInventory] =
+    useState<InventorySnapshot | null>(null);
+
+  const lastSelectedRowRef =
+    useRef<HTMLTableRowElement | null>(null);
+  const restoreFocusOnCloseRef = useRef(false);
+
+  const closeInventoryDetail = useCallback(() => {
+    restoreFocusOnCloseRef.current = true;
+    setSelectedInventory(null);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (
+      selectedInventory !== null ||
+      !restoreFocusOnCloseRef.current
+    ) {
+      return;
+    }
+
+    restoreFocusOnCloseRef.current = false;
+    lastSelectedRowRef.current?.focus();
+  }, [selectedInventory]);
+
+  useEffect(() => {
+    let active = true;
+
+    mockApiGet<ApiEnvelope<TaskSummary[]>>(
+      "/api/v1/tasks",
+    ).then((response) => {
+      if (active) {
+        setTasks(response);
+      }
+    });
+
+    mockApiGet<ApiEnvelope<InventorySnapshot[]>>(
+      "/api/v1/inventory",
+    ).then((response) => {
+      if (active) {
+        setInventory(response);
+      }
+    });
+
+    mockApiGet<ApiEnvelope<ProductCatalogData>>(
+      "/api/v1/products",
+    ).then((response) => {
+      if (active) {
+        setCatalog(response);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!inventory || !catalog || !tasks) {
+    return (
+      <div
+        className="page"
+        data-testid="route-inventory"
+      >
+        <SystemState state="loading" />
+      </div>
+    );
+  }
+
+  const inventoryTaskProposals = tasks.data.filter(
+      (task) =>
+        task.type === "INVENTORY_REVIEW" &&
+        task.status === "PROPOSED",
+    );
+
+  const { data } = inventory;
+  const skuById = new Map(
+    catalog.data.skus.map((sku) => [
+      sku.id,
+      sku,
+    ]),
+  );
+
+  const productById = new Map(
+    catalog.data.products.map((product) => [
+      product.id,
+      product,
+    ]),
+  );
+
+  const brands = Array.from(
+    new Set(
+      catalog.data.products.map(
+        (product) => product.brand_id,
+      ),
+    ),
+  ).sort();
+
+  const filteredInventory = data.filter((item) => {
+    const sku = skuById.get(item.sku_id);
+
+    if (!sku) {
+      return false;
+    }
+
+    const product = productById.get(
+      sku.product_id,
+    );
+
+    if (!product) {
+      return false;
+    }
+
+    const brandMatches =
+      filters.brand === "" ||
+      product.brand_id === filters.brand;
+
+    const categoryMatches =
+      filters.category === "" ||
+      product.category === filters.category;
+
+    return brandMatches && categoryMatches;
+  });
+
+  const categories = Array.from(
+    new Set(
+      catalog.data.products.map(
+        (product) => product.category,
+      ),
+    ),
+  ).sort();
+
+  const sortedInventory =
+    sortInventory(filteredInventory);
+
+  const staleCount = filteredInventory.filter(
+    (item) => item.freshness === "STALE",
+  ).length;
+
+  function selectInventory(
+    item: InventorySnapshot,
+    row: HTMLTableRowElement,
+  ) {
+    const isSameItem =
+      selectedInventory?.provider === item.provider &&
+      selectedInventory?.sku_id === item.sku_id;
+
+    if (isSameItem) {
+      closeInventoryDetail();
+      return;
+    }
+
+    restoreFocusOnCloseRef.current = false;
+    lastSelectedRowRef.current = row;
+    setSelectedInventory(item);
+  }
+
+  if (data.length === 0) {
+    return (
+      <div
+        className="page"
+        data-testid="route-inventory"
+      >
+        <SystemState
+          state="empty"
+          title="표시할 재고가 없습니다"
+          description="현재 조회 가능한 재고 Snapshot이 없습니다."
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="page" data-testid="route-inventory">
-      <div className="toolbar"><button className="filter active">재고 현황</button><button className="filter">상품 연결 <span className="badge warning">3</span></button><span className="right tertiary">행 기준 최신 확인 시각 표시</span></div>
-      <div className="notice" style={{ marginBottom: 14 }}><strong>⚠ 데이터 지연 · 최신 정보가 아닐 수 있습니다</strong><br /><span className="muted">eCount 마지막 확인 47분 전 · 중요 의사결정 전 직접 확인하세요.</span></div>
-      <div className="split">
+    <div
+      className="page"
+      data-testid="route-inventory"
+    >
+      <div className="toolbar">
+        <strong>상품·재고</strong>
+
+        <span className="right tertiary">
+          조회 기준 시각{" "}
+          <time dateTime={inventory.as_of}>
+            {new Date(inventory.as_of).toLocaleString("ko-KR")}
+          </time>
+        </span>
+      </div>
+
+      <InventoryFilters
+        value={filters}
+        brands={brands}
+        categories={categories}
+        onChange={setFilters}
+      />
+
+      <div
+        className="notice"
+        role="status"
+      >
+        현재 화면은 확정된 재고 Snapshot 계약만 표시합니다.
+        예상재고·입고예정·위험 값은 계약에 없는 값을 임의 생성하지 않습니다.
+      </div>
+
+      {staleCount > 0 && (
+        <div
+          className="notice"
+          role="status"
+          data-testid="inventory-stale-warning"
+        >
+          <strong>
+            오래된 재고 데이터 {staleCount}건이 있습니다.
+          </strong>
+
+          <div className="muted">
+            최신 수량을 확인하기 전에는 재고 위험을 확정하지 않습니다.
+          </div>
+        </div>
+      )}
+
+      {sortedInventory.length === 0 ? (
+        <SystemState
+          state="empty"
+          title="조건에 맞는 재고가 없습니다"
+          description="선택한 필터 조건을 변경해 다시 확인하세요."
+        />
+      ) : (
         <section className="card">
           <table className="dense-table">
-            <thead><tr><th>상품명</th><th>SKU</th><th>판매 재고</th><th>실재고</th><th>차이</th><th>입고 예정</th><th>상태</th><th>최종 확인</th></tr></thead>
-            <tbody>{products.map(([name, sku, listed, actual, diff, incoming, level, updated]) => (
-              <tr key={sku}>
-                <td><strong>{name}</strong></td><td className="mono">{sku}</td>
-                <td className="number"><SourceBadge>Cafe24</SourceBadge> {listed}</td><td className="number"><SourceBadge>eCount</SourceBadge> {actual}</td>
-                <td className="number"><strong>{diff}</strong></td><td>{incoming}</td><td><RiskBadge level={level as "critical" | "warning" | "ok"} /></td><td><span className="badge">⏱ {updated}</span></td>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>채널</th>
+                <th>현재 Snapshot</th>
+                <th>예약</th>
+                <th>예상재고</th>
+                <th>입고예정</th>
+                <th>위험</th>
+                <th>최신성</th>
+                <th>기준 시각</th>
               </tr>
-            ))}</tbody>
+            </thead>
+
+            <tbody>
+              {sortedInventory.map((item) => (
+                <tr
+                  key={`${item.provider}-${item.sku_id}`}
+                  tabIndex={0}
+                  className={
+                    selectedInventory?.provider === item.provider &&
+                    selectedInventory?.sku_id === item.sku_id
+                      ? "inventory-row selected"
+                      : "inventory-row"
+                  }
+                  aria-selected={
+                    selectedInventory?.provider === item.provider &&
+                    selectedInventory?.sku_id === item.sku_id
+                  }
+                  aria-expanded={
+                    selectedInventory?.provider === item.provider &&
+                    selectedInventory?.sku_id === item.sku_id
+                  }
+                  aria-controls="inventory-detail-panel"
+                  aria-label={`${item.sku_id} ${item.provider} 재고 상세 열기`}
+                  onClick={(event) => {
+                    selectInventory(
+                      item,
+                      event.currentTarget,
+                    );
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" ||
+                      event.key === " "
+                    ) {
+                      event.preventDefault();
+
+                      selectInventory(
+                        item,
+                        event.currentTarget,
+                      );
+                    }
+                  }}
+                >
+                  <td className="mono">
+                    {item.sku_id}
+                  </td>
+
+                  <td>
+                    <SourceBadge>
+                      {item.provider}
+                    </SourceBadge>
+                  </td>
+
+                  <td className="number">
+                    {item.on_hand}
+                  </td>
+
+                  <td className="number">
+                    {item.reserved}
+                  </td>
+
+                  <td>
+                    <span className="muted">
+                      계약 미제공
+                    </span>
+                  </td>
+
+                  <td>
+                    <span className="muted">
+                      계약 미제공
+                    </span>
+                  </td>
+
+                  <td>
+                    <span className="muted">
+                      계약 미제공
+                    </span>
+                  </td>
+
+                  <td>
+                    <FreshnessLabel
+                      freshness={item.freshness}
+                      source={item.provider}
+                      asOf={item.as_of}
+                      showMetadata={false}
+                    />
+                  </td>
+
+                  <td>
+                    <time dateTime={item.as_of}>
+                      {new Date(
+                        item.as_of,
+                      ).toLocaleString("ko-KR")}
+                    </time>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </section>
-        <aside className="card">
-          <div className="card-header">재고 비교 요약</div>
-          <div className="card-body stack">
-            <RiskBadge level="critical" />
-            <h3 style={{ margin: 0 }}>레드벨 케이크 500g</h3>
-            <div className="notice ai">✦ eCount 데이터 지연 또는 POS 판매 반영 시차로 차이가 생겼을 수 있습니다.</div>
-            <div className="card"><table className="dense-table"><tbody><tr><td>판매 재고</td><td className="number">12개</td></tr><tr><td>실재고</td><td className="number">3개</td></tr><tr><td>시스템 간 차이</td><td className="number"><strong>-9개</strong></td></tr></tbody></table></div>
-            <p className="muted">담당자가 원본 시스템에서 직접 확인한 뒤 판단합니다.</p>
-            <InternalTaskAction />
-          </div>
-        </aside>
-      </div>
+      )}
+      <InventoryDetailPanel
+        item={selectedInventory}
+        open={selectedInventory !== null}
+        taskProposals={inventoryTaskProposals}
+        onClose={closeInventoryDetail}
+      />
     </div>
   );
 }

@@ -1,0 +1,62 @@
+schema_version: "retrieval-freshness.v0.1"
+owner: "AI_ML"
+
+policy_basis:
+  ttl_values_are: "DEMO_EVAL_INITIAL"
+  production_sla_confirmed: false
+  stale_source_route: "HUMAN_REVIEW"
+  stale_live_data_allows_definitive_answer: false
+  stale_live_data_allows_production_write: false
+
+sources:
+  PRODUCT:
+    freshness_mode: "VERSIONED"
+    ttl_seconds: null
+    required_time_field: null
+    stale_when:
+      - "version_is_superseded"
+    fallback: "USE_LATEST_VALID_VERSION"
+    definitive_answer_allowed_when_stale: false
+
+  POLICY:
+    freshness_mode: "VERSIONED"
+    ttl_seconds: null
+    required_time_field: null
+    stale_when:
+      - "version_is_superseded"
+      - "effective_period_is_invalid"
+    fallback: "HUMAN_REVIEW"
+    definitive_answer_allowed_when_stale: false
+
+  INVENTORY_SNAPSHOT:
+    freshness_mode: "TTL"
+    ttl_seconds: 300
+    required_time_field: "as_of"
+    stale_when:
+      - "as_of_missing"
+      - "age_exceeds_ttl"
+    fallback: "HUMAN_REVIEW"
+    refresh_preferred: true
+    definitive_answer_allowed_when_stale: false
+
+  INCOMING_STOCK:
+    freshness_mode: "TTL"
+    ttl_seconds: 3600
+    required_time_field: "as_of"
+    stale_when:
+      - "as_of_missing"
+      - "age_exceeds_ttl"
+    fallback: "HUMAN_REVIEW"
+    refresh_preferred: true
+    definitive_answer_allowed_when_stale: false
+
+  ORDER_STATUS:
+    freshness_mode: "TTL"
+    ttl_seconds: 900
+    required_time_field: "as_of"
+    stale_when:
+      - "as_of_missing"
+      - "age_exceeds_ttl"
+    fallback: "HUMAN_REVIEW"
+    refresh_preferred: true
+    definitive_answer_allowed_when_stale: false

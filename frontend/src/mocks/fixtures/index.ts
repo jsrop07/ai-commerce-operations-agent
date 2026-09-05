@@ -79,6 +79,47 @@ export const insights: InsightSummary[] = [
   },
 ];
 
+export const mappingReviewItems = [
+  {
+    id: "mapping_review_demo_001",
+    source: "TOSS_POS",
+    originalName: "Synthetic Game Korean Edition",
+    candidates: [
+      {
+        sku_id: "sku_demo_001",
+        label: "sku_demo_001 / KOREAN",
+        confidence: 0.91,
+        rule: "normalized-name + option",
+      },
+      {
+        sku_id: "sku_demo_002",
+        label: "sku_demo_002 / STANDARD",
+        confidence: 0.63,
+        rule: "normalized-name",
+      },
+    ],
+  },
+  {
+    id: "mapping_review_demo_002",
+    source: "CAFE24",
+    originalName: "Synthetic Card Game Standard",
+    candidates: [
+      {
+        sku_id: "sku_demo_002",
+        label: "sku_demo_002 / STANDARD",
+        confidence: 0.98,
+        rule: "external-code + option",
+      },
+    ],
+  },
+  {
+    id: "mapping_review_demo_003",
+    source: "TOSS_POS",
+    originalName: "Unknown Synthetic Product",
+    candidates: [],
+  },
+] as const;
+
 export const launchEvents: LaunchEventSummary[] = [
   { id: "launch_demo_001", product_id: "prd_demo_002", launch_at: "2026-09-07T01:00:00Z", flow_template: "STANDARD_LAUNCH", status: "PLANNED" },
 ];
@@ -138,3 +179,34 @@ export const agentWaitingApprovalFixture = envelope<TaskSummary[]>(
   [{ ...tasks[0], id: "task_demo_waiting_001", status: "PROPOSED", source_reason: "human approval required" }],
   "agent_waiting_001", ["task_demo_waiting_001"], ["Agent is waiting for approval"],
 );
+
+export const inventoryQualityItems = [
+  {
+    id: "quality_demo_001",
+    provider: "CAFE24",
+    sku_id: "sku_demo_001",
+    quality_status: "USABLE",
+    on_hand: 12,
+  },
+  {
+    id: "quality_demo_002",
+    provider: "TOSS_POS",
+    sku_id: "sku_demo_002",
+    quality_status: "UNMAPPED",
+    on_hand: 18,
+  },
+  {
+    id: "quality_demo_003",
+    provider: "DEMO",
+    sku_id: "sku_demo_quarantined",
+    quality_status: "QUARANTINED",
+    on_hand: 7,
+  },
+  {
+    id: "quality_demo_004",
+    provider: "ECOUNT",
+    sku_id: "sku_demo_001",
+    quality_status: "SOURCE_QUALITY_BLOCKED",
+    on_hand: null,
+  },
+] as const;

@@ -1,0 +1,560 @@
+schema_version: "provider-field-mapping.v1"
+
+global_policy:
+  production_write: disabled
+  ambiguous_auto_merge: false
+  unknown_value_policy: preserve
+  missing_numeric_policy: never_guess
+  missing_status_policy: preserve_unknown
+  pii_raw_to_canonical: false
+  raw_secret_to_canonical: false
+
+providers:
+
+  CAFE24:
+    verification_level:
+      api_incremental: LIVE_READ
+      historical_product_export: NOT_LIVE_VERIFIED
+
+    historical_backfill_mode:
+      products: MANUAL_PROTECTED_IMPORT
+      orders: MANUAL_PROTECTED_IMPORT
+
+    incremental_mode:
+      products: API_POLL
+      orders: API_POLL
+      inventory: UNKNOWN
+      incoming: UNKNOWN
+
+    checkpoint:
+      historical:
+        identity:
+          - provider
+          - resource
+          - file_hash
+          - batch_id
+          - row_number
+        commit_rule: after_canonical_commit
+
+      incremental:
+        identity:
+          - provider
+          - resource
+          - account
+          - cursor_or_watermark
+        commit_rule: after_canonical_commit
+
+    cutover:
+      required: true
+      rule: >
+        Historical file backfill and API incremental sync use independent
+        checkpoints. Record cutover_at or provider watermark. If the same
+        source business fact appears through both modes, Inbox identity and
+        business-effect idempotency must allow one effect only.
+
+    resources:
+
+      product_export:
+        source_kind: protected_csv
+        canonical_target: product
+        source_quality: SANITIZED_REAL_CANDIDATE
+
+        unknown_column_policy: preserve_metadata_unknown
+
+        mappings:
+
+          - source_path: "상품코드"
+            target: "provider_product_id"
+            transform: strip_text
+            unit: null
+            nullable: false
+            unknown_policy: quarantine
+
+          - source_path: "자체 상품코드"
+            target: "sku_mapping_candidate.external_code"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null_no_auto_merge
+
+          - source_path: "상품명"
+            target: "product.name"
+            transform: strip_text
+            unit: null
+            nullable: false
+            unknown_policy: quarantine
+
+          - source_path: "영문 상품명"
+            target: "product.aliases.en"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "상품명(관리용)"
+            target: "product.mapping_aliases.management_name"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "공급사 상품명"
+            target: "product.mapping_aliases.supplier_name"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "모델명"
+            target: "product.metadata.model_name"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "상품분류 번호"
+            target: "product.category_source"
+            transform: preserve_source_code
+            unit: null
+            nullable: true
+            unknown_policy: preserve_unknown_no_enum_guess
+
+          - source_path: "브랜드"
+            target: "brand.external_code"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null_no_auto_merge
+
+          - source_path: "브랜드명"
+            target: "brand.source_name"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null_no_auto_merge
+
+          - source_path: "제조사"
+            target: "product.metadata.manufacturer_code"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "제조사명"
+            target: "product.metadata.manufacturer_name"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "진열상태"
+            target: "product.metadata.display_status"
+            transform: preserve_source_value
+            unit: null
+            nullable: true
+            unknown_policy: preserve_unknown_no_enum_guess
+
+          - source_path: "판매상태"
+            target: "product.metadata.sale_status"
+            transform: preserve_source_value
+            unit: null
+            nullable: true
+            unknown_policy: preserve_unknown_no_enum_guess
+
+          - source_path: "자체분류 코드"
+            target: "product.category_mapping_candidate"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null_no_auto_merge
+
+          - source_path: "옵션사용"
+            target: "product.variant.has_options"
+            transform: preserve_source_value
+            unit: null
+            nullable: true
+            unknown_policy: preserve_unknown
+
+          - source_path: "옵션세트명"
+            target: "product.variant.option_set_name"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "출시일자"
+            target: "product.metadata.release_date"
+            transform: parse_date_or_preserve_raw
+            unit: null
+            nullable: true
+            unknown_policy: preserve_raw_on_parse_failure
+
+          - source_path: "검색어설정"
+            target: "product.search_aliases"
+            transform: split_and_trim
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "상품 요약설명"
+            target: "product.search_document.summary"
+            transform: sanitize_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "상품 간략설명"
+            target: "product.search_document.short_description"
+            transform: sanitize_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "판매가"
+            target: "product.price_projection.sale_price"
+            transform: decimal_or_null
+            unit: KRW
+            nullable: true
+            unknown_policy: preserve_null_no_guess
+
+          - source_path: "소비자가"
+            target: "product.price_projection.retail_price"
+            transform: decimal_or_null
+            unit: KRW
+            nullable: true
+            unknown_policy: preserve_null_no_guess
+
+          - source_path: "이미지등록(상세)"
+            target: "product.images.detail"
+            transform: url_or_null
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "이미지등록(목록)"
+            target: "product.images.list"
+            transform: url_or_null
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "이미지등록(작은목록)"
+            target: "product.images.small_list"
+            transform: url_or_null
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "이미지등록(축소)"
+            target: "product.images.thumbnail"
+            transform: url_or_null
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+        preserve_unknown_fields:
+          - "상품분류 신상품영역"
+          - "상품분류 추천상품영역"
+          - "과세구분"
+          - "공급가"
+          - "상품가"
+          - "판매가 대체문구 사용"
+          - "판매가 대체문구"
+          - "주문수량 제한 기준"
+          - "최소 주문수량(이상)"
+          - "최대 주문수량(이하)"
+          - "적립금"
+          - "적립금 구분"
+          - "공통이벤트 정보"
+          - "성인인증"
+          - "품목 구성방식"
+          - "옵션 표시방식"
+          - "옵션입력"
+          - "옵션 스타일"
+          - "버튼이미지 설정"
+          - "색상 설정"
+          - "필수여부"
+          - "품절표시 문구"
+          - "추가입력옵션"
+          - "추가입력옵션 명칭"
+          - "추가입력옵션 선택/필수여부"
+          - "입력글자수(자)"
+          - "공급사"
+          - "트렌드"
+          - "제조일자"
+          - "유효기간 사용여부"
+          - "유효기간"
+          - "원산지"
+          - "상품부피(cm)"
+          - "부피무게(kg)"
+          - "상품결제안내"
+          - "상품배송안내"
+          - "교환/반품안내"
+          - "서비스문의/안내"
+          - "배송정보"
+          - "배송방법"
+          - "국내/해외배송"
+          - "배송지역"
+          - "배송비 선결제 설정"
+          - "배송기간"
+          - "배송비 구분"
+          - "배송비입력"
+          - "상품 구분(해외통관)"
+          - "상품소재"
+          - "영문 상품소재(해외통관)"
+          - "옷감(해외통관)"
+          - "검색엔진최적화(SEO) 검색엔진 노출 설정"
+          - "검색엔진최적화(SEO) Title"
+          - "검색엔진최적화(SEO) Author"
+          - "검색엔진최적화(SEO) Description"
+          - "검색엔진최적화(SEO) Keywords"
+          - "검색엔진최적화(SEO) 상품 이미지 Alt 텍스트"
+          - "개별결제수단설정"
+          - "상품배송유형 코드"
+          - "스토어픽업 설정"
+          - "상품 전체중량(kg)"
+          - "HS코드"
+
+      api_products:
+        source_kind: api
+        canonical_target: product
+        verification_level: LIVE_READ
+        unknown_field_policy: preserve
+        canonical_mapping_status: PARTIAL_FIELD_CONTRACT
+        note: >
+          Cafe24 product API read is live-verified, but Day 6 does not invent
+          fields that were not explicitly confirmed in the current provider DTO.
+
+      api_orders:
+        source_kind: api
+        canonical_target: order
+        verification_level: LIVE_READ
+        unknown_field_policy: preserve
+        canonical_mapping_status: PARTIAL_FIELD_CONTRACT
+        note: >
+          Cafe24 order API read is live-verified. Detailed order field mapping
+          remains limited to confirmed DTO fields and must not infer missing
+          status, quantity, SKU, return, or payment semantics.
+
+
+  TOSS_POS:
+    verification_level:
+      incremental_orders: CONTRACT_ONLY
+
+    historical_backfill_mode:
+      sales: NOT_REQUIRED
+
+    incremental_mode:
+      orders: API_POLL
+
+    checkpoint:
+      historical: null
+      incremental:
+        identity:
+          - provider
+          - merchant
+          - from
+          - to
+          - page
+        commit_rule: after_canonical_commit
+
+    cutover:
+      required: false
+      rule: historical_backfill_not_enabled
+
+    resources:
+
+      order_line_sale:
+        source_kind: official_contract_fixture
+        canonical_target: sale
+
+        mappings:
+          - source_path: "order.id"
+            target: "source_order_id"
+            transform: strip_text
+            unit: null
+            nullable: false
+            unknown_policy: quarantine
+
+          - source_path: "order.orderState"
+            target: "sale.source_status"
+            transform: preserve_source_value
+            unit: null
+            nullable: true
+            unknown_policy: preserve_unknown
+
+          - source_path: "order.createdAt"
+            target: "sale.created_at"
+            transform: timezone_datetime
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "order.completedAt"
+            target: "sale.occurred_at"
+            transform: timezone_datetime
+            unit: null
+            nullable: true
+            unknown_policy: fallback_to_created_at_only_if_present
+
+          - source_path: "order.cancelledAt"
+            target: "sale.cancelled_at"
+            transform: timezone_datetime
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "line_item.item.code"
+            target: "sku_mapping_candidate.external_code"
+            transform: strip_text
+            unit: null
+            nullable: false
+            unknown_policy: mapping_required_no_guess
+
+          - source_path: "line_item.item.title"
+            target: "sale.external_product_text"
+            transform: strip_text
+            unit: null
+            nullable: true
+            unknown_policy: preserve_null
+
+          - source_path: "line_item.quantity"
+            target: "sale.quantity"
+            transform: positive_integer
+            unit: EA
+            nullable: false
+            unknown_policy: quarantine_no_guess
+
+          - source_path: "line_item.amount"
+            target: "sale.amount"
+            transform: decimal
+            unit: KRW
+            nullable: true
+            unknown_policy: preserve_zero_only_if_source_is_zero
+
+        ambiguous_policy:
+          auto_merge: false
+          unresolved_status: MAPPING_REQUIRED
+
+
+  ECOUNT:
+    verification_level:
+      inventory: CONTRACT_ONLY
+      warehouse_inventory: CONTRACT_ONLY
+      incoming: CONTRACT_ONLY
+      sale: CONTRACT_ONLY
+
+    source_quality:
+      actual_inventory: SOURCE_QUALITY_BLOCKED
+
+    historical_backfill_mode:
+      inventory: DISABLED_SOURCE_QUALITY_BLOCKED
+      incoming: NOT_VERIFIED
+      sale: NOT_VERIFIED
+
+    incremental_mode:
+      inventory: API_POLL
+      warehouse_inventory: API_POLL
+      incoming: UNKNOWN_BLOCKED
+      sale: UNKNOWN_BLOCKED
+
+    checkpoint:
+      historical: null
+      incremental:
+        identity:
+          - provider
+          - resource
+          - provider_record_identity
+        commit_rule: after_canonical_commit
+
+    cutover:
+      required: false
+      rule: no_trusted_historical_source_enabled
+
+    resources:
+
+      inventory_fixture:
+        source_kind: synthetic_contract_fixture
+        canonical_target: inventory
+
+        mappings:
+          - source_path: "product_code"
+            target: "sku_mapping_candidate.external_code"
+            transform: strip_text
+            unit: null
+            nullable: false
+            unknown_policy: quarantine_no_guess
+
+          - source_path: "warehouse_code"
+            target: "inventory.warehouse_code"
+            transform: strip_text
+            unit: null
+            nullable: false
+            unknown_policy: quarantine
+
+          - source_path: "unit"
+            target: "inventory.unit"
+            transform: strip_text
+            unit: null
+            nullable: false
+            unknown_policy: quarantine
+
+          - source_path: "on_hand"
+            target: "inventory.on_hand"
+            transform: integer
+            unit: source_unit
+            nullable: false
+            unknown_policy: quarantine_no_guess
+
+          - source_path: "as_of"
+            target: "inventory.as_of"
+            transform: timezone_datetime
+            unit: null
+            nullable: false
+            unknown_policy: quarantine
+
+          - source_path: "source_record_id"
+            target: "source_record_identity"
+            transform: strip_text
+            unit: null
+            nullable: false
+            unknown_policy: quarantine
+
+        actual_source_policy:
+          status: SOURCE_QUALITY_BLOCKED
+          inventory_ledger_effect: forbidden
+          inventory_total_effect: forbidden
+          ai_confirmed_answer: forbidden
+
+
+canonical_resource_coverage:
+
+  product:
+    providers:
+      - CAFE24
+
+  order:
+    providers:
+      - CAFE24
+
+  sale:
+    providers:
+      - TOSS_POS
+
+  inventory:
+    providers:
+      - ECOUNT
+
+  incoming:
+    providers:
+      - CAFE24
+      - ECOUNT
+    status: NOT_CONFIRMED
+    unknown_policy: preserve_unknown_no_fake_mapping
+
+  event:
+    envelope: CanonicalCommerceEvent
+    providers:
+      - CAFE24
+      - TOSS_POS
+      - ECOUNT

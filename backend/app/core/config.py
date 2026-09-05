@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://commerce:commerce@localhost:5432/commerce_ops"
     log_level: str = "INFO"
 
+    cafe24_mall_id: str | None = None
+    cafe24_access_token: str | None = None
+    cafe24_api_version: str | None = None
+
+    cafe24_client_id: str | None = None
+    cafe24_client_secret: str | None = None
+    cafe24_redirect_uri: str | None = None
+    
     @model_validator(mode="after")
     def enforce_production_read_only(self) -> "Settings":
         if self.environment == Environment.PRODUCTION_READ:

@@ -45,3 +45,5 @@ Thumbs.db
 
 alembic.ini
 pyproject.toml
+
+docs/projects

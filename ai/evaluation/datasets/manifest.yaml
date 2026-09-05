@@ -28,12 +28,12 @@ datasets:
     purpose: "query에서 관련 source 검색 품질 평가"
     owner: "AI_ML"
     version: "v0.1"
-    expected_hash: "PENDING_DATASET_BUILD"
+    expected_hash: "766ffcdcf5522bd34d00e46e42782ada6c5b11fb272c935c602ed5d6ffbee751"
     visibility: PRIVATE_EVAL
     contains_real_data: false
     pii_status: CLEAN
     split_strategy: QUERY_SOURCE_GROUP
-    status: PLANNED
+    status: READY
 
   golden_graph:
     purpose: "entity/path/multi-hop relation 평가"

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "retrieval-metadata.schema.v0.1",
+  "title": "AI Commerce Retrieval Metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tenant_id",
+    "product_id",
+    "brand_id",
+    "category",
+    "language",
+    "base_game_id",
+    "expansion_type",
+    "source_type",
+    "as_of",
+    "version"
+  ],
+  "properties": {
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "product_id": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "brand_id": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "category": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "language": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "base_game_id": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "expansion_type": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "PRODUCT",
+        "POLICY",
+        "INVENTORY_SNAPSHOT",
+        "INCOMING_STOCK",
+        "ORDER_STATUS"
+      ]
+    },
+    "as_of": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source_type": {
+            "enum": [
+              "INVENTORY_SNAPSHOT",
+              "INCOMING_STOCK",
+              "ORDER_STATUS"
+            ]
+          }
+        },
+        "required": [
+          "source_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+schema_version: "retrieval-corpus-catalog.v0.1"
+owner: "AI_ML"
+
+global_rules:
+  tenant_isolation_required: true
+  pii_required_status: "CLEAN"
+  source_as_of_required_for_live_data: true
+  stale_live_data_may_not_support_definitive_answer: true
+  production_write_allowed: false
+
+sources:
+  - source_type: "PRODUCT"
+    owner: "COMMERCE_CORE"
+    freshness: "VERSIONED"
+    visibility: "TENANT_INTERNAL"
+    retrieval_mode: "STRUCTURED_RECORD"
+    record_unit: "product_variant"
+    answer_scope:
+      - "product_name"
+      - "brand"
+      - "category"
+      - "language"
+      - "base_game"
+      - "expansion"
+      - "component"
+      - "compatibility"
+    restrictions:
+      - "tenant_filter_required"
+      - "ambiguous_product_mapping_must_not_be_treated_as_verified"
+
+  - source_type: "POLICY"
+    owner: "BUSINESS_POLICY"
+    freshness: "VERSIONED"
+    visibility: "TENANT_INTERNAL"
+    retrieval_mode: "DOCUMENT"
+    record_unit: "heading_or_paragraph"
+    answer_scope:
+      - "shipping_policy"
+      - "reservation_policy"
+      - "return_exchange_policy"
+      - "product_information_policy"
+    restrictions:
+      - "version_required"
+      - "effective_period_must_be_respected"
+
+  - source_type: "INVENTORY_SNAPSHOT"
+    owner: "COMMERCE_CORE"
+    freshness: "LIVE_TTL"
+    visibility: "TENANT_RESTRICTED"
+    retrieval_mode: "SQL_EVIDENCE"
+    record_unit: "inventory_snapshot"
+    answer_scope:
+      - "on_hand"
+      - "reserved"
+      - "availability"
+    restrictions:
+      - "as_of_required"
+      - "stale_snapshot_must_not_support_definitive_stock_answer"
+      - "do_not_embed_as_authoritative_live_quantity"
+
+  - source_type: "INCOMING_STOCK"
+    owner: "COMMERCE_CORE"
+    freshness: "LIVE_TTL"
+    visibility: "TENANT_RESTRICTED"
+    retrieval_mode: "SQL_EVIDENCE"
+    record_unit: "incoming_stock"
+    answer_scope:
+      - "incoming_quantity"
+      - "expected_at"
+      - "incoming_status"
+      - "restock_context"
+    restrictions:
+      - "as_of_required"
+      - "confirmed_and_tentative_status_must_not_be_conflated"
+      - "stale_source_requires_fallback"
+
+  - source_type: "ORDER_STATUS"
+    owner: "COMMERCE_CORE"
+    freshness: "LIVE_TTL"
+    visibility: "TENANT_RESTRICTED"
+    retrieval_mode: "SQL_EVIDENCE"
+    record_unit: "order_status"
+    answer_scope:
+      - "order_status"
+      - "reservation_status"
+      - "ordered_at"
+      - "promised_date"
+    restrictions:
+      - "as_of_required"
+      - "customer_pii_must_not_enter_retrieval_corpus"
+      - "authorized_record_reference_required"
+      - "stale_status_must_not_support_definitive_answer"

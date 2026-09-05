@@ -1,0 +1,744 @@
+{
+  "candidates": [
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 2.3,
+      "chunk_count": 20,
+      "errors": [],
+      "index_size_bytes": 15330,
+      "mrr": 0.6714,
+      "name": "fixed_256_0",
+      "ndcg_at_5": 0.7331,
+      "recall_at_1": 0.3929,
+      "recall_at_3": 0.8214,
+      "recall_at_5": 1.0,
+      "retrieval_latency_ms_mean": 0.9513
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 1.73,
+      "chunk_count": 23,
+      "errors": [],
+      "index_size_bytes": 18414,
+      "mrr": 0.8393,
+      "name": "fixed_256_64",
+      "ndcg_at_5": 0.8666,
+      "recall_at_1": 0.6071,
+      "recall_at_3": 0.9286,
+      "recall_at_5": 1.0,
+      "retrieval_latency_ms_mean": 1.1476
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 1.6,
+      "chunk_count": 30,
+      "errors": [],
+      "index_size_bytes": 24677,
+      "mrr": 0.8357,
+      "name": "fixed_256_128",
+      "ndcg_at_5": 0.8576,
+      "recall_at_1": 0.6071,
+      "recall_at_3": 0.8929,
+      "recall_at_5": 1.0,
+      "retrieval_latency_ms_mean": 1.5692
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 1.5,
+      "chunk_count": 13,
+      "errors": [
+        {
+          "expected": [
+            {
+              "grade": 3,
+              "source_id": "policy_operations_long_demo"
+            }
+          ],
+          "query": "오래된 재고 정보만 보고 고객에게 재고 있다고 확답해도 돼?",
+          "query_id": "CE-010",
+          "top5": [
+            {
+              "score": 0.2524,
+              "source_id": "faq_shipping_demo_001"
+            },
+            {
+              "score": 0.2523,
+              "source_id": "faq_product_demo_001"
+            },
+            {
+              "score": 0.2478,
+              "source_id": "policy_shipping_demo"
+            },
+            {
+              "score": 0.1964,
+              "source_id": "product_demo_001"
+            },
+            {
+              "score": 0.1958,
+              "source_id": "product_demo_long_003"
+            }
+          ]
+        },
+        {
+          "expected": [
+            {
+              "grade": 3,
+              "source_id": "faq_product_demo_001"
+            },
+            {
+              "grade": 2,
+              "source_id": "policy_operations_long_demo"
+            }
+          ],
+          "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+          "query_id": "CE-014",
+          "top5": [
+            {
+              "score": 0.2883,
+              "source_id": "faq_product_demo_001"
+            },
+            {
+              "score": 0.2136,
+              "source_id": "faq_shipping_demo_001"
+            },
+            {
+              "score": 0.1947,
+              "source_id": "policy_shipping_demo"
+            },
+            {
+              "score": 0.1882,
+              "source_id": "product_demo_long_003"
+            },
+            {
+              "score": 0.1653,
+              "source_id": "product_demo_002"
+            }
+          ]
+        }
+      ],
+      "index_size_bytes": 14261,
+      "mrr": 0.6095,
+      "name": "fixed_512_0",
+      "ndcg_at_5": 0.6559,
+      "recall_at_1": 0.3214,
+      "recall_at_3": 0.6429,
+      "recall_at_5": 0.8929,
+      "retrieval_latency_ms_mean": 0.909
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 1.5,
+      "chunk_count": 13,
+      "errors": [],
+      "index_size_bytes": 15177,
+      "mrr": 0.6179,
+      "name": "fixed_512_64",
+      "ndcg_at_5": 0.6879,
+      "recall_at_1": 0.3214,
+      "recall_at_3": 0.5714,
+      "recall_at_5": 1.0,
+      "retrieval_latency_ms_mean": 0.9829
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 1.53,
+      "chunk_count": 15,
+      "errors": [
+        {
+          "expected": [
+            {
+              "grade": 3,
+              "source_id": "faq_product_demo_001"
+            },
+            {
+              "grade": 2,
+              "source_id": "policy_operations_long_demo"
+            }
+          ],
+          "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+          "query_id": "CE-014",
+          "top5": [
+            {
+              "score": 0.2883,
+              "source_id": "faq_product_demo_001"
+            },
+            {
+              "score": 0.2136,
+              "source_id": "faq_shipping_demo_001"
+            },
+            {
+              "score": 0.1947,
+              "source_id": "policy_shipping_demo"
+            },
+            {
+              "score": 0.1796,
+              "source_id": "product_demo_long_003"
+            },
+            {
+              "score": 0.1653,
+              "source_id": "product_demo_002"
+            }
+          ]
+        }
+      ],
+      "index_size_bytes": 17057,
+      "mrr": 0.6179,
+      "name": "fixed_512_128",
+      "ndcg_at_5": 0.6786,
+      "recall_at_1": 0.3214,
+      "recall_at_3": 0.5714,
+      "recall_at_5": 0.9643,
+      "retrieval_latency_ms_mean": 1.0513
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 1.66,
+      "chunk_count": 11,
+      "errors": [
+        {
+          "expected": [
+            {
+              "grade": 3,
+              "source_id": "faq_product_demo_001"
+            },
+            {
+              "grade": 2,
+              "source_id": "policy_operations_long_demo"
+            }
+          ],
+          "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+          "query_id": "CE-014",
+          "top5": [
+            {
+              "score": 0.2883,
+              "source_id": "faq_product_demo_001"
+            },
+            {
+              "score": 0.2136,
+              "source_id": "faq_shipping_demo_001"
+            },
+            {
+              "score": 0.1947,
+              "source_id": "policy_shipping_demo"
+            },
+            {
+              "score": 0.1653,
+              "source_id": "product_demo_002"
+            },
+            {
+              "score": 0.1607,
+              "source_id": "product_demo_001"
+            }
+          ]
+        }
+      ],
+      "index_size_bytes": 13943,
+      "mrr": 0.6107,
+      "name": "fixed_800_0",
+      "ndcg_at_5": 0.6724,
+      "recall_at_1": 0.3214,
+      "recall_at_3": 0.5714,
+      "recall_at_5": 0.9643,
+      "retrieval_latency_ms_mean": 0.9392
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 1.44,
+      "chunk_count": 11,
+      "errors": [
+        {
+          "expected": [
+            {
+              "grade": 3,
+              "source_id": "faq_product_demo_001"
+            },
+            {
+              "grade": 2,
+              "source_id": "policy_operations_long_demo"
+            }
+          ],
+          "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+          "query_id": "CE-014",
+          "top5": [
+            {
+              "score": 0.2883,
+              "source_id": "faq_product_demo_001"
+            },
+            {
+              "score": 0.2136,
+              "source_id": "faq_shipping_demo_001"
+            },
+            {
+              "score": 0.1947,
+              "source_id": "policy_shipping_demo"
+            },
+            {
+              "score": 0.1653,
+              "source_id": "product_demo_002"
+            },
+            {
+              "score": 0.1607,
+              "source_id": "product_demo_001"
+            }
+          ]
+        }
+      ],
+      "index_size_bytes": 14461,
+      "mrr": 0.6107,
+      "name": "fixed_800_64",
+      "ndcg_at_5": 0.6724,
+      "recall_at_1": 0.3214,
+      "recall_at_3": 0.5714,
+      "recall_at_5": 0.9643,
+      "retrieval_latency_ms_mean": 0.8922
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 1.38,
+      "chunk_count": 11,
+      "errors": [],
+      "index_size_bytes": 15006,
+      "mrr": 0.6143,
+      "name": "fixed_800_128",
+      "ndcg_at_5": 0.6859,
+      "recall_at_1": 0.3214,
+      "recall_at_3": 0.5714,
+      "recall_at_5": 1.0,
+      "retrieval_latency_ms_mean": 0.9264
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 0.12,
+      "chunk_count": 25,
+      "errors": [],
+      "index_size_bytes": 8749,
+      "mrr": 0.681,
+      "name": "structured",
+      "ndcg_at_5": 0.7351,
+      "recall_at_1": 0.3571,
+      "recall_at_3": 0.9286,
+      "recall_at_5": 1.0,
+      "retrieval_latency_ms_mean": 0.5436
+    },
+    {
+      "answerable_query_count": 14,
+      "chunk_build_latency_ms": 1460.2,
+      "chunk_count": 31,
+      "errors": [],
+      "index_size_bytes": 16885,
+      "mrr": 0.8571,
+      "name": "semantic",
+      "ndcg_at_5": 0.8925,
+      "recall_at_1": 0.6429,
+      "recall_at_3": 0.9643,
+      "recall_at_5": 1.0,
+      "retrieval_latency_ms_mean": 1.6343
+    }
+  ],
+  "corpus": {
+    "path": "ai\\tests\\fixtures\\retrieval_chunking_corpus.jsonl",
+    "pii_status": "CLEAN",
+    "record_count": 8,
+    "source_types": [
+      "POLICY",
+      "PRODUCT"
+    ]
+  },
+  "cost": {
+    "api_cost_usd": 0.0,
+    "embedding_api_calls": 0,
+    "llm_api_calls": 0,
+    "local_embedding_model": true
+  },
+  "dataset": {
+    "path": "ai\\evaluation\\datasets\\chunking_eval.jsonl",
+    "query_count": 16,
+    "role": "DAY6_CHUNKING_ONLY"
+  },
+  "decision": {
+    "primary_candidate": "semantic",
+    "reasons": {
+      "fixed_256_64": [
+        "Recall@5 reached 1.0.",
+        "Near-semantic retrieval quality with much lower chunk build latency.",
+        "Selected as reproducible baseline/fallback."
+      ],
+      "semantic": [
+        "Highest MRR and nDCG@5 in the Day6 comparison.",
+        "Recall@5 reached 1.0 on all answerable queries.",
+        "Best candidate for long policy/free-form text."
+      ],
+      "structured": [
+        "Lowest index size and retrieval latency.",
+        "Preserves Product and FAQ field boundaries.",
+        "Keep for source-specific Day7 retrieval evaluation."
+      ]
+    },
+    "secondary_candidate": "fixed_256_64",
+    "structured_status": "SOURCE_SPECIFIC_REEVALUATION"
+  },
+  "error_analysis": {
+    "cases": [
+      {
+        "candidate": "fixed_512_128",
+        "case_type": "RETRIEVAL_FAILURE",
+        "expected": [
+          {
+            "grade": 3,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "grade": 2,
+            "source_id": "policy_operations_long_demo"
+          }
+        ],
+        "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+        "query_id": "CE-014",
+        "top5": [
+          {
+            "score": 0.2883,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.2136,
+            "source_id": "faq_shipping_demo_001"
+          },
+          {
+            "score": 0.1947,
+            "source_id": "policy_shipping_demo"
+          },
+          {
+            "score": 0.1796,
+            "source_id": "product_demo_long_003"
+          },
+          {
+            "score": 0.1653,
+            "source_id": "product_demo_002"
+          }
+        ]
+      },
+      {
+        "candidate": "fixed_800_64",
+        "case_type": "RETRIEVAL_FAILURE",
+        "expected": [
+          {
+            "grade": 3,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "grade": 2,
+            "source_id": "policy_operations_long_demo"
+          }
+        ],
+        "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+        "query_id": "CE-014",
+        "top5": [
+          {
+            "score": 0.2883,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.2136,
+            "source_id": "faq_shipping_demo_001"
+          },
+          {
+            "score": 0.1947,
+            "source_id": "policy_shipping_demo"
+          },
+          {
+            "score": 0.1653,
+            "source_id": "product_demo_002"
+          },
+          {
+            "score": 0.1607,
+            "source_id": "product_demo_001"
+          }
+        ]
+      },
+      {
+        "candidate": "fixed_800_0",
+        "case_type": "RETRIEVAL_FAILURE",
+        "expected": [
+          {
+            "grade": 3,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "grade": 2,
+            "source_id": "policy_operations_long_demo"
+          }
+        ],
+        "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+        "query_id": "CE-014",
+        "top5": [
+          {
+            "score": 0.2883,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.2136,
+            "source_id": "faq_shipping_demo_001"
+          },
+          {
+            "score": 0.1947,
+            "source_id": "policy_shipping_demo"
+          },
+          {
+            "score": 0.1653,
+            "source_id": "product_demo_002"
+          },
+          {
+            "score": 0.1607,
+            "source_id": "product_demo_001"
+          }
+        ]
+      },
+      {
+        "candidate": "fixed_512_0",
+        "case_type": "RETRIEVAL_FAILURE",
+        "expected": [
+          {
+            "grade": 3,
+            "source_id": "policy_operations_long_demo"
+          }
+        ],
+        "query": "오래된 재고 정보만 보고 고객에게 재고 있다고 확답해도 돼?",
+        "query_id": "CE-010",
+        "top5": [
+          {
+            "score": 0.2524,
+            "source_id": "faq_shipping_demo_001"
+          },
+          {
+            "score": 0.2523,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.2478,
+            "source_id": "policy_shipping_demo"
+          },
+          {
+            "score": 0.1964,
+            "source_id": "product_demo_001"
+          },
+          {
+            "score": 0.1958,
+            "source_id": "product_demo_long_003"
+          }
+        ]
+      },
+      {
+        "candidate": "fixed_512_0",
+        "case_type": "RETRIEVAL_FAILURE",
+        "expected": [
+          {
+            "grade": 3,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "grade": 2,
+            "source_id": "policy_operations_long_demo"
+          }
+        ],
+        "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+        "query_id": "CE-014",
+        "top5": [
+          {
+            "score": 0.2883,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.2136,
+            "source_id": "faq_shipping_demo_001"
+          },
+          {
+            "score": 0.1947,
+            "source_id": "policy_shipping_demo"
+          },
+          {
+            "score": 0.1882,
+            "source_id": "product_demo_long_003"
+          },
+          {
+            "score": 0.1653,
+            "source_id": "product_demo_002"
+          }
+        ]
+      },
+      {
+        "candidate": "fixed_256_0",
+        "case_type": "HARD_SUCCESS",
+        "first_relevant_rank": 5,
+        "mrr": 0.2,
+        "ndcg_at_5": 0.38685280723454163,
+        "query": "황혼의 요새 기본 구성품에는 뭐가 들어 있어?",
+        "query_id": "CE-005",
+        "recall_at_5": 1.0,
+        "top5": [
+          {
+            "score": 0.2364,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.2182,
+            "source_id": "policy_operations_long_demo"
+          },
+          {
+            "score": 0.2162,
+            "source_id": "product_demo_001"
+          },
+          {
+            "score": 0.2105,
+            "source_id": "product_demo_002"
+          },
+          {
+            "score": 0.2069,
+            "source_id": "product_demo_long_003"
+          }
+        ]
+      },
+      {
+        "candidate": "fixed_512_0",
+        "case_type": "HARD_SUCCESS",
+        "first_relevant_rank": 5,
+        "mrr": 0.2,
+        "ndcg_at_5": 0.38685280723454163,
+        "query": "황혼의 요새 확장팩만으로 게임할 수 있어?",
+        "query_id": "CE-006",
+        "recall_at_5": 1.0,
+        "top5": [
+          {
+            "score": 0.2545,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.2523,
+            "source_id": "product_demo_001"
+          },
+          {
+            "score": 0.2353,
+            "source_id": "faq_shipping_demo_001"
+          },
+          {
+            "score": 0.2333,
+            "source_id": "product_demo_002"
+          },
+          {
+            "score": 0.2012,
+            "source_id": "product_demo_long_003"
+          }
+        ]
+      },
+      {
+        "candidate": "fixed_800_0",
+        "case_type": "HARD_SUCCESS",
+        "first_relevant_rank": 5,
+        "mrr": 0.2,
+        "ndcg_at_5": 0.38685280723454163,
+        "query": "황혼의 요새는 어떤 방식으로 진행하는 게임이야?",
+        "query_id": "CE-007",
+        "recall_at_5": 1.0,
+        "top5": [
+          {
+            "score": 0.2143,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.2131,
+            "source_id": "product_demo_002"
+          },
+          {
+            "score": 0.2124,
+            "source_id": "product_demo_001"
+          },
+          {
+            "score": 0.1923,
+            "source_id": "faq_shipping_demo_001"
+          },
+          {
+            "score": 0.1809,
+            "source_id": "product_demo_long_003"
+          }
+        ]
+      },
+      {
+        "candidate": "fixed_512_128",
+        "case_type": "HARD_SUCCESS",
+        "first_relevant_rank": 4,
+        "mrr": 0.25,
+        "ndcg_at_5": 0.43067655807339306,
+        "query": "입고 일정 근거가 없는데 예상 날짜를 만들어서 안내해도 돼?",
+        "query_id": "CE-011",
+        "recall_at_5": 1.0,
+        "top5": [
+          {
+            "score": 0.2735,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.2617,
+            "source_id": "policy_shipping_demo"
+          },
+          {
+            "score": 0.2569,
+            "source_id": "faq_shipping_demo_001"
+          },
+          {
+            "score": 0.2444,
+            "source_id": "policy_operations_long_demo"
+          },
+          {
+            "score": 0.2203,
+            "source_id": "product_demo_001"
+          }
+        ]
+      },
+      {
+        "candidate": "fixed_256_0",
+        "case_type": "HARD_SUCCESS",
+        "first_relevant_rank": 3,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_5": 0.5,
+        "query": "별빛 항해자는 몇 명이서 할 수 있어?",
+        "query_id": "CE-001",
+        "recall_at_5": 1.0,
+        "top5": [
+          {
+            "score": 0.2909,
+            "source_id": "product_demo_long_003"
+          },
+          {
+            "score": 0.2857,
+            "source_id": "product_demo_002"
+          },
+          {
+            "score": 0.2407,
+            "source_id": "product_demo_001"
+          },
+          {
+            "score": 0.2056,
+            "source_id": "faq_product_demo_001"
+          },
+          {
+            "score": 0.1562,
+            "source_id": "policy_operations_long_demo"
+          }
+        ]
+      }
+    ],
+    "hard_success_count": 5,
+    "required_case_count": 10,
+    "retrieval_failure_count": 5
+  },
+  "experiment_id": "RAG-CHUNK-01",
+  "limitations": [
+    "Day6 lexical proxy is not BM25, vector, or hybrid retrieval.",
+    "chunking_eval.jsonl is a Day6 synthetic evaluation set and does not replace golden_retrieval.jsonl."
+  ],
+  "retrieval_proxy": "CHARACTER_SET_F1",
+  "selected_candidates": [
+    "semantic",
+    "fixed_256_64"
+  ],
+  "semantic_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+}
