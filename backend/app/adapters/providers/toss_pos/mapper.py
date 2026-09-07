@@ -8,6 +8,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from backend.app.services.ingestion.identity import (
+    build_toss_sale_business_identity,
+)
 from contracts.events import (
     EVENT_SCHEMA_VERSION,
     CanonicalCommerceEvent,
@@ -41,6 +44,7 @@ def _event_id(source_event_id: str) -> str:
 def map_toss_order_line_to_sale(
     *,
     tenant_id: str,
+    provider_account_ref: str = "legacy-default",
     order: dict[str, Any],
     line_item: dict[str, Any],
     line_index: int,
@@ -124,9 +128,7 @@ def map_toss_order_line_to_sale(
         )
 
     try:
-        occurred_at = datetime.fromisoformat(
-            str(occurred_raw).replace("Z", "+00:00")
-        )
+        occurred_at = datetime.fromisoformat(str(occurred_raw).replace("Z", "+00:00"))
     except ValueError:
         return TossSaleMappingResult(
             status="QUARANTINED",
@@ -162,6 +164,27 @@ def map_toss_order_line_to_sale(
     schema_version = EVENT_SCHEMA_VERSION
     now = ingested_at or datetime.now(UTC)
 
+    business_identity = build_toss_sale_business_identity(
+        tenant_id=tenant_id,
+        provider_account_ref=provider_account_ref,
+        order_id=order_id,
+        line_id=str(line_index),
+        sku_id=sku_id,
+        occurred_at=occurred_at,
+        schema_version=schema_version,
+    )
+
+    if business_identity.status != "RESOLVED" or business_identity.identity is None:
+        return TossSaleMappingResult(
+            status="QUARANTINED",
+            event=None,
+            external_product_code=product_code,
+            external_product_text=product_text,
+            reason=business_identity.reason or "BUSINESS_IDENTITY_UNRESOLVED",
+        )
+
+    business_identity_key = business_identity.identity.key()
+
     event = CanonicalCommerceEvent(
         event_id=_event_id(source_event_id),
         event_type=EventType.OFFLINE_SALE_RECORDED,
@@ -171,12 +194,11 @@ def map_toss_order_line_to_sale(
         source_event_id=source_event_id,
         occurred_at=occurred_at,
         ingested_at=now,
-        idempotency_key=(
-            f"{Provider.TOSS_POS.value}:{source_event_id}:{schema_version}"
-        ),
+        idempotency_key=(f"{Provider.TOSS_POS.value}:{source_event_id}:{schema_version}"),
         correlation_id=f"corr_{_event_id(source_event_id)}",
         payload={
             "sku_id": sku_id,
+            "business_identity_key": business_identity_key,
             "external_product_code": product_code,
             "external_product_text": product_text,
             "quantity": quantity,

@@ -20,6 +20,20 @@ class ProviderNonRetryableError(RuntimeError):
     retryable = False
 
 
+class ProviderHttpError(RuntimeError):
+    """Safe HTTP read failure metadata for retry decisions."""
+
+    def __init__(
+        self,
+        status_code: int,
+        *,
+        retry_after_seconds: float | None = None,
+    ) -> None:
+        super().__init__(f"provider HTTP {status_code}")
+        self.status_code = status_code
+        self.retry_after_seconds = retry_after_seconds
+
+
 class CommerceProvider(ABC):
     @abstractmethod
     def capabilities(self) -> CapabilityMatrix: ...

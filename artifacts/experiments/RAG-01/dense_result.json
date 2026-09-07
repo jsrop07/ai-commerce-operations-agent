@@ -1,0 +1,1090 @@
+{
+  "abstain_queries": [
+    {
+      "latency_ms": 38.144199999806006,
+      "query": "화성 농장 게임의 확장팩 정보 알려줘",
+      "query_id": "CE-015",
+      "slice": "no_answer",
+      "top_results": [
+        {
+          "chunk_id": "product_demo_001:v1:semantic:0",
+          "rank": 1,
+          "score": 0.56071424,
+          "source_id": "product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:3",
+          "rank": 2,
+          "score": 0.37580314,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 3,
+          "score": 0.34120372,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 4,
+          "score": 0.33029065,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 5,
+          "score": 0.28818813,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "latency_ms": 39.1128999999637,
+      "query": "드래곤 제국 카드게임의 교환용 프로모 카드가 있어?",
+      "query_id": "CE-016",
+      "slice": "no_answer",
+      "top_results": [
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 1,
+          "score": 0.56703234,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:1",
+          "rank": 2,
+          "score": 0.54269689,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_001:v1:semantic:0",
+          "rank": 3,
+          "score": 0.39631376,
+          "source_id": "product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 4,
+          "score": 0.27709234,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 5,
+          "score": 0.26228875,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        }
+      ]
+    }
+  ],
+  "analysis": {
+    "hard_success_count": 4,
+    "hard_successes": [
+      {
+        "first_relevant_rank": 2,
+        "latency_ms": 81.00270000068122,
+        "mrr": 0.5,
+        "ndcg_at_5": 0.6309297535714575,
+        "query": "왕국의 상인들 플레이 인원하고 플레이 시간 알려줘",
+        "query_id": "CE-003",
+        "recall_at_1": 0.0,
+        "recall_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "slice": "product_exact",
+        "top_results": [
+          {
+            "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+            "rank": 1,
+            "score": 0.4944731,
+            "source_id": "faq_shipping_demo_001",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "product_demo_002:v1:semantic:1",
+            "rank": 2,
+            "score": 0.37028298,
+            "source_id": "product_demo_002",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "product_demo_001:v1:semantic:0",
+            "rank": 3,
+            "score": 0.26946557,
+            "source_id": "product_demo_001",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "product_demo_long_003:v1:semantic:7",
+            "rank": 4,
+            "score": 0.2465573,
+            "source_id": "product_demo_long_003",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "policy_operations_long_demo:v1:semantic:1",
+            "rank": 5,
+            "score": 0.21896492,
+            "source_id": "policy_operations_long_demo",
+            "version": "v1"
+          }
+        ]
+      },
+      {
+        "first_relevant_rank": 2,
+        "latency_ms": 39.644399999815505,
+        "mrr": 0.5,
+        "ndcg_at_5": 0.6309297535714575,
+        "query": "북부 교역로 확장만 사도 플레이 가능해?",
+        "query_id": "CE-004",
+        "recall_at_1": 0.0,
+        "recall_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "slice": "compatibility",
+        "top_results": [
+          {
+            "chunk_id": "product_demo_long_003:v1:semantic:4",
+            "rank": 1,
+            "score": 0.39320713,
+            "source_id": "product_demo_long_003",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "product_demo_002:v1:semantic:1",
+            "rank": 2,
+            "score": 0.37204343,
+            "source_id": "product_demo_002",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+            "rank": 3,
+            "score": 0.27298108,
+            "source_id": "faq_shipping_demo_001",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "product_demo_001:v1:semantic:0",
+            "rank": 4,
+            "score": 0.21819291,
+            "source_id": "product_demo_001",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "faq_product_demo_001:v1:semantic:0",
+            "rank": 5,
+            "score": 0.18841164,
+            "source_id": "faq_product_demo_001",
+            "version": "v1"
+          }
+        ]
+      },
+      {
+        "first_relevant_rank": 3,
+        "latency_ms": 32.691099999283324,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_5": 0.5,
+        "query": "상품 구성품 정보가 없으면 고객에게 어떻게 답해야 해?",
+        "query_id": "CE-013",
+        "recall_at_1": 0.0,
+        "recall_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "slice": "policy",
+        "top_results": [
+          {
+            "chunk_id": "policy_operations_long_demo:v1:semantic:10",
+            "rank": 1,
+            "score": 0.67548066,
+            "source_id": "policy_operations_long_demo",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "product_demo_long_003:v1:semantic:8",
+            "rank": 2,
+            "score": 0.59104913,
+            "source_id": "product_demo_long_003",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "faq_product_demo_001:v1:semantic:0",
+            "rank": 3,
+            "score": 0.57476234,
+            "source_id": "faq_product_demo_001",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+            "rank": 4,
+            "score": 0.43319273,
+            "source_id": "faq_shipping_demo_001",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "policy_shipping_demo:v2:semantic:0",
+            "rank": 5,
+            "score": 0.43244413,
+            "source_id": "policy_shipping_demo",
+            "version": "v2"
+          }
+        ]
+      },
+      {
+        "first_relevant_rank": 2,
+        "latency_ms": 38.82049999992887,
+        "mrr": 0.5,
+        "ndcg_at_5": 0.6653152460429406,
+        "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+        "query_id": "CE-014",
+        "recall_at_1": 0.0,
+        "recall_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "slice": "compatibility",
+        "top_results": [
+          {
+            "chunk_id": "product_demo_long_003:v1:semantic:9",
+            "rank": 1,
+            "score": 0.64663702,
+            "source_id": "product_demo_long_003",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "faq_product_demo_001:v1:semantic:0",
+            "rank": 2,
+            "score": 0.60447115,
+            "source_id": "faq_product_demo_001",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "policy_operations_long_demo:v1:semantic:10",
+            "rank": 3,
+            "score": 0.56586212,
+            "source_id": "policy_operations_long_demo",
+            "version": "v1"
+          },
+          {
+            "chunk_id": "policy_shipping_demo:v2:semantic:0",
+            "rank": 4,
+            "score": 0.35979715,
+            "source_id": "policy_shipping_demo",
+            "version": "v2"
+          },
+          {
+            "chunk_id": "product_demo_002:v1:semantic:0",
+            "rank": 5,
+            "score": 0.31743672,
+            "source_id": "product_demo_002",
+            "version": "v1"
+          }
+        ]
+      }
+    ],
+    "retrieval_failure_count": 0,
+    "retrieval_failures": []
+  },
+  "cost": {
+    "api_cost_usd": 0.0,
+    "embedding_api_calls": 0,
+    "gpu_used": false,
+    "llm_api_calls": 0,
+    "local_cpu_embedding": true
+  },
+  "dataset": {
+    "abstain_count": 2,
+    "answerable_count": 14,
+    "answerable_coverage": 1.0,
+    "path": "ai\\evaluation\\datasets\\chunking_eval.jsonl",
+    "query_count": 16,
+    "sha256": "b18dda2d37674704a9acb9b74e0f81b4f4ebd60b7f17924054dce4b94a307627"
+  },
+  "embedding": {
+    "device": "cpu",
+    "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "normalized": true,
+    "revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42"
+  },
+  "index": {
+    "code_sha256": "e0c438a2ff6baef80b607591596f3b596b047f527f4c5f3786d11048ffb25033",
+    "document_count": 31,
+    "hash": "a4c28f139f294eea920001949522e7749de55c6666e0616c575e1b0ebe858d88",
+    "metadata_bytes": 8281,
+    "serialized_size_bytes": 55897,
+    "vector_bytes": 47616,
+    "vector_dimension": 384,
+    "version": "dense-day07-v1"
+  },
+  "latency": {
+    "cold_build_ms": 11214.128199999323,
+    "query_mean_ms": 41.55703124979482,
+    "query_p50_ms": 38.301949999549834,
+    "query_p95_ms": 65.6517750007879,
+    "warm_build_ms": 1601.9176999998308
+  },
+  "limitations": [
+    "Dense uses the same 31-chunk semantic snapshot as BM25.",
+    "Golden60 is not used because the current corpus covers only 2 of 52 answerable Golden queries.",
+    "Cold build includes model loading and document embedding.",
+    "Warm build reuses the already loaded embedding model.",
+    "ABSTAIN routing is evaluated in D07-AI-04 confidence."
+  ],
+  "metrics": {
+    "mrr": 0.8452380952380952,
+    "ndcg_at_5": 0.869487654591169,
+    "recall_at_1": 0.6071428571428571,
+    "recall_at_3": 1.0,
+    "recall_at_5": 1.0
+  },
+  "query_results": [
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 60.53480000082345,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "query": "별빛 항해자는 몇 명이서 할 수 있어?",
+      "query_id": "CE-001",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "product_exact",
+      "top_results": [
+        {
+          "chunk_id": "product_demo_001:v1:semantic:0",
+          "rank": 1,
+          "score": 0.52784139,
+          "source_id": "product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 2,
+          "score": 0.25621465,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:2",
+          "rank": 3,
+          "score": 0.22587328,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 4,
+          "score": 0.16973263,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:3",
+          "rank": 5,
+          "score": 0.14563963,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 37.6300000007177,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "query": "우주 탐사하면서 자원 모으는 게임이 뭐였지?",
+      "query_id": "CE-002",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "product_alias_typo",
+      "top_results": [
+        {
+          "chunk_id": "product_demo_001:v1:semantic:0",
+          "rank": 1,
+          "score": 0.72983927,
+          "source_id": "product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:0",
+          "rank": 2,
+          "score": 0.4467926,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 3,
+          "score": 0.34839666,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 4,
+          "score": 0.3201474,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:10",
+          "rank": 5,
+          "score": 0.25220758,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 2,
+      "latency_ms": 81.00270000068122,
+      "mrr": 0.5,
+      "ndcg_at_5": 0.6309297535714575,
+      "query": "왕국의 상인들 플레이 인원하고 플레이 시간 알려줘",
+      "query_id": "CE-003",
+      "recall_at_1": 0.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "product_exact",
+      "top_results": [
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 1,
+          "score": 0.4944731,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 2,
+          "score": 0.37028298,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_001:v1:semantic:0",
+          "rank": 3,
+          "score": 0.26946557,
+          "source_id": "product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:7",
+          "rank": 4,
+          "score": 0.2465573,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:1",
+          "rank": 5,
+          "score": 0.21896492,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 2,
+      "latency_ms": 39.644399999815505,
+      "mrr": 0.5,
+      "ndcg_at_5": 0.6309297535714575,
+      "query": "북부 교역로 확장만 사도 플레이 가능해?",
+      "query_id": "CE-004",
+      "recall_at_1": 0.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "compatibility",
+      "top_results": [
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:4",
+          "rank": 1,
+          "score": 0.39320713,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 2,
+          "score": 0.37204343,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 3,
+          "score": 0.27298108,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_001:v1:semantic:0",
+          "rank": 4,
+          "score": 0.21819291,
+          "source_id": "product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 5,
+          "score": 0.18841164,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 38.2540999999037,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "query": "황혼의 요새 기본 구성품에는 뭐가 들어 있어?",
+      "query_id": "CE-005",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "component",
+      "top_results": [
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:1",
+          "rank": 1,
+          "score": 0.4687379,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 2,
+          "score": 0.34734261,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:2",
+          "rank": 3,
+          "score": 0.28926459,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:0",
+          "rank": 4,
+          "score": 0.27120125,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_001:v1:semantic:0",
+          "rank": 5,
+          "score": 0.23591582,
+          "source_id": "product_demo_001",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 39.136699999289704,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "query": "황혼의 요새 확장팩만으로 게임할 수 있어?",
+      "query_id": "CE-006",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "compatibility",
+      "top_results": [
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:3",
+          "rank": 1,
+          "score": 0.62982649,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 2,
+          "score": 0.49006802,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_001:v1:semantic:0",
+          "rank": 3,
+          "score": 0.45945349,
+          "source_id": "product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 4,
+          "score": 0.3993547,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:10",
+          "rank": 5,
+          "score": 0.30789009,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 39.32119999990391,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "query": "황혼의 요새는 어떤 방식으로 진행하는 게임이야?",
+      "query_id": "CE-007",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "product_exact",
+      "top_results": [
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:0",
+          "rank": 1,
+          "score": 0.56387103,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_001:v1:semantic:0",
+          "rank": 2,
+          "score": 0.49449,
+          "source_id": "product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:0",
+          "rank": 3,
+          "score": 0.44564947,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 4,
+          "score": 0.32940635,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 5,
+          "score": 0.28398487,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 38.349799999195966,
+      "mrr": 1.0,
+      "ndcg_at_5": 0.8339912323981488,
+      "query": "예약상품이 늦게 들어오면 배송일은 어떻게 안내해야 해?",
+      "query_id": "CE-008",
+      "recall_at_1": 0.5,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "policy",
+      "top_results": [
+        {
+          "chunk_id": "policy_shipping_demo:v2:semantic:0",
+          "rank": 1,
+          "score": 0.75015664,
+          "source_id": "policy_shipping_demo",
+          "version": "v2"
+        },
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:0",
+          "rank": 2,
+          "score": 0.6743049,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 3,
+          "score": 0.61395293,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:8",
+          "rank": 4,
+          "score": 0.40749663,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 5,
+          "score": 0.39013362,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 35.97809999882884,
+      "mrr": 1.0,
+      "ndcg_at_5": 0.95583058934618,
+      "query": "일반상품이랑 예약상품을 같이 주문하면 배송이 늦어질 수 있어?",
+      "query_id": "CE-009",
+      "recall_at_1": 0.5,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "policy",
+      "top_results": [
+        {
+          "chunk_id": "policy_shipping_demo:v2:semantic:0",
+          "rank": 1,
+          "score": 0.80087459,
+          "source_id": "policy_shipping_demo",
+          "version": "v2"
+        },
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:1",
+          "rank": 2,
+          "score": 0.73655957,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 3,
+          "score": 0.66622168,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:8",
+          "rank": 4,
+          "score": 0.51128554,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 5,
+          "score": 0.43494695,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 37.07810000014433,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "query": "오래된 재고 정보만 보고 고객에게 재고 있다고 확답해도 돼?",
+      "query_id": "CE-010",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "policy",
+      "top_results": [
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:3",
+          "rank": 1,
+          "score": 0.64140403,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:8",
+          "rank": 2,
+          "score": 0.63382608,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_shipping_demo:v2:semantic:0",
+          "rank": 3,
+          "score": 0.49512964,
+          "source_id": "policy_shipping_demo",
+          "version": "v2"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 4,
+          "score": 0.41281581,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 5,
+          "score": 0.39142558,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 32.71119999953953,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "query": "입고 일정 근거가 없는데 예상 날짜를 만들어서 안내해도 돼?",
+      "query_id": "CE-011",
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "policy",
+      "top_results": [
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:5",
+          "rank": 1,
+          "score": 0.61709923,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 2,
+          "score": 0.55149323,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_shipping_demo:v2:semantic:0",
+          "rank": 3,
+          "score": 0.41521874,
+          "source_id": "policy_shipping_demo",
+          "version": "v2"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:8",
+          "rank": 4,
+          "score": 0.29709181,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 5,
+          "score": 0.26931876,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 1,
+      "latency_ms": 36.50269999889133,
+      "mrr": 1.0,
+      "ndcg_at_5": 0.95583058934618,
+      "query": "예약 상품 배송 시점은 뭘 확인해야 해?",
+      "query_id": "CE-012",
+      "recall_at_1": 0.5,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "policy",
+      "top_results": [
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 1,
+          "score": 0.71649349,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:0",
+          "rank": 2,
+          "score": 0.62997901,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_shipping_demo:v2:semantic:0",
+          "rank": 3,
+          "score": 0.53121901,
+          "source_id": "policy_shipping_demo",
+          "version": "v2"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:1",
+          "rank": 4,
+          "score": 0.32258803,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 5,
+          "score": 0.2387785,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 3,
+      "latency_ms": 32.691099999283324,
+      "mrr": 0.3333333333333333,
+      "ndcg_at_5": 0.5,
+      "query": "상품 구성품 정보가 없으면 고객에게 어떻게 답해야 해?",
+      "query_id": "CE-013",
+      "recall_at_1": 0.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "policy",
+      "top_results": [
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:10",
+          "rank": 1,
+          "score": 0.67548066,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:8",
+          "rank": 2,
+          "score": 0.59104913,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 3,
+          "score": 0.57476234,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_shipping_demo_001:v1:semantic:0",
+          "rank": 4,
+          "score": 0.43319273,
+          "source_id": "faq_shipping_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_shipping_demo:v2:semantic:0",
+          "rank": 5,
+          "score": 0.43244413,
+          "source_id": "policy_shipping_demo",
+          "version": "v2"
+        }
+      ]
+    },
+    {
+      "first_relevant_rank": 2,
+      "latency_ms": 38.82049999992887,
+      "mrr": 0.5,
+      "ndcg_at_5": 0.6653152460429406,
+      "query": "상품 이름이 비슷하면 서로 호환된다고 봐도 돼?",
+      "query_id": "CE-014",
+      "recall_at_1": 0.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "slice": "compatibility",
+      "top_results": [
+        {
+          "chunk_id": "product_demo_long_003:v1:semantic:9",
+          "rank": 1,
+          "score": 0.64663702,
+          "source_id": "product_demo_long_003",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "faq_product_demo_001:v1:semantic:0",
+          "rank": 2,
+          "score": 0.60447115,
+          "source_id": "faq_product_demo_001",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_operations_long_demo:v1:semantic:10",
+          "rank": 3,
+          "score": 0.56586212,
+          "source_id": "policy_operations_long_demo",
+          "version": "v1"
+        },
+        {
+          "chunk_id": "policy_shipping_demo:v2:semantic:0",
+          "rank": 4,
+          "score": 0.35979715,
+          "source_id": "policy_shipping_demo",
+          "version": "v2"
+        },
+        {
+          "chunk_id": "product_demo_002:v1:semantic:0",
+          "rank": 5,
+          "score": 0.31743672,
+          "source_id": "product_demo_002",
+          "version": "v1"
+        }
+      ]
+    }
+  ],
+  "retriever": "dense",
+  "schema_version": "retrieval-eval-result.v1",
+  "slice_metrics": {
+    "compatibility": {
+      "mrr": 0.6666666666666666,
+      "ndcg_at_5": 0.765414999871466,
+      "query_count": 3,
+      "recall_at_1": 0.3333333333333333,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0
+    },
+    "component": {
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "query_count": 1,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0
+    },
+    "policy": {
+      "mrr": 0.8888888888888888,
+      "ndcg_at_5": 0.8742754018484181,
+      "query_count": 6,
+      "recall_at_1": 0.5833333333333334,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0
+    },
+    "product_alias_typo": {
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "query_count": 1,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0
+    },
+    "product_exact": {
+      "mrr": 0.8333333333333334,
+      "ndcg_at_5": 0.8769765845238192,
+      "query_count": 3,
+      "recall_at_1": 0.6666666666666666,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0
+    }
+  },
+  "snapshot": {
+    "chunking": {
+      "chunk_count": 31,
+      "max_tokens": 512,
+      "method": "semantic",
+      "min_tokens": 80,
+      "similarity_threshold": 0.45,
+      "tokenizer": "cl100k_base",
+      "version": "day06-semantic-v1"
+    },
+    "hash": "b3978c93cb5078fe22b19724fbd325f4c983f6ac8f732dd2321701285af5fb3e",
+    "version": "day07-semantic-v1"
+  }
+}

@@ -8,7 +8,7 @@ from backend.app.models.commerce import (
     OrderLine,
     SaleEvent,
 )
-from backend.app.models.ingestion import EventInbox, ProcessedEffect
+from backend.app.models.ingestion import EventInbox, ProcessedEffect, SyncState
 from backend.app.models.operations import (
     IncomingStock,
     LaunchEvent,
@@ -36,4 +36,5 @@ __all__ = [
     "Task",
     "TaskDependency",
     "Tenant",
+    "SyncState",
 ]

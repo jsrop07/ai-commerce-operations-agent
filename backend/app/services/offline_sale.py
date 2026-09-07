@@ -21,13 +21,10 @@ class OfflineSalePipeline:
     inbox: InMemoryInbox = field(default_factory=InMemoryInbox)
     effects: EffectRegistry = field(default_factory=EffectRegistry)
     insights: list[dict[str, object]] = field(default_factory=list)
+    business_facts: dict[tuple[str, str], tuple[str, int, float]] = field(default_factory=dict)
 
-    ai_consumer: AIMockConsumer = field(
-        default_factory=AIMockConsumer
-    )
-    ai_results: list[dict[str, object]] = field(
-        default_factory=list
-    )
+    ai_consumer: AIMockConsumer = field(default_factory=AIMockConsumer)
+    ai_results: list[dict[str, object]] = field(default_factory=list)
 
     trace: list[str] = field(default_factory=list)
     external_write_count: int = 0
@@ -55,9 +52,7 @@ class OfflineSalePipeline:
             self.trace.append(structured_record("event_received", inbox_status=receipt.status))
             if event.event_type == EventType.INQUIRY_RECEIVED:
                 consumer = "mock_ai_inquiry"
-                if self.effects.was_applied(
-                    event.tenant_id, consumer, event.idempotency_key
-                ):
+                if self.effects.was_applied(event.tenant_id, consumer, event.idempotency_key):
                     self.trace.append(structured_record("mock_ai_inquiry_replayed"))
                     return receipt
 
@@ -69,9 +64,7 @@ class OfflineSalePipeline:
                     evidence_ids=[event.event_id],
                 )
 
-                if not self.effects.apply_once(
-                    event.tenant_id, consumer, event.idempotency_key
-                ):
+                if not self.effects.apply_once(event.tenant_id, consumer, event.idempotency_key):
                     self.trace.append(structured_record("mock_ai_inquiry_replayed"))
                     return receipt
 
@@ -87,9 +80,34 @@ class OfflineSalePipeline:
                 return receipt
             if event.event_type != EventType.OFFLINE_SALE_RECORDED:
                 return receipt
-            if not self.effects.apply_once(
-                event.tenant_id, "shadow_inventory", event.idempotency_key
-            ):
+            business_key_raw = event.payload.get("business_identity_key")
+            quantity = int(event.payload["quantity"])
+
+            if isinstance(business_key_raw, str) and business_key_raw:
+                fact_key = (event.tenant_id, business_key_raw)
+                fact = (str(event.payload.get("sku_id")), quantity, event.occurred_at.timestamp())
+                previous_fact = self.business_facts.get(fact_key)
+                if previous_fact is not None and previous_fact != fact:
+                    self.trace.append(structured_record("business_identity_collision"))
+                    return receipt
+                self.business_facts[fact_key] = fact
+                effect_applied = self.effects.apply_business_effect_once(
+                    event.tenant_id,
+                    "shadow_inventory",
+                    business_key_raw,
+                )
+            else:
+                # Legacy source-only identity remains available for Demo fixtures only.
+                if environment != "DEMO":
+                    self.trace.append(structured_record("business_identity_required"))
+                    return receipt
+                effect_applied = self.effects.apply_once(
+                    event.tenant_id,
+                    "shadow_inventory",
+                    event.idempotency_key,
+                )
+
+            if not effect_applied:
                 self.trace.append(structured_record("effect_replayed"))
                 return receipt
             quantity = int(event.payload["quantity"])

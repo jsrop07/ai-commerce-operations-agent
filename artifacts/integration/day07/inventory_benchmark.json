@@ -1,0 +1,41 @@
+{
+  "benchmark_id": "D07-BE-05",
+  "compute": {
+    "accepted_events": 38000,
+    "attempted_events": 40000,
+    "duplicate_effect_count": 0,
+    "duplicate_input_rate": 0.05,
+    "duplicate_inputs": 2000,
+    "period_days": 90,
+    "projection_p50_ms": 0.0037,
+    "projection_p95_ms": 0.0045,
+    "sku_count": 2000,
+    "total_elapsed_ms": 202.6899
+  },
+  "database": {
+    "db_backend": "sqlite_in_memory",
+    "ledger_row_count": 38000,
+    "projection_elapsed_ms": 43.8061,
+    "projection_query_count": 1,
+    "projection_row_count": 2000,
+    "sku_count": 2000,
+    "snapshot_row_count": 2000,
+    "verification_level": "SYNTHETIC_BASELINE"
+  },
+  "notes": [
+    "Compute latency is an in-process synthetic calculation baseline.",
+    "Database measurement uses SQLite in-memory and must not be presented as PostgreSQL production performance."
+  ],
+  "safety": {
+    "contains_pii": false,
+    "contains_secret": false,
+    "external_write_count": 0,
+    "production_schedule_enabled": false
+  },
+  "verification_level": "SYNTHETIC_BASELINE",
+  "workload": {
+    "period_days": 90,
+    "real_business_data_used": false,
+    "sku_count": 2000
+  }
+}

@@ -1,19 +1,417 @@
-import { AIBadge, SourceBadge, StatusBadge } from "../../components/Badges";
+import {
+  useMemo,
+  useState,
+} from "react";
 
-const inquiries = [
-  ["배송이 언제 되나요?", "데모고객 001", "초안완료", "10분 전"],
-  ["픽업 날짜 변경 가능한가요?", "데모고객 003", "검토중", "25분 전"],
-  ["알레르기 성분 확인 부탁드립니다", "데모고객 002", "초안완료", "1시간 전"],
-  ["처리 기준을 확인하고 싶습니다", "데모고객 004", "보류", "2시간 전"],
-];
+import {
+  ConfidenceBadge,
+  RiskLevelBadge,
+} from "../../components/StatusBadges";
+
+import CitationCard from "../../features/inquiries/CitationCard";
+
+import {
+  inquiryStatusLabels,
+  requiresManualReview,
+} from "../../features/inquiries/inquiryViewModels";
+
+import {
+  inquiryWorkbenchItems,
+} from "../../mocks/fixtures";
+
+import DraftPanel from "../../features/inquiries/DraftPanel";
 
 export default function InquiriesPage() {
+  const [
+    selectedInquiryId,
+    setSelectedInquiryId,
+  ] = useState(
+    inquiryWorkbenchItems[0]?.inquiry.id ?? "",
+  );
+
+  const selectedItem = useMemo(
+    () =>
+      inquiryWorkbenchItems.find(
+        (item) =>
+          item.inquiry.id ===
+          selectedInquiryId,
+      ) ?? inquiryWorkbenchItems[0],
+    [selectedInquiryId],
+  );
+
+  if (!selectedItem) {
+    return (
+      <div
+        className="page"
+        data-testid="route-inquiries"
+      >
+        <p>표시할 문의가 없습니다.</p>
+      </div>
+    );
+  }
+
+  const {
+    inquiry,
+    workbench,
+    retrieval,
+  } = selectedItem;
+
+  const manualReviewRequired =
+    requiresManualReview(
+      inquiry.risk,
+      workbench.confidence,
+    );
+
+  const holdRequired =
+    manualReviewRequired ||
+    workbench.answerStatus === "HOLD" ||
+    retrieval.answer_status === "HOLD" ||
+    retrieval.citations.length === 0;
+
   return (
-    <div className="page flush" data-testid="route-inquiries">
-      <div className="three-column">
-        <section className="column"><div className="column-title">문의 목록 <span className="tertiary">· 전체 31건</span></div>{inquiries.map((item, index) => <button className={`list-item ${index === 0 ? "active" : ""}`} key={item[0]}><div className="badges"><StatusBadge>{item[2]}</StatusBadge><span className="right mono tertiary">{item[3]}</span></div><strong>{item[0]}</strong><div className="tertiary">{item[1]}</div></button>)}</section>
-        <section className="column"><div className="column-title">문의 내용 · AI 분류</div><div className="card-body stack"><div className="badges"><span className="badge critical">● 긴급</span><SourceBadge>Cafe24 1:1 문의</SourceBadge></div><h3>주문한 케이크 배송이 언제 되나요?</h3><div className="card card-body"><strong>문의 정보</strong><p className="mono tertiary">INQ-DEMO-0231</p><p>고객이 주문 상품의 준비 상태와 배송 예정일을 문의했습니다.</p></div><div className="notice ai"><AIBadge>AI 분류</AIBadge><p><strong>의도:</strong> 배송 조회</p><p><strong>신뢰도:</strong> 96%</p></div><div className="card card-body"><strong>답변 참고 근거</strong><p>• 주문 상태: 준비중</p><p>• 배송 예정: 9월 6일</p><p>• 배송 정책: 출고 후 2~3영업일</p></div></div></section>
-        <section className="column"><div className="column-title">AI 답변 초안 · 실제 전송 없음</div><div className="page stack"><div className="notice ai"><AIBadge>Draft only</AIBadge> 담당자 검토를 위한 합성 초안입니다.</div><textarea className="draft" aria-label="AI 답변 초안" defaultValue={"안녕하세요, 고객님. 주문하신 상품은 현재 준비 중이며 예정 배송일은 9월 6일입니다.\n\n출고가 시작되면 안내 정보를 확인하실 수 있습니다. 추가 문의 사항은 담당자가 검토하겠습니다."} /><div className="badges"><button className="filter active" type="button">검토 완료 표시</button><button className="filter" type="button">수정 필요</button><button className="filter" type="button">근거 부족</button></div><p className="tertiary">이 화면에서는 고객 메시지가 전송되지 않습니다.</p></div></section>
+    <div
+      className="page flush"
+      data-testid="route-inquiries"
+    >
+      <div className="three-column inquiry-layout">
+        {/* 1. Inquiry 목록 */}
+        <section
+          className="column"
+          aria-labelledby="inquiry-list-title"
+        >
+          <div
+            className="column-title"
+            id="inquiry-list-title"
+          >
+            고객 문의
+            <span className="tertiary">
+              {inquiryWorkbenchItems.length}건
+            </span>
+          </div>
+
+          <div
+            className="inquiry-list"
+            aria-label="고객 문의 목록"
+          >
+            {inquiryWorkbenchItems.map(
+              (item) => {
+                const isSelected =
+                  item.inquiry.id ===
+                  selectedInquiryId;
+
+                return (
+                  <button
+                    key={item.inquiry.id}
+                    type="button"
+                    className={`list-item ${
+                      isSelected
+                        ? "active"
+                        : ""
+                    }`}
+                    aria-pressed={isSelected}
+                    onClick={() =>
+                      setSelectedInquiryId(
+                        item.inquiry.id,
+                      )
+                    }
+                  >
+                    <div className="badges">
+                      <RiskLevelBadge
+                        risk={
+                          item.inquiry.risk
+                        }
+                      />
+
+                      <span className="right mono tertiary">
+                        {item.ageLabel}
+                      </span>
+                    </div>
+
+                    <strong>
+                      {item.inquiry.intent}
+                    </strong>
+
+                    <div className="tertiary">
+                      {
+                        inquiryStatusLabels[
+                          item.status
+                        ]
+                      }
+                    </div>
+                  </button>
+                );
+              },
+            )}
+          </div>
+        </section>
+
+        {/* 2. Conversation */}
+        <section
+          className="column"
+          aria-labelledby="conversation-title"
+        >
+          <div
+            className="column-title"
+            id="conversation-title"
+          >
+            Conversation
+          </div>
+
+          <div className="card-body stack">
+            <div className="badges">
+              <RiskLevelBadge
+                risk={inquiry.risk}
+              />
+
+              <span className="badge source">
+                {inquiry.channel}
+              </span>
+            </div>
+
+            <div className="card card-body">
+              <strong>
+                비식별 문의 원문
+              </strong>
+
+              <p>
+                {inquiry.sanitized_text}
+              </p>
+
+              <p className="mono tertiary">
+                {inquiry.id}
+              </p>
+            </div>
+
+            <div className="card card-body">
+              <strong>
+                관련 Reference
+              </strong>
+
+              {selectedItem.relatedProductRef ? (
+                <p>
+                  Product:{" "}
+                  <span className="mono">
+                    {
+                      selectedItem.relatedProductRef
+                    }
+                  </span>
+                </p>
+              ) : null}
+
+              {selectedItem.relatedOrderRef ? (
+                <p>
+                  Order:{" "}
+                  <span className="mono">
+                    {
+                      selectedItem.relatedOrderRef
+                    }
+                  </span>
+                </p>
+              ) : null}
+
+              {!selectedItem.relatedProductRef &&
+              !selectedItem.relatedOrderRef ? (
+                <p className="tertiary">
+                  연결된 Product/Order
+                  reference가 없습니다.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        {/* 3. AI Workbench */}
+        <section
+          className="column"
+          aria-labelledby="workbench-title"
+        >
+          <div
+            className="column-title"
+            id="workbench-title"
+          >
+            AI Workbench
+          </div>
+
+          <div className="page stack">
+            {/* Structured Result */}
+            <div className="card card-body">
+              <strong>
+                Structured Result
+              </strong>
+
+              <p>
+                Intent:{" "}
+                <span className="mono">
+                  {inquiry.intent}
+                </span>
+              </p>
+
+              <div>
+                <strong>Entities</strong>
+
+                {Object.keys(
+                  inquiry.entities,
+                ).length > 0 ? (
+                  <ul>
+                    {Object.entries(
+                      inquiry.entities,
+                    ).map(
+                      ([key, value]) => (
+                        <li key={key}>
+                          <span className="mono">
+                            {key}
+                          </span>
+                          :{" "}
+                          <span className="mono">
+                            {value}
+                          </span>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                ) : (
+                  <p className="tertiary">
+                    구조화된 Entity가 없습니다.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Workbench Confidence */}
+            <div className="card card-body">
+              <strong>
+                Confidence
+              </strong>
+
+              <ConfidenceBadge
+                confidence={
+                  workbench.confidence
+                }
+              />
+            </div>
+
+            {/* Retrieval */}
+            <div className="card card-body stack">
+              <div className="workbench-section-header">
+                <strong>
+                  Retrieval Evidence
+                </strong>
+
+                <span className="tertiary">
+                  {retrieval.method}
+                  {" · "}
+                  {retrieval.index_version}
+                </span>
+              </div>
+
+              <p className="tertiary">
+                Query: {retrieval.query}
+              </p>
+
+              <div className="tertiary">
+                Retrieval confidence:{" "}
+                <ConfidenceBadge
+                  confidence={
+                    retrieval.confidence
+                  }
+                />
+              </div>
+
+              <p className="tertiary">
+                Retrieval answer status:{" "}
+                <strong className="mono">
+                  {retrieval.answer_status}
+                </strong>
+                {retrieval.answer_status === "HOLD"
+                  ? " · 답변을 확정할 수 없어 보류합니다."
+                  : " · 근거를 검토한 뒤 내부 Draft를 작성할 수 있습니다."}
+              </p>
+
+              {retrieval.citations.length >
+              0 ? (
+                <div className="stack">
+                  {retrieval.citations.map(
+                    (citation) => (
+                      <CitationCard
+                        key={`${citation.source_type}:${citation.source_id}:${citation.record_or_field}`}
+                        citation={citation}
+                      />
+                    ),
+                  )}
+                </div>
+              ) : (
+                <div
+                  className="notice warning"
+                  role="note"
+                >
+                  <strong>
+                    근거 부족
+                  </strong>
+
+                  <p>
+                    검색된 Citation이 없어
+                    답변을 확정할 수
+                    없습니다.
+                  </p>
+                </div>
+              )}
+
+              {retrieval.warnings.length >
+              0 ? (
+                <div
+                  className="notice warning"
+                  role="note"
+                >
+                  <strong>
+                    Retrieval Warnings
+                  </strong>
+
+                  <ul>
+                    {retrieval.warnings.map(
+                      (warning) => (
+                        <li key={warning}>
+                          {warning}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+
+            {/* AI Workbench warnings */}
+            {workbench.warnings.length >
+            0 ? (
+              <div
+                className="notice warning"
+                role="note"
+              >
+                <strong>
+                  Warnings
+                </strong>
+
+                <ul>
+                  {workbench.warnings.map(
+                    (warning) => (
+                      <li key={warning}>
+                        {warning}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            ) : null}
+
+            <DraftPanel
+              draft={selectedItem.draft}
+              holdRequired={holdRequired}
+              evidenceCount={
+                retrieval.citations.length
+              }
+            />
+
+          </div>
+        </section>
       </div>
     </div>
   );

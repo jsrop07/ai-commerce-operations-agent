@@ -858,6 +858,131 @@ button, a { -webkit-tap-highlight-color: transparent; }
   text-underline-offset: 3px;
 }
 
+.inquiry-layout {
+  align-items: stretch;
+}
+
+.inquiry-list {
+  display: grid;
+}
+
+.inquiry-list .list-item {
+  width: 100%;
+  text-align: left;
+}
+
+.inquiry-list .list-item:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.inquiry-list .list-item[aria-pressed="true"] {
+  box-shadow: inset 3px 0 0 var(--color-ai);
+}
+
+.citation-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: white;
+}
+
+.citation-card-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  cursor: pointer;
+}
+
+.citation-card-summary > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.citation-card-summary > .mono {
+  flex: 0 0 auto;
+}
+
+.citation-card-summary:focus-visible {
+  outline: 2px solid var(--color-ai);
+  outline-offset: 2px;
+}
+
+.citation-card-body {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.citation-fields {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.citation-fields div {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--space-2);
+}
+
+.citation-fields dt {
+  font-weight: 600;
+}
+
+.citation-fields dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workbench-section-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.draft-panel {
+  min-width: 0;
+}
+
+.draft-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.draft-panel-header p {
+  margin-bottom: 0;
+}
+
+.draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.draft-actions button:focus-visible {
+  outline: 2px solid var(--color-ai);
+  outline-offset: 2px;
+}
+
+.draft:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+@media (max-width: 900px) {
+  .inquiry-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .inquiry-layout > .column {
+    min-width: 0;
+  }
+}
+
 @media (max-width: 1279px) {
   body {
     overflow-x: auto;

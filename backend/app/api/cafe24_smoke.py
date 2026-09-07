@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, status
 
-from backend.app.adapters.providers.base import ProviderNonRetryableError
+from backend.app.adapters.providers.base import (
+    ProviderHttpError,
+    ProviderNonRetryableError,
+    ProviderTransientError,
+)
 from backend.app.adapters.providers.cafe24.adapter import Cafe24Adapter
 from backend.app.adapters.providers.capability_guard import (
     CAFE24_ALLOWED_READ_PATHS,
@@ -42,10 +48,32 @@ def _request_json(
             params=params,
             timeout=timeout,
         )
+    except httpx.TimeoutException as exc:
+        raise ProviderTransientError("Cafe24 HTTP 요청 시간이 초과되었습니다.") from exc
     except httpx.HTTPError as exc:
-        raise ProviderNonRetryableError(
-            "Cafe24 HTTP 요청에 실패했습니다."
-        ) from exc
+        raise ProviderNonRetryableError("Cafe24 HTTP 요청에 실패했습니다.") from exc
+
+    if response.status_code == 429:
+        retry_after: float | None = None
+        raw_retry_after = response.headers.get("Retry-After")
+
+        if raw_retry_after is not None:
+            try:
+                retry_after = float(raw_retry_after)
+            except ValueError:
+                try:
+                    retry_at = parsedate_to_datetime(raw_retry_after)
+                    retry_after = max(0.0, (retry_at - datetime.now(UTC)).total_seconds())
+                except (TypeError, ValueError, OverflowError):
+                    retry_after = None
+
+        raise ProviderHttpError(
+            429,
+            retry_after_seconds=retry_after,
+        )
+
+    if 500 <= response.status_code <= 599:
+        raise ProviderHttpError(response.status_code)
 
     if response.status_code != 200:
         raise ProviderNonRetryableError(
@@ -55,14 +83,10 @@ def _request_json(
     try:
         payload = response.json()
     except ValueError as exc:
-        raise ProviderNonRetryableError(
-            "Cafe24 응답이 올바른 JSON 형식이 아닙니다."
-        ) from exc
+        raise ProviderNonRetryableError("Cafe24 응답이 올바른 JSON 형식이 아닙니다.") from exc
 
     if not isinstance(payload, dict):
-        raise ProviderNonRetryableError(
-            "Cafe24 응답이 JSON Object 형식이 아닙니다."
-        )
+        raise ProviderNonRetryableError("Cafe24 응답이 JSON Object 형식이 아닙니다.")
 
     return payload
 

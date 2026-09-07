@@ -1,0 +1,36 @@
+{
+  "chunking": {
+    "chunk_count": 31,
+    "max_tokens": 512,
+    "method": "semantic",
+    "min_tokens": 80,
+    "similarity_threshold": 0.45,
+    "tokenizer": "cl100k_base",
+    "version": "day06-semantic-v1"
+  },
+  "corpus": {
+    "path": "ai\\tests\\fixtures\\retrieval_chunking_corpus.jsonl",
+    "pii_required_status": "CLEAN",
+    "provider_raw_data_used": false,
+    "record_count": 8,
+    "sha256": "5b56da46039030bd2fe64c52aaabf46113a304543f8105e23e02855c8c4f1cc9",
+    "unique_source_count": 7
+  },
+  "embedding": {
+    "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "normalized": true,
+    "revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42"
+  },
+  "evaluation": {
+    "answerable_count": 14,
+    "answerable_coverage": 1.0,
+    "answerable_covered": 14,
+    "missing_relevant_source_ids": [],
+    "path": "ai\\evaluation\\datasets\\chunking_eval.jsonl",
+    "query_count": 16,
+    "sha256": "b18dda2d37674704a9acb9b74e0f81b4f4ebd60b7f17924054dce4b94a307627"
+  },
+  "schema_version": "retrieval-snapshot-manifest.v1",
+  "snapshot_hash": "b3978c93cb5078fe22b19724fbd325f4c983f6ac8f732dd2321701285af5fb3e",
+  "snapshot_version": "day07-semantic-v1"
+}

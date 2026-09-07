@@ -22,6 +22,7 @@ def test_postgresql_offline_upgrade_and_downgrade_sql_compile() -> None:
     )
     assert "CREATE TABLE" in upgrade.stdout
     assert "inventory_ledger" in upgrade.stdout
+    assert "sync_states" in upgrade.stdout
     assert "fk_skus_product_same_tenant" in upgrade.stdout
     assert "fk_sale_events_sku_same_tenant" in upgrade.stdout
     assert "fk_task_dependencies_successor_same_tenant" in upgrade.stdout
@@ -66,12 +67,10 @@ def test_live_postgresql_upgrade_schema_and_rollback() -> None:
     assert inspect(engine).get_table_names() == ["alembic_version"]
     with engine.connect() as connection:
         assert (
-            connection.scalar(
-                text("SELECT to_regprocedure('prevent_inventory_ledger_mutation()')")
-            )
+            connection.scalar(text("SELECT to_regprocedure('prevent_inventory_ledger_mutation()')"))
             is None
         )
     command.upgrade(config, "head")
     with engine.connect() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0001_core"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "f38aa7ef5019"
     engine.dispose()

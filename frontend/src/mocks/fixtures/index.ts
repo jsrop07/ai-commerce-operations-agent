@@ -2,6 +2,7 @@ import type {
   ApiEnvelope, ApiError, DashboardData, Freshness, HealthData, InquirySummary, InsightSummary,
   InventorySnapshot, LaunchEventSummary, OrderSummary, ProductSummary, SkuSummary, TaskSummary,
 } from "../../types/contracts";
+import type { InquiryListItem } from "../../features/inquiries/inquiryViewModels";
 
 const asOf = "2026-09-02T06:30:00Z";
 
@@ -210,3 +211,165 @@ export const inventoryQualityItems = [
     on_hand: null,
   },
 ] as const;
+
+export const inquiryWorkbenchItems: InquiryListItem[] = [
+  {
+    inquiry: {
+      id: "inq_day07_low",
+      channel: "DEMO",
+      sanitized_text:
+        "이 확장팩을 본판 없이 사용할 수 있는지 궁금합니다.",
+      intent: "PRODUCT_INFO",
+      entities: {
+        product_id: "prd_demo_001",
+      },
+      risk: "LOW",
+    },
+
+    status: "NEW",
+    ageLabel: "10분 전",
+    relatedProductRef: "prd_demo_001",
+
+    workbench: {
+      confidence: 0.94,
+      warnings: [],
+      answerStatus: "DRAFT",
+    },
+
+    retrieval: {
+      request_id: "req_day07_low",
+      trace_id: "tr_day07_low",
+      query:
+        "이 확장팩은 본판 없이 사용할 수 있는가?",
+      method: "BM25",
+      confidence: 0.94,
+      index_version: "demo-index-v1",
+
+      citations: [
+        {
+          source_type: "product",
+          source_id: "prd_demo_001",
+          title: "합성 확장팩 상품 정보",
+          record_or_field: "compatibility",
+          as_of: "2026-09-07T06:00:00Z",
+          score: 0.92,
+        },
+      ],
+
+      warnings: [],
+      answer_status: "DRAFT",
+    },
+
+    draft: {
+      text:
+        "확인된 상품 정보에 따르면 해당 확장팩의 사용 조건을 별도로 확인해야 합니다. 아래 근거를 검토한 뒤 답변해 주세요.",
+      status: "DRAFT",
+      provenance: "AI",
+    },
+  },
+
+  {
+    inquiry: {
+      id: "inq_day07_high",
+      channel: "DEMO",
+      sanitized_text:
+        "주문 취소와 환불 처리를 요청합니다.",
+      intent: "REFUND_REQUEST",
+      entities: {
+        order_id: "ord_demo_002",
+      },
+      risk: "HIGH",
+    },
+
+    status: "REVIEW",
+    ageLabel: "25분 전",
+    relatedOrderRef: "ord_demo_002",
+
+    workbench: {
+      confidence: 0.91,
+      warnings: [
+        "고위험 문의입니다. 운영 시스템에서 사람이 직접 확인해야 합니다.",
+      ],
+      answerStatus: "HOLD",
+    },
+
+    retrieval: {
+      request_id: "req_day07_high",
+      trace_id: "tr_day07_high",
+      query:
+        "주문 취소와 환불 처리 기준을 확인한다.",
+      method: "BM25",
+      confidence: 0.91,
+      index_version: "demo-index-v1",
+
+      citations: [
+        {
+          source_type: "policy",
+          source_id: "policy_demo_refund_001",
+          title: "합성 취소·환불 정책",
+          record_or_field: "refund_review_policy",
+          as_of: "2026-09-07T06:00:00Z",
+          score: 0.89,
+        },
+      ],
+
+      warnings: [
+        "고위험 문의이므로 검색 근거가 있어도 자동 답변 확정이 허용되지 않습니다.",
+      ],
+
+      answer_status: "HOLD",
+    },
+    draft: {
+      text:
+        "취소 및 환불 요청은 운영 시스템에서 담당자가 주문 상태와 정책을 직접 확인해야 합니다.",
+      status: "HOLD",
+      provenance: "AI",
+    },
+
+  },
+
+  {
+    inquiry: {
+      id: "inq_day07_low_confidence",
+      channel: "DEMO",
+      sanitized_text:
+        "이 상품이 제가 가진 제품과 호환되는지 잘 모르겠습니다.",
+      intent: "PRODUCT_INFO",
+      entities: {},
+      risk: "LOW",
+    },
+
+    status: "HOLD",
+    ageLabel: "1시간 전",
+
+    workbench: {
+      confidence: 0.54,
+      warnings: [
+        "신뢰도가 낮아 추가 근거 확인이 필요합니다.",
+      ],
+      answerStatus: "HOLD",
+    },
+
+    retrieval: {
+      request_id: "req_day07_low_confidence",
+      trace_id: "tr_day07_low_confidence",
+      query:
+        "이 상품이 보유 제품과 호환되는가?",
+      method: "BM25",
+      confidence: 0.54,
+      index_version: "demo-index-v1",
+
+      citations: [],
+
+      warnings: [
+        "검색 근거가 부족합니다.",
+      ],
+
+      answer_status: "HOLD",
+    },
+    draft: {
+      text: "",
+      status: "INSUFFICIENT_EVIDENCE",
+    },
+  },
+];
