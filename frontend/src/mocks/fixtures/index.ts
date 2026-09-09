@@ -31,7 +31,16 @@ export const skus: SkuSummary[] = [
 
 export const inventory: InventorySnapshot[] = [
   { provider: "CAFE24", sku_id: "sku_demo_001", on_hand: 12, reserved: 4, as_of: asOf, freshness: "FRESH" },
-  { provider: "ECOUNT", sku_id: "sku_demo_001", on_hand: 3, reserved: 4, as_of: "2026-09-02T05:43:00Z", freshness: "STALE" },
+  {
+    provider: "ECOUNT",
+    sku_id: "sku_demo_001",
+    on_hand: 3,
+    reserved: 4,
+    as_of: "2026-09-02T05:43:00Z",
+    freshness: "STALE",
+    quality_status: "STALE",
+    confirmed_for_total: false,
+  },
   { provider: "TOSS_POS", sku_id: "sku_demo_002", on_hand: 18, reserved: 2, as_of: asOf, freshness: "FRESH" },
 ];
 

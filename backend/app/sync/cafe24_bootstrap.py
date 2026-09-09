@@ -495,8 +495,18 @@ def run_cafe24_read_bootstrap(
         protected_root=root, provider="CAFE24", resource=resource, batch_id=batch_id,
         records=records,
     ) for resource, records in collected.items())
-    entries = [build_raw_response_manifest_entry(page, sanitized_count=page.raw_count)
-               for page in raw_snapshots]
+    snapshots_by_resource = {
+        snapshot.resource: snapshot
+        for snapshot in snapshots
+    }
+    entries = [
+        build_raw_response_manifest_entry(
+            page,
+            sanitized_count=page.raw_count,
+            sanitized_path=snapshots_by_resource[page.resource].sanitized_path,
+        )
+        for page in raw_snapshots
+    ]
     write_snapshot_manifest(output_path=manifest_path, entries=entries)
     product_batch_count, next_product_start = _product_batch_resume(
         product_total=len(collected["products"]),

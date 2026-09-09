@@ -47,3 +47,6 @@ alembic.ini
 pyproject.toml
 
 docs/projects
+artifacts/integration/day08/
+frontend/tsconfig.tsbuildinfo
+frontend_day8_openapi.json

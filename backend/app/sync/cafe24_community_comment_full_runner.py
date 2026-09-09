@@ -537,7 +537,7 @@ def run_cafe24_community_comment_full_runner(
                 for item in page.items
             ]
 
-            write_sanitized_export(
+            sanitized_snapshot = write_sanitized_export(
                 protected_root=root,
                 provider="CAFE24",
                 resource=(
@@ -551,7 +551,10 @@ def run_cafe24_community_comment_full_runner(
                 build_raw_response_manifest_entry(
                     raw_page,
                     sanitized_count=(
-                        raw_page.raw_count
+                        sanitized_snapshot.sanitized_count
+                    ),
+                    sanitized_path=(
+                        sanitized_snapshot.sanitized_path
                     ),
                 )
                 for raw_page

@@ -3,7 +3,9 @@ from backend.app.adapters.providers.capability_guard import (
     CAFE24_ALLOWED_READ_PATHS,
 )
 from backend.app.adapters.providers.http_transport import ReadOnlyHttpTransport
-
+from backend.app.worker.privacy.staging import (
+    sanitize_community_record,
+)
 
 def test_cafe24_order_raw_sensitive_fields_do_not_reach_provider_page() -> None:
     fixture_value = "synthetic-fixture-value"
@@ -157,3 +159,35 @@ def test_community_sanitized_schema_drops_structured_pii_and_full_url() -> None:
     assert "signature=" not in serialized
     for field in ("writer", "email", "phone", "address", "subject", "content"):
         assert field not in sanitized
+
+def test_community_title_is_hashed_as_subject() -> None:
+    record = {
+        "board_no": 5,
+        "article_no": 123,
+        "title": "상품 문의 제목",
+        "content": "문의 내용",
+        "writer": "고객명",
+        "writer_email": "customer@example.com",
+    }
+
+    sanitized = sanitize_community_record(
+        record
+    )
+
+    assert "title" not in sanitized
+    assert "content" not in sanitized
+    assert "writer" not in sanitized
+    assert "writer_email" not in sanitized
+
+    assert "subject_sha256" in sanitized
+    assert "content_sha256" in sanitized
+
+    assert (
+        len(sanitized["subject_sha256"])
+        == 64
+    )
+
+    assert (
+        len(sanitized["content_sha256"])
+        == 64
+    )

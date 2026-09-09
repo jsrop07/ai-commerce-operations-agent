@@ -25,6 +25,21 @@ class SnapshotManifestEntry:
     raw_sha256: str
     raw_count: int
     sanitized_count: int
+    sanitized_sha256: str | None = None
+
+def build_sanitized_file_sha256(path: Path) -> str:
+    """저장된 Sanitized artifact 자체의 SHA-256을 계산한다."""
+
+    resolved = path.expanduser().resolve()
+
+    try:
+        body = resolved.read_bytes()
+    except OSError:
+        raise ValueError(
+            "sanitized artifact read failed"
+        ) from None
+
+    return hashlib.sha256(body).hexdigest()
 
 def build_manifest_entry(
     result: ProtectedSnapshotResult,
@@ -38,6 +53,9 @@ def build_manifest_entry(
         raw_sha256=result.raw_sha256,
         raw_count=result.raw_count,
         sanitized_count=result.sanitized_count,
+        sanitized_sha256=build_sanitized_file_sha256(
+            result.sanitized_path
+        ),
     )
 
 def write_snapshot_manifest(
@@ -75,11 +93,11 @@ def write_snapshot_manifest(
     with output_path.open("x", encoding="utf-8") as stream:
         json.dump(payload, stream, ensure_ascii=False, indent=2)
 
-
 def build_raw_response_manifest_entry(
     result: ProtectedRawResponse,
     *,
     sanitized_count: int,
+    sanitized_path: Path | None = None,
 ) -> SnapshotManifestEntry:
     """Use the raw HTTP body hash, never a hash of sanitized adapter records."""
     if sanitized_count != result.raw_count:
@@ -92,6 +110,11 @@ def build_raw_response_manifest_entry(
         raw_sha256=result.raw_sha256,
         raw_count=result.raw_count,
         sanitized_count=sanitized_count,
+        sanitized_sha256=(
+            build_sanitized_file_sha256(sanitized_path)
+            if sanitized_path is not None
+            else None
+        ),
     )
 
 @dataclass(frozen=True)
@@ -192,6 +215,7 @@ def select_canonical_sanitized_artifacts(
                 raw_sha256 = entry.get("raw_sha256")
                 raw_count = entry.get("raw_count")
                 sanitized_count = entry.get("sanitized_count")
+                sanitized_sha256 = entry.get("sanitized_sha256")
                 if (
                     entry_provider != "CAFE24"
                     or not isinstance(entry_resource, str)
@@ -203,6 +227,13 @@ def select_canonical_sanitized_artifacts(
                     or raw_count < 0
                     or sanitized_count < 0
                     or raw_count != sanitized_count
+                    or (
+                        sanitized_sha256 is not None
+                        and (
+                            not isinstance(sanitized_sha256, str)
+                            or not re.fullmatch(r"[0-9a-f]{64}", sanitized_sha256)
+                        )
+                    )
                 ):
                     raise ValueError
                 _require_component(entry_resource)
@@ -222,6 +253,22 @@ def select_canonical_sanitized_artifacts(
             ]
             if not matching or sum(int(item["sanitized_count"]) for item in matching) != len(sanitized["records"]):
                 raise ValueError
+            expected_sanitized_hashes = {
+                str(item["sanitized_sha256"])
+                for item in matching
+                if item.get("sanitized_sha256") is not None
+            }
+
+            if expected_sanitized_hashes:
+                if len(expected_sanitized_hashes) != 1:
+                    raise ValueError
+
+                actual_sanitized_sha256 = hashlib.sha256(
+                    sanitized_path.read_bytes()
+                ).hexdigest()
+
+                if actual_sanitized_sha256 not in expected_sanitized_hashes:
+                    raise ValueError
 
             raw_dir = root / "cafe24" / "raw" / batch_id / resource
             _require_contained(root, raw_dir)

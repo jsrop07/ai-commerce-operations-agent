@@ -1,7 +1,7 @@
 """Cafe24 Product 전체 수집용 500개 단위 Runner."""
 
 from __future__ import annotations
-
+import re
 import time
 import json
 from dataclasses import asdict, dataclass
@@ -18,6 +18,8 @@ from backend.app.sync.cafe24_product_bootstrap import (
 )
 from backend.app.adapters.providers.base import (
     ProviderHttpError,
+    ProviderNonRetryableError,
+    ProviderTransientError,
 )
 
 @dataclass(frozen=True)
@@ -76,6 +78,54 @@ def _write_progress(
         progress_path
     )
 
+def _find_first_missing_product_offset(
+    *,
+    root: Path,
+    page_size: int,
+) -> int | None:
+    manifest_root = (
+        root
+        / "cafe24"
+        / "manifests"
+    )
+
+    if not manifest_root.exists():
+        return None
+
+    existing_offsets: set[int] = set()
+
+    for path in manifest_root.glob(
+        "product-full-*.manifest.json"
+    ):
+        match = re.match(
+            r"product-full-(\d{6})-",
+            path.name,
+        )
+
+        if match is None:
+            continue
+
+        existing_offsets.add(
+            int(match.group(1))
+        )
+
+    if not existing_offsets:
+        return None
+
+    highest_offset = max(
+        existing_offsets
+    )
+
+    for offset in range(
+        0,
+        highest_offset + page_size,
+        page_size,
+    ):
+        if offset not in existing_offsets:
+            return offset
+
+    return None
+
 
 def run_cafe24_product_full_runner(
     *,
@@ -106,6 +156,22 @@ def run_cafe24_product_full_runner(
     ):
         raise ValueError(
             "start_offset must align with Cafe24 page size"
+        )
+
+    missing_offset = (
+        _find_first_missing_product_offset(
+            root=root,
+            page_size=page_size,
+        )
+    )
+
+    if (
+        missing_offset is not None
+        and start_offset > missing_offset
+    ):
+        raise ValueError(
+            "product resume cannot skip "
+            f"unresolved offset {missing_offset}"
         )
 
     if (
@@ -220,6 +286,23 @@ def run_cafe24_product_full_runner(
 
             except ProviderHttpError as exc:
                 if exc.status_code != 429:
+                    _write_progress(
+                        progress_path=progress_path,
+                        payload={
+                            "run_id": run_id,
+                            "status": "FAILED_HTTP",
+                            "start_offset": start_offset,
+                            "last_success_offset": last_success_offset,
+                            "next_product_offset": current_offset,
+                            "processed_product_count": processed_product_count,
+                            "processed_batch_count": processed_batch_count,
+                            "variant_count": variant_count,
+                            "inventory_count": inventory_count,
+                            "request_count": request_count,
+                            "http_status_code": exc.status_code,
+                            "completed": False,
+                        },
+                    )
                     raise
 
                 if rate_limit_retry_count >= max_rate_limit_retries:
@@ -229,34 +312,19 @@ def run_cafe24_product_full_runner(
                             "run_id": run_id,
                             "status": "FAILED_RATE_LIMIT",
                             "start_offset": start_offset,
-                            "last_success_offset": (
-                                last_success_offset
-                            ),
-                            "next_product_offset": (
-                                current_offset
-                            ),
-                            "processed_product_count": (
-                                processed_product_count
-                            ),
-                            "processed_batch_count": (
-                                processed_batch_count
-                            ),
-                            "variant_count": (
-                                variant_count
-                            ),
-                            "inventory_count": (
-                                inventory_count
-                            ),
-                            "request_count": (
-                                request_count
-                            ),
-                            "rate_limit_retry_count": (
-                                rate_limit_retry_count
-                            ),
+                            "last_success_offset": last_success_offset,
+                            "next_product_offset": current_offset,
+                            "processed_product_count": processed_product_count,
+                            "processed_batch_count": processed_batch_count,
+                            "variant_count": variant_count,
+                            "inventory_count": inventory_count,
+                            "request_count": request_count,
+                            "rate_limit_retry_count": rate_limit_retry_count,
                             "completed": False,
                         },
                     )
                     raise
+
                 rate_limit_retry_count += 1
 
                 retry_after = (
@@ -276,33 +344,15 @@ def run_cafe24_product_full_runner(
                         "run_id": run_id,
                         "status": "RATE_LIMIT_WAIT",
                         "start_offset": start_offset,
-                        "last_success_offset": (
-                            last_success_offset
-                        ),
-                        "next_product_offset": (
-                            current_offset
-                        ),
-                        "processed_product_count": (
-                            processed_product_count
-                        ),
-                        "processed_batch_count": (
-                            processed_batch_count
-                        ),
-                        "variant_count": (
-                            variant_count
-                        ),
-                        "inventory_count": (
-                            inventory_count
-                        ),
-                        "request_count": (
-                            request_count
-                        ),
-                        "rate_limit_retry_count": (
-                            rate_limit_retry_count
-                        ),
-                        "retry_after_seconds": (
-                            wait_seconds
-                        ),
+                        "last_success_offset": last_success_offset,
+                        "next_product_offset": current_offset,
+                        "processed_product_count": processed_product_count,
+                        "processed_batch_count": processed_batch_count,
+                        "variant_count": variant_count,
+                        "inventory_count": inventory_count,
+                        "request_count": request_count,
+                        "rate_limit_retry_count": rate_limit_retry_count,
+                        "retry_after_seconds": wait_seconds,
                         "completed": False,
                     },
                 )
@@ -310,6 +360,63 @@ def run_cafe24_product_full_runner(
                 time.sleep(
                     wait_seconds
                 )
+
+            except ProviderTransientError:
+                _write_progress(
+                    progress_path=progress_path,
+                    payload={
+                        "run_id": run_id,
+                        "status": "FAILED_TRANSIENT",
+                        "start_offset": start_offset,
+                        "last_success_offset": last_success_offset,
+                        "next_product_offset": current_offset,
+                        "processed_product_count": processed_product_count,
+                        "processed_batch_count": processed_batch_count,
+                        "variant_count": variant_count,
+                        "inventory_count": inventory_count,
+                        "request_count": request_count,
+                        "completed": False,
+                    },
+                )
+                raise
+
+            except ProviderNonRetryableError:
+                _write_progress(
+                    progress_path=progress_path,
+                    payload={
+                        "run_id": run_id,
+                        "status": "FAILED_NON_RETRYABLE",
+                        "start_offset": start_offset,
+                        "last_success_offset": last_success_offset,
+                        "next_product_offset": current_offset,
+                        "processed_product_count": processed_product_count,
+                        "processed_batch_count": processed_batch_count,
+                        "variant_count": variant_count,
+                        "inventory_count": inventory_count,
+                        "request_count": request_count,
+                        "completed": False,
+                    },
+                )
+                raise
+
+            except Exception:
+                _write_progress(
+                    progress_path=progress_path,
+                    payload={
+                        "run_id": run_id,
+                        "status": "FAILED_UNEXPECTED",
+                        "start_offset": start_offset,
+                        "last_success_offset": last_success_offset,
+                        "next_product_offset": current_offset,
+                        "processed_product_count": processed_product_count,
+                        "processed_batch_count": processed_batch_count,
+                        "variant_count": variant_count,
+                        "inventory_count": inventory_count,
+                        "request_count": request_count,
+                        "completed": False,
+                    },
+                )
+                raise
 
         processed_product_count += (
             result.product_page_count

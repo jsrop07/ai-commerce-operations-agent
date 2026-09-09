@@ -447,3 +447,103 @@ describe("InventoryPage", () => {
     ).toBeInTheDocument();
     });
 });
+
+it("expected_inventory가 null이면 0이 아니라 미제공으로 표시한다", async () => {
+  const handler = mockHandlers.find(
+    (candidate) =>
+      candidate.method === "GET" &&
+      candidate.path === "/api/v1/inventory",
+  );
+
+  expect(handler).toBeDefined();
+
+  if (!handler) {
+    return;
+  }
+
+  vi.spyOn(handler, "resolve").mockReturnValue({
+    schema_version: "1.0",
+    tenant_id: "demo_store",
+    request_id: "req_inventory_null",
+    trace_id: "tr_inventory_null",
+    data: [
+      {
+        provider: "CAFE24",
+        sku_id: "sku_demo_001",
+        on_hand: 8,
+        reserved: 1,
+        as_of: "2026-09-09T08:30:00Z",
+        freshness: "FRESH",
+        expected_inventory: null,
+        confirmed_incoming: null,
+        risk_level: null,
+        quality_status: "USABLE",
+        confirmed_for_total: true,
+      },
+    ],
+    evidence_ids: [],
+    warnings: [],
+    as_of: "2026-09-09T08:30:00Z",
+  });
+
+  render(<InventoryPage />);
+
+  const row = await screen.findByRole("row", {
+    name: /sku_demo_001 CAFE24/i,
+  });
+
+  expect(row.textContent).toContain("미제공");
+  expect(row.textContent).not.toContain(">0<");
+});
+it("quality_status와 confirmed_for_total을 Backend 값 그대로 표시한다", async () => {
+  const handler = mockHandlers.find(
+    (candidate) =>
+      candidate.method === "GET" &&
+      candidate.path === "/api/v1/inventory",
+  );
+
+  expect(handler).toBeDefined();
+
+  if (!handler) {
+    return;
+  }
+
+  vi.spyOn(handler, "resolve").mockReturnValue({
+    schema_version: "1.0",
+    tenant_id: "demo_store",
+    request_id: "req_inventory_stale",
+    trace_id: "tr_inventory_stale",
+    data: [
+      {
+        provider: "CAFE24",
+        sku_id: "sku_demo_001",
+        on_hand: 8,
+        reserved: 1,
+        as_of: "2026-09-09T08:30:00Z",
+        freshness: "STALE",
+        expected_inventory: 6,
+        confirmed_incoming: null,
+        risk_level: "MEDIUM",
+        quality_status: "STALE",
+        confirmed_for_total: false,
+      },
+    ],
+    evidence_ids: [],
+    warnings: [],
+    as_of: "2026-09-09T08:30:00Z",
+  });
+
+  render(<InventoryPage />);
+
+  expect(
+    await screen.findByText("확정 재고 합계에서 제외"),
+  ).toBeInTheDocument();
+
+  expect(
+    screen.getByText("MEDIUM"),
+  ).toBeInTheDocument();
+
+  expect(
+    screen.getByText("6"),
+  ).toBeInTheDocument();
+});

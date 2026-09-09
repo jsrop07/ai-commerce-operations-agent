@@ -294,23 +294,25 @@ def run_cafe24_order_probe(
         "refunds": refunds,
     }
 
-    for (
-        resource,
-        records,
-    ) in collected.items():
-        write_sanitized_export(
+    sanitized_snapshots = {
+        resource: write_sanitized_export(
             protected_root=root,
             provider="CAFE24",
             resource=resource,
             batch_id=batch_id,
             records=records,
         )
+        for resource, records in collected.items()
+    }
 
     entries = [
         build_raw_response_manifest_entry(
             page,
             sanitized_count=(
                 page.raw_count
+            ),
+            sanitized_path=(
+                sanitized_snapshots[page.resource].sanitized_path
             ),
         )
         for page in raw_snapshots

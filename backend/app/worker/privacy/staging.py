@@ -157,12 +157,42 @@ def sanitize_community_record(payload: dict[str, Any]) -> dict[str, Any]:
         if key.strip().lower() in COMMUNITY_IDENTIFIER_FIELDS
     }
 
-    for field_name in ("subject", "content"):
-        value = payload.get(field_name)
-        if isinstance(value, str) and value:
-            sanitized[f"{field_name}_sha256"] = hashlib.sha256(
-                value.encode("utf-8")
+    subject_value = payload.get(
+        "subject"
+    )
+
+    if not isinstance(
+        subject_value,
+        str,
+    ) or not subject_value:
+        subject_value = payload.get(
+            "title"
+        )
+
+    if (
+        isinstance(subject_value, str)
+        and subject_value
+    ):
+        sanitized["subject_sha256"] = (
+            hashlib.sha256(
+                subject_value.encode("utf-8")
             ).hexdigest()
+        )
+
+
+    content_value = payload.get(
+        "content"
+    )
+
+    if (
+        isinstance(content_value, str)
+        and content_value
+    ):
+        sanitized["content_sha256"] = (
+            hashlib.sha256(
+                content_value.encode("utf-8")
+            ).hexdigest()
+        )
 
     attachments = payload.get("attach_file_urls")
     source_hashes: list[str] = []

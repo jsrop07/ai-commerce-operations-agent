@@ -143,16 +143,23 @@ def _write_canonical_order_batch(root: Path, batch_id: str = "order-full-synthet
         payload={"orders": [{"order_id": "20260101-000001"}]},
         raw_count=1,
     )
-    write_sanitized_export(
+    sanitized = write_sanitized_export(
         protected_root=root,
         provider="CAFE24",
         resource="orders",
         batch_id=batch_id,
         records=[{"order_id": "20260101-000001"}],
     )
+
     write_snapshot_manifest(
         output_path=root / "cafe24" / "manifests" / f"{batch_id}.manifest.json",
-        entries=[build_raw_response_manifest_entry(raw, sanitized_count=1)],
+        entries=[
+            build_raw_response_manifest_entry(
+                raw,
+                sanitized_count=1,
+                sanitized_path=sanitized.sanitized_path,
+            )
+        ],
     )
 
 
@@ -177,6 +184,62 @@ def test_canonical_selector_includes_success_and_excludes_orphan(tmp_path: Path)
     assert selection.missing_manifest_count == 1
     assert selection.invalid_artifact_count == 0
 
+def test_canonical_selector_accepts_matching_sanitized_hash(
+    tmp_path: Path,
+) -> None:
+    _write_canonical_order_batch(tmp_path)
+
+    selection = select_canonical_sanitized_artifacts(
+        protected_root=tmp_path,
+        resource="orders",
+        filename_pattern="order-full-*.sanitized.json",
+    )
+
+    assert len(selection.artifacts) == 1
+    assert selection.missing_manifest_count == 0
+    assert selection.invalid_artifact_count == 0
+
+def test_canonical_selector_rejects_sanitized_hash_mismatch(
+    tmp_path: Path,
+) -> None:
+    _write_canonical_order_batch(tmp_path)
+
+    sanitized_path = (
+        tmp_path
+        / "cafe24"
+        / "sanitized"
+        / "orders"
+        / "order-full-synthetic.sanitized.json"
+    )
+
+    payload = json.loads(
+        sanitized_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    payload["records"][0]["order_id"] = (
+        "20260101-999999"
+    )
+
+    sanitized_path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    selection = select_canonical_sanitized_artifacts(
+        protected_root=tmp_path,
+        resource="orders",
+        filename_pattern="order-full-*.sanitized.json",
+    )
+
+    assert selection.artifacts == ()
+    assert selection.missing_manifest_count == 0
+    assert selection.invalid_artifact_count == 1
 
 def test_canonical_selector_rejects_count_mismatch(tmp_path: Path) -> None:
     _write_canonical_order_batch(tmp_path)

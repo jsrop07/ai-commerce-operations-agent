@@ -270,11 +270,42 @@ def test_cafe24_bootstrap_builds_all_snapshots(tmp_path):
 def test_cafe24_bootstrap_manifest_has_counts(tmp_path):
     result, _ = run(tmp_path)
     payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    snapshots_by_resource = {
+        snapshot.resource: snapshot
+        for snapshot in result.snapshots
+    }
     assert payload["snapshot_count"] == 10
     assert payload["raw_total"] == payload["sanitized_total"] == 9
-    allowed = {"provider", "resource", "batch_id", "raw_sha256", "raw_count", "sanitized_count"}
-    assert all(set(entry) == allowed for entry in payload["resources"])
+    allowed = {
+        "provider",
+        "resource",
+        "batch_id",
+        "raw_sha256",
+        "raw_count",
+        "sanitized_count",
+        "sanitized_sha256",
+    }
 
+    assert all(
+        set(entry) == allowed
+        for entry in payload["resources"]
+    )
+    assert all(
+        entry["sanitized_sha256"]
+        == hashlib.sha256(
+            snapshots_by_resource[
+                entry["resource"]
+            ].sanitized_path.read_bytes()
+        ).hexdigest()
+        for entry in payload["resources"]
+    )
+    assert all(
+        isinstance(entry["sanitized_sha256"], str)
+        and len(entry["sanitized_sha256"]) == 64
+        and entry["sanitized_sha256"]
+        == entry["sanitized_sha256"].lower()
+        for entry in payload["resources"]
+    )
 
 def test_cafe24_bootstrap_sanitizes_inquiry_text(tmp_path):
     result, _ = run(tmp_path)

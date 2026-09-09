@@ -1,5 +1,14 @@
 import { AIBadge, RiskBadge, SourceBadge } from "../../components/Badges";
 import InternalTaskAction from "../../components/InternalTaskAction";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  getDay08Insights,
+  type Day08Insight,
+} from "../../api/day08";
 
 const insights = [
   { level: "critical" as const, title: "이번 주 토요일 전 주요 케이크 재고 소진 예상", problem: "현재 판매 속도라면 레드벨벳과 말차 케이크가 입고 전에 소진될 수 있습니다.", source: "최근 7일 판매량 · eCount 실재고", confidence: "94%", action: "실재고와 진열 수량을 직접 확인" },
@@ -8,6 +17,112 @@ const insights = [
 ];
 
 export default function InsightsPage() {
+  const useRealBackend =
+  import.meta.env.VITE_USE_REAL_BACKEND === "true";
+
+const [realInsights, setRealInsights] =
+  useState<Day08Insight[] | null>(null);
+
+const [realError, setRealError] =
+  useState(false);
+
+useEffect(() => {
+  if (!useRealBackend) {
+    return;
+  }
+
+  let active = true;
+
+  getDay08Insights()
+    .then((response) => {
+      if (active) {
+        setRealInsights(response.data);
+      }
+    })
+    .catch(() => {
+      if (active) {
+        setRealError(true);
+      }
+    });
+
+  return () => {
+    active = false;
+  };
+}, []);
+if (useRealBackend) {
+  if (realError) {
+    return (
+      <div
+        className="page"
+        data-testid="route-insights"
+      >
+        <p>
+          Backend Insight를 불러오지 못했습니다.
+        </p>
+      </div>
+    );
+  }
+
+  if (!realInsights) {
+    return (
+      <div
+        className="page"
+        data-testid="route-insights"
+      >
+        <p>Insight를 불러오는 중입니다.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="page"
+      data-testid="route-insights"
+    >
+      <section className="stack">
+        {realInsights.map((insight) => (
+          <article
+            className="card"
+            key={insight.insight_id}
+            data-testid="real-backend-insight"
+          >
+            <div className="card-body stack">
+              <strong>
+                {insight.summary}
+              </strong>
+
+              <div>
+                Severity: {insight.severity}
+              </div>
+
+              <div>
+                Confidence: {insight.confidence}
+              </div>
+
+              {insight.calculation ? (
+                <div
+                  data-testid="insight-calculation"
+                >
+                  시작 재고:{" "}
+                  {insight.calculation.starting_inventory ??
+                    "미제공"}
+                  {" / "}
+                  판매:{" "}
+                  {insight.calculation.sold ??
+                    "미제공"}
+                  {" / "}
+                  예상 재고:{" "}
+                  {insight.calculation.expected_inventory ??
+                    "미제공"}
+                </div>
+              ) : null}
+            </div>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
   return (
     <div className="page" data-testid="route-insights">
       <div className="notice ai"><AIBadge>AI 인사이트 · 운영 패턴 감지</AIBadge><br /><span className="muted">합성 운영 데이터를 바탕으로 검토 항목을 제안하며 자동 실행하지 않습니다.</span></div>

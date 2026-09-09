@@ -294,7 +294,7 @@ def run_cafe24_article_page(
         for article in articles
     ]
 
-    write_sanitized_export(
+    sanitized_snapshot = write_sanitized_export(
         protected_root=root,
         provider="CAFE24",
         resource=(
@@ -307,9 +307,8 @@ def run_cafe24_article_page(
     entries = [
         build_raw_response_manifest_entry(
             page,
-            sanitized_count=(
-                page.raw_count
-            ),
+            sanitized_count=sanitized_snapshot.sanitized_count,
+            sanitized_path=sanitized_snapshot.sanitized_path,
         )
         for page in raw_snapshots
     ]

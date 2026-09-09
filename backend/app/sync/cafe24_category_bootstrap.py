@@ -272,7 +272,7 @@ def run_cafe24_category_probe(
             raise ValueError(
                 "invalid category next cursor"
             ) from None
-    write_sanitized_export(
+    sanitized_snapshot = write_sanitized_export(
         protected_root=root,
         provider="CAFE24",
         resource="categories",
@@ -283,9 +283,8 @@ def run_cafe24_category_probe(
     entries = [
         build_raw_response_manifest_entry(
             page,
-            sanitized_count=(
-                page.raw_count
-            ),
+            sanitized_count=sanitized_snapshot.sanitized_count,
+            sanitized_path=sanitized_snapshot.sanitized_path,
         )
         for page in raw_snapshots
     ]

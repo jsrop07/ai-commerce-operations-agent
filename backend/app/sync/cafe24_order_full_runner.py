@@ -272,7 +272,7 @@ def run_cafe24_order_page(
         for order in orders
     ]
 
-    write_sanitized_export(
+    sanitized_snapshot = write_sanitized_export(
         protected_root=root,
         provider="CAFE24",
         resource="orders",
@@ -283,9 +283,8 @@ def run_cafe24_order_page(
     entries = [
         build_raw_response_manifest_entry(
             raw_page,
-            sanitized_count=(
-                raw_page.raw_count
-            ),
+            sanitized_count=sanitized_snapshot.sanitized_count,
+            sanitized_path=sanitized_snapshot.sanitized_path,
         )
         for raw_page
         in raw_snapshots

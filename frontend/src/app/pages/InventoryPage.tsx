@@ -20,6 +20,8 @@ import type {
   SkuSummary,
   TaskSummary,
 } from "../../types/contracts";
+import { getDay08Inventory } from "../../api/day08";
+import QualityStatus from "../../features/integrations/QualityStatus";
 
 interface ProductCatalogData {
   products: ProductSummary[];
@@ -53,6 +55,19 @@ function sortInventory(
     return a.provider.localeCompare(b.provider);
   });
 }
+function displayNullableNumber(
+  value: number | null | undefined,
+): string {
+  return value === null || value === undefined
+    ? "미제공"
+    : String(value);
+}
+
+function displayRiskLevel(
+  value: InventorySnapshot["risk_level"],
+): string {
+  return value ?? "미제공";
+}
 
 export default function InventoryPage() {
   const [inventory, setInventory] =
@@ -79,8 +94,11 @@ export default function InventoryPage() {
     restoreFocusOnCloseRef.current = true;
     setSelectedInventory(null);
   }, []);
-
-  useLayoutEffect(() => {
+  
+  const [inventoryError, setInventoryError] =
+    useState<string | null>(null);
+  
+    useLayoutEffect(() => {
     if (
       selectedInventory !== null ||
       !restoreFocusOnCloseRef.current
@@ -103,13 +121,20 @@ export default function InventoryPage() {
       }
     });
 
-    mockApiGet<ApiEnvelope<InventorySnapshot[]>>(
-      "/api/v1/inventory",
-    ).then((response) => {
-      if (active) {
-        setInventory(response);
-      }
-    });
+    getDay08Inventory()
+      .then((response) => {
+        if (active) {
+          setInventory(response);
+          setInventoryError(null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setInventoryError(
+            "재고 Backend Projection을 불러오지 못했습니다.",
+          );
+        }
+      });
 
     mockApiGet<ApiEnvelope<ProductCatalogData>>(
       "/api/v1/products",
@@ -124,6 +149,20 @@ export default function InventoryPage() {
     };
   }, []);
 
+  if (inventoryError) {
+    return (
+      <div
+        className="page"
+        data-testid="route-inventory"
+      >
+        <SystemState
+          state="denied"
+          title="재고 데이터를 불러오지 못했습니다"
+          description={inventoryError}
+        />
+      </div>
+    );
+  }
   if (!inventory || !catalog || !tasks) {
     return (
       <div
@@ -305,6 +344,7 @@ export default function InventoryPage() {
                 <th>위험</th>
                 <th>최신성</th>
                 <th>기준 시각</th>
+                <th>품질 상태</th>
               </tr>
             </thead>
 
@@ -367,22 +407,20 @@ export default function InventoryPage() {
                     {item.reserved}
                   </td>
 
-                  <td>
-                    <span className="muted">
-                      계약 미제공
-                    </span>
+                  <td className="number">
+                    {displayNullableNumber(
+                      item.expected_inventory,
+                    )}
+                  </td>
+
+                  <td className="number">
+                    {displayNullableNumber(
+                      item.confirmed_incoming,
+                    )}
                   </td>
 
                   <td>
-                    <span className="muted">
-                      계약 미제공
-                    </span>
-                  </td>
-
-                  <td>
-                    <span className="muted">
-                      계약 미제공
-                    </span>
+                    {displayRiskLevel(item.risk_level)}
                   </td>
 
                   <td>
@@ -400,6 +438,22 @@ export default function InventoryPage() {
                         item.as_of,
                       ).toLocaleString("ko-KR")}
                     </time>
+                  </td>
+
+                  <td>
+                    {item.quality_status ? (
+                      <QualityStatus
+                        status={item.quality_status}
+                        provider={item.provider}
+                        confirmedForTotal={
+                          item.confirmed_for_total
+                        }
+                      />
+                    ) : (
+                      <span className="muted">
+                        미제공
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

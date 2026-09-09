@@ -357,7 +357,7 @@ def _run_order_item_one(
         )
     ]
 
-    write_sanitized_export(
+    sanitized_snapshot = write_sanitized_export(
         protected_root=root,
         provider="CAFE24",
         resource="order_items",
@@ -368,9 +368,8 @@ def _run_order_item_one(
     entries = [
         build_raw_response_manifest_entry(
             raw_page,
-            sanitized_count=(
-                raw_page.raw_count
-            ),
+            sanitized_count=sanitized_snapshot.sanitized_count,
+            sanitized_path=sanitized_snapshot.sanitized_path,
         )
         for raw_page
         in raw_snapshots
