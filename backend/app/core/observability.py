@@ -8,6 +8,43 @@ import json
 import logging
 from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass
+from urllib.parse import parse_qs
+
+
+CAFE24_OAUTH_QUERY_STATE_KEY = "_cafe24_oauth_query"
+
+
+class RedactCafe24OAuthQueryMiddleware:
+    """Keep OAuth callback values in-memory while hiding them from access logs."""
+
+    def __init__(self, app: object) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: object, send: object) -> None:
+        if (
+            scope.get("type") == "http"
+            and scope.get("path") == "/internal/cafe24/oauth/callback"
+        ):
+            raw_query = scope.get("query_string", b"")
+            parsed: dict[str, list[str]] = {}
+            try:
+                parsed = parse_qs(
+                    raw_query.decode("ascii"),
+                    keep_blank_values=True,
+                    strict_parsing=True,
+                )
+            except (UnicodeDecodeError, ValueError):
+                parsed = {}
+
+            state = scope.setdefault("state", {})
+            state[CAFE24_OAUTH_QUERY_STATE_KEY] = {
+                key: values[0]
+                for key, values in parsed.items()
+                if key in {"code", "state", "error"} and len(values) == 1
+            }
+            scope["query_string"] = b""
+
+        await self.app(scope, receive, send)
 
 
 @dataclass(frozen=True)
@@ -77,3 +114,8 @@ def structured_record(message: str, **safe_fields: object) -> str:
 
 def configure_logging(level: str = "INFO") -> None:
     logging.basicConfig(level=level, format="%(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    # Starlette TestClient in this runtime uses API-compatible fork names.
+    logging.getLogger("httpx2").setLevel(logging.WARNING)
+    logging.getLogger("httpcore2").setLevel(logging.WARNING)

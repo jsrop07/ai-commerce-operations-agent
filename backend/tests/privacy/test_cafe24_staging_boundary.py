@@ -128,3 +128,32 @@ def test_cafe24_raw_and_sanitized_item_counts_match() -> None:
 
     assert len(raw_items) == 2
     assert len(page.items) == 2
+
+def test_community_sanitized_schema_drops_structured_pii_and_full_url() -> None:
+    from backend.app.worker.privacy.staging import sanitize_community_record
+
+    synthetic_url = "https://forplus.co.kr/synthetic/file.pdf?signature=synthetic-query"
+    sanitized = sanitize_community_record(
+        {
+            "board_no": 6,
+            "article_no": 1001,
+            "parent_article_no": 1000,
+            "subject": "Synthetic Person",
+            "content": "Synthetic address and contact",
+            "writer": "Synthetic Customer",
+            "email": "".join(("synthetic", "@example.test")),
+            "phone": "-".join(("010", "0000", "0000")),
+            "address": "Synthetic address",
+            "attach_file_urls": [{"url": synthetic_url}],
+        }
+    )
+    serialized = str(sanitized)
+    assert sanitized["board_no"] == 6
+    assert sanitized["article_no"] == 1001
+    assert sanitized["parent_article_no"] == 1000
+    assert sanitized["attachment_count"] == 1
+    assert len(sanitized["attachment_source_sha256"][0]) == 64
+    assert synthetic_url not in serialized
+    assert "signature=" not in serialized
+    for field in ("writer", "email", "phone", "address", "subject", "content"):
+        assert field not in sanitized

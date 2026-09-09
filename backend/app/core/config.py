@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     cafe24_client_id: str | None = None
     cafe24_client_secret: str | None = None
     cafe24_redirect_uri: str | None = None
+    cafe24_protected_data_dir: str | None = None
     
     @model_validator(mode="after")
     def enforce_production_read_only(self) -> "Settings":

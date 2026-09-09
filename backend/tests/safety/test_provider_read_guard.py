@@ -183,3 +183,57 @@ def test_guard_failure_does_not_expose_authorization_value() -> None:
 
     assert fixture_value not in str(exc_info.value)
     assert transport.request_count == 0
+
+@pytest.mark.parametrize(
+    "extra_scope",
+    ["mall.write_synthetic", "synthetic.unknown_scope"],
+)
+def test_unexpected_scope_is_blocked_before_transport(extra_scope: str) -> None:
+    calls = 0
+
+    def fake_request(**_: object) -> dict[str, str]:
+        nonlocal calls
+        calls += 1
+        return {"status": "unexpected"}
+
+    transport = ReadOnlyHttpTransport(
+        request_fn=fake_request,
+        granted_scopes={
+            "mall.read_product",
+            "mall.read_order",
+            "mall.read_category",
+            "mall.read_community",
+            extra_scope,
+        },
+        allowed_paths=CAFE24_ALLOWED_READ_PATHS,
+    )
+    with pytest.raises(CredentialScopeError):
+        transport.get(
+            url="https://example.cafe24api.com/api/v2/admin/products",
+            required_scopes={"mall.read_product"},
+        )
+    assert calls == 0
+    assert transport.request_count == 0
+
+
+def test_all_four_cafe24_read_scopes_are_allowed() -> None:
+    calls = 0
+
+    def fake_request(**_: object) -> dict[str, list[object]]:
+        nonlocal calls
+        calls += 1
+        return {"products": []}
+
+    transport = ReadOnlyHttpTransport(
+        request_fn=fake_request,
+        granted_scopes={
+            "mall.read_product", "mall.read_order",
+            "mall.read_category", "mall.read_community",
+        },
+        allowed_paths=CAFE24_ALLOWED_READ_PATHS,
+    )
+    transport.get(
+        url="https://example.cafe24api.com/api/v2/admin/products",
+        required_scopes={"mall.read_product"},
+    )
+    assert calls == 1
