@@ -19,7 +19,6 @@ def test_all_catalog_sources_have_freshness_policy() -> None:
         "POLICY",
         "INVENTORY_SNAPSHOT",
         "INCOMING_STOCK",
-        "ORDER_STATUS",
     }
 
 
@@ -29,7 +28,6 @@ def test_live_sources_have_positive_ttl() -> None:
     for source_type in {
         "INVENTORY_SNAPSHOT",
         "INCOMING_STOCK",
-        "ORDER_STATUS",
     }:
         source = policy["sources"][source_type]
 
@@ -55,7 +53,6 @@ def test_missing_as_of_is_stale_for_live_sources() -> None:
     for source_type in {
         "INVENTORY_SNAPSHOT",
         "INCOMING_STOCK",
-        "ORDER_STATUS",
     }:
         source = policy["sources"][source_type]
 

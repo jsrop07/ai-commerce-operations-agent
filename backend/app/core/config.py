@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     global_write_kill: bool = True
     database_url: str = "postgresql+psycopg://commerce:commerce@localhost:5432/commerce_ops"
     log_level: str = "INFO"
+    retrieval_method: str | None = None  # None follows the handoff selection.
+    retrieval_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
 
     cafe24_mall_id: str | None = None
     cafe24_access_token: str | None = None

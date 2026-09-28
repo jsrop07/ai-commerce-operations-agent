@@ -74,19 +74,3 @@ sources:
       - "confirmed_and_tentative_status_must_not_be_conflated"
       - "stale_source_requires_fallback"
 
-  - source_type: "ORDER_STATUS"
-    owner: "COMMERCE_CORE"
-    freshness: "LIVE_TTL"
-    visibility: "TENANT_RESTRICTED"
-    retrieval_mode: "SQL_EVIDENCE"
-    record_unit: "order_status"
-    answer_scope:
-      - "order_status"
-      - "reservation_status"
-      - "ordered_at"
-      - "promised_date"
-    restrictions:
-      - "as_of_required"
-      - "customer_pii_must_not_enter_retrieval_corpus"
-      - "authorized_record_reference_required"
-      - "stale_status_must_not_support_definitive_answer"

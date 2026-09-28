@@ -2,18 +2,36 @@ import json
 import logging
 
 import httpx
-
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
 from backend.app.core.config import Environment, Settings
 from backend.app.core.observability import (
-    CAFE24_OAUTH_QUERY_STATE_KEY, CorrelationContext,
-    RedactCafe24OAuthQueryMiddleware, bind_context, configure_logging,
+    CAFE24_OAUTH_QUERY_STATE_KEY,
+    CorrelationContext,
+    RedactCafe24OAuthQueryMiddleware,
+    bind_context,
+    configure_logging,
     structured_record,
 )
+from backend.app.db.base import Base
 from backend.app.main import create_app
 from backend.app.services.demo import DEMO_SCENARIOS
+
+
+def _demo_app():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    return create_app(
+        Settings(environment=Environment.DEMO),
+        db_engine=engine,
+    )
 
 
 def test_context_is_searchable_across_flow() -> None:
@@ -75,7 +93,7 @@ def test_logger_rejects_correlation_context_override() -> None:
 
 
 def test_http_request_ids_are_preserved_in_pipeline_trace() -> None:
-    app = create_app(Settings(environment=Environment.DEMO))
+    app = _demo_app()
     client = TestClient(app)
 
     response = client.post(

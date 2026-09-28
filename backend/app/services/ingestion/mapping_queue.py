@@ -23,6 +23,12 @@ class MappingQueueItem:
     approved: bool = False
     confidence: float | None = None
     mapping_version: int | None = None
+    candidate_ids: tuple[str, ...] = ()
+    matching_rule: str | None = None
+    evidence_ids: tuple[str, ...] = ()
+    quality_status: str = "BLOCKED"
+    source_classification: str = "BLOCKED"
+    as_of: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -54,6 +60,13 @@ class MappingReviewQueue:
         external_text: str | None,
         source_identity_key: str,
         reason: str,
+        candidate_ids: tuple[str, ...] = (),
+        confidence: float | None = None,
+        matching_rule: str | None = None,
+        evidence_ids: tuple[str, ...] = (),
+        quality_status: str = "BLOCKED",
+        source_classification: str = "BLOCKED",
+        as_of: datetime | None = None,
     ) -> MappingQueueItem:
         if not tenant_id:
             raise ValueError("tenant_id is required")
@@ -88,6 +101,13 @@ class MappingReviewQueue:
             external_text=external_text,
             source_identity_key=source_identity_key,
             reason=reason,
+            candidate_ids=tuple(candidate_ids),
+            confidence=confidence,
+            matching_rule=matching_rule,
+            evidence_ids=tuple(evidence_ids),
+            quality_status=quality_status,
+            source_classification=source_classification,
+            as_of=as_of,
         )
 
         self.pending[queue_id] = item
@@ -151,6 +171,12 @@ class MappingReviewQueue:
             approved=approved,
             confidence=confidence,
             mapping_version=mapping_version,
+            candidate_ids=item.candidate_ids,
+            matching_rule=item.matching_rule,
+            evidence_ids=item.evidence_ids,
+            quality_status=item.quality_status,
+            source_classification=item.source_classification,
+            as_of=item.as_of,
         )
 
         del self.pending[queue_id]

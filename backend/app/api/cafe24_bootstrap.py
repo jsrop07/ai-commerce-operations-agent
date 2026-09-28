@@ -11,19 +11,32 @@ from backend.app.adapters.providers.cafe24.adapter import Cafe24Adapter
 from backend.app.adapters.providers.capability_guard import (
     CAFE24_ALLOWED_READ_PATH_PATTERNS,
     CAFE24_ALLOWED_READ_PATHS,
+    CredentialScopeError,
+    validate_read_scope,
 )
 from backend.app.adapters.providers.http_transport import ReadOnlyHttpTransport
 from backend.app.api.cafe24_oauth import REQUIRED_READ_SCOPES
 from backend.app.api.cafe24_smoke import _request_json
-from backend.app.sync.cafe24_product_bootstrap import (
-    run_cafe24_product_bootstrap,
+from backend.app.sync.cafe24_category_bootstrap import (
+    run_cafe24_category_probe,
 )
-
-from backend.app.sync.cafe24_community_bootstrap import (
-    run_cafe24_community_probe,
+from backend.app.sync.cafe24_category_full_runner import (
+    run_cafe24_category_full_runner,
+)
+from backend.app.sync.cafe24_category_product_snapshot import (
+    run_cafe24_category_product_snapshot,
 )
 from backend.app.sync.cafe24_community_article_full_runner import (
     run_cafe24_community_article_full_runner,
+)
+from backend.app.sync.cafe24_community_attachment_full_runner import (
+    run_cafe24_community_attachment_full_runner,
+)
+from backend.app.sync.cafe24_community_bootstrap import (
+    run_cafe24_community_probe,
+)
+from backend.app.sync.cafe24_community_comment_full_runner import (
+    run_cafe24_community_comment_full_runner,
 )
 from backend.app.sync.cafe24_order_bootstrap import (
     run_cafe24_order_probe,
@@ -31,30 +44,15 @@ from backend.app.sync.cafe24_order_bootstrap import (
 from backend.app.sync.cafe24_order_full_runner import (
     run_cafe24_order_full_runner,
 )
-from backend.app.sync.cafe24_category_bootstrap import (
-    run_cafe24_category_probe,
-)
-
-from backend.app.sync.cafe24_category_full_runner import (
-    run_cafe24_category_full_runner,
-)
-
-from backend.app.sync.cafe24_product_full_runner import (
-    run_cafe24_product_full_runner,
-)
-
-from backend.app.sync.cafe24_community_comment_full_runner import (
-    run_cafe24_community_comment_full_runner,
-)
-
-from backend.app.sync.cafe24_community_attachment_full_runner import (
-    run_cafe24_community_attachment_full_runner,
-)
-
 from backend.app.sync.cafe24_order_item_full_runner import (
     run_cafe24_order_item_full_runner,
 )
-
+from backend.app.sync.cafe24_product_bootstrap import (
+    run_cafe24_product_bootstrap,
+)
+from backend.app.sync.cafe24_product_full_runner import (
+    run_cafe24_product_full_runner,
+)
 from backend.app.sync.cafe24_refund_full_runner import (
     run_cafe24_refund_full_runner,
 )
@@ -63,6 +61,217 @@ router = APIRouter(
     prefix="/internal/cafe24/bootstrap",
     tags=["cafe24-bootstrap"],
 )
+
+
+@router.post("/category-products/snapshot")
+def cafe24_category_products_snapshot(
+    request: Request,
+    category_no: int,
+    display_group: int = 1,
+) -> dict[str, object]:
+    """기존 OAuth 세션으로 현재 category-product 관계를 Read-Only 수집한다."""
+
+    if type(category_no) is not int or category_no < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "CAFE24_CATEGORY_NO_INVALID",
+            },
+        )
+    if (
+        type(display_group) is not int
+        or display_group not in {1, 2, 3}
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "CAFE24_DISPLAY_GROUP_INVALID",
+            },
+        )
+
+    access_token = getattr(
+        request.app.state,
+        "cafe24_access_token",
+        None,
+    )
+    mall_id = getattr(
+        request.app.state,
+        "cafe24_authorized_mall_id",
+        None,
+    )
+    approved_scopes = getattr(
+        request.app.state,
+        "cafe24_approved_scopes",
+        None,
+    )
+    expires_at = getattr(
+        request.app.state,
+        "cafe24_access_token_expires_at",
+        None,
+    )
+
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "CAFE24_ACCESS_TOKEN_MISSING",
+            },
+        )
+    if not mall_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "CAFE24_MALL_ID_MISSING",
+            },
+        )
+    if not approved_scopes:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "CAFE24_APPROVED_SCOPES_MISSING",
+            },
+        )
+    if (
+        not isinstance(
+            approved_scopes,
+            (list, tuple, set, frozenset),
+        )
+        or any(
+            not isinstance(scope, str)
+            for scope in approved_scopes
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "CAFE24_APPROVED_SCOPES_INVALID",
+            },
+        )
+
+    try:
+        validate_read_scope(
+            granted_scopes=approved_scopes,
+            required_scopes={
+                Cafe24Adapter.PRODUCT_SCOPE,
+            },
+        )
+    except CredentialScopeError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "CAFE24_READ_PRODUCT_SCOPE_MISSING",
+            },
+        ) from None
+
+    if (
+        getattr(
+            request.app.state,
+            "cafe24_shop_no",
+            None,
+        )
+        != "1"
+        or not isinstance(expires_at, datetime)
+        or expires_at.tzinfo is None
+        or expires_at.utcoffset() is None
+        or datetime.now(UTC) >= expires_at
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "CAFE24_TOKEN_METADATA_INVALID",
+            },
+        )
+
+    protected_root = (
+        request.app.state.settings
+        .cafe24_protected_data_dir
+    )
+    if not protected_root:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "CAFE24_PROTECTED_DIR_MISSING",
+            },
+        )
+
+    transport = ReadOnlyHttpTransport(
+        request_fn=_request_json,
+        granted_scopes=set(
+            approved_scopes
+        ),
+        allowed_paths=CAFE24_ALLOWED_READ_PATHS,
+        allowed_path_patterns=(
+            CAFE24_ALLOWED_READ_PATH_PATTERNS
+        ),
+        max_request_count=1,
+    )
+    adapter = Cafe24Adapter(
+        mall_id=mall_id,
+        access_token=access_token,
+        transport=transport,
+    )
+    batch_id = (
+        "category-products-snapshot-"
+        + datetime.now(UTC).strftime(
+            "%Y%m%dT%H%M%S%fZ"
+        )
+    )
+
+    try:
+        result = (
+            run_cafe24_category_product_snapshot(
+                adapter=adapter,
+                protected_root=Path(
+                    protected_root
+                ),
+                batch_id=batch_id,
+                category_no=category_no,
+                display_group=display_group,
+                source_classification="LIVE_READ",
+            )
+        )
+    except Exception as exc:
+        print(
+            "[CAFE24 CATEGORY PRODUCTS SNAPSHOT ERROR]",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "code": (
+                    "CAFE24_CATEGORY_PRODUCTS_"
+                    "SNAPSHOT_FAILED"
+                ),
+                "external_write_count": 0,
+            },
+        ) from None
+
+    return {
+        "category_no": result.category_no,
+        "display_group": result.display_group,
+        "product_relation_count": (
+            result.relation_count
+        ),
+        "sanitized_count": (
+            result.sanitized_snapshot
+            .sanitized_count
+        ),
+        "source_classification": (
+            result.source_classification
+        ),
+        "evidence_type": result.evidence_type,
+        "read_succeeded": result.read_succeeded,
+        "as_of": result.as_of,
+        "batch_id": result.batch_id,
+        "external_write_count": (
+            result.external_write_count
+        ),
+        "warning": None,
+        "reason": (
+            "CURRENT_CATEGORY_PRODUCT_"
+            "SNAPSHOT_CAPTURED"
+        ),
+    }
 
 
 @router.post("/products/probe")

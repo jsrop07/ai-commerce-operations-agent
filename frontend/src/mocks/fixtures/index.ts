@@ -1,10 +1,155 @@
 import type {
   ApiEnvelope, ApiError, DashboardData, Freshness, HealthData, InquirySummary, InsightSummary,
-  InventorySnapshot, LaunchEventSummary, OrderSummary, ProductSummary, SkuSummary, TaskSummary,
+  InventorySnapshot, LaunchEventSummary, OrderSummary, ProductSummary, SkuSummary, TaskSummary,ReservationRiskItem,
+  ReservationTimeline,ReservationTimelineStep,ScheduleDelayImpact,ScheduleReplanProposal,ScheduleDependency,
+  ScheduleLaunchEvent,ScheduleTask,
 } from "../../types/contracts";
 import type { InquiryListItem } from "../../features/inquiries/inquiryViewModels";
 
 const asOf = "2026-09-02T06:30:00Z";
+
+export const reservationRiskSanitizedRealFixture: ApiEnvelope<
+  ReservationRiskItem[]
+> = envelope(
+  [
+    {
+      reservation_id: "reservation_actual_001",
+      product_name: "Warhammer Pre-Order Product",
+      sku_id: "sku_reservation_actual_001",
+
+      required_qty: 8,
+      secured_qty: null,
+      confirmed_incoming: null,
+      tentative_incoming: null,
+      shortage: null,
+
+      aging: null,
+      priority: null,
+
+      as_of: asOf,
+
+      source_classification: "SANITIZED_REAL",
+
+      required_state: "KNOWN",
+      secured_state: "BLOCKED",
+      confirmed_incoming_state: "BLOCKED",
+      tentative_incoming_state: "UNKNOWN",
+      shortage_state: "BLOCKED",
+
+      evidence_ids: [
+        "evidence_reservation_actual_001",
+      ],
+    },
+  ],
+  "reservation_risk_actual_001",
+  ["evidence_reservation_actual_001"],
+  [
+    "secured_qty, confirmed_incoming, shortage는 authoritative source 미확보로 확정할 수 없습니다.",
+  ],
+);
+
+export const reservationRiskUiFixture: ApiEnvelope<
+  ReservationRiskItem[]
+> = envelope(
+  [
+    {
+      reservation_id: "reservation_fixture_shortage",
+      product_name:
+        "매우 긴 합성 예약 상품명 - UI 줄바꿈 및 좁은 화면 검증용 상품",
+      sku_id: "sku_fixture_shortage",
+
+      required_qty: 10,
+      secured_qty: 4,
+      confirmed_incoming: 2,
+      tentative_incoming: 1,
+      shortage: 4,
+
+      aging: 6,
+      priority: "HIGH",
+
+      as_of: asOf,
+
+      source_classification: "FIXTURE",
+
+      required_state: "KNOWN",
+      secured_state: "KNOWN",
+      confirmed_incoming_state: "KNOWN",
+      tentative_incoming_state: "KNOWN",
+      shortage_state: "KNOWN",
+
+      evidence_ids: [
+        "fixture_evidence_reservation_shortage",
+      ],
+    },
+
+    {
+      reservation_id: "reservation_fixture_sufficient",
+      product_name: "합성 예약 상품 - 충분",
+      sku_id: "sku_fixture_sufficient",
+
+      required_qty: 5,
+      secured_qty: 5,
+      confirmed_incoming: 2,
+      tentative_incoming: null,
+      shortage: 0,
+
+      aging: 2,
+      priority: "LOW",
+
+      as_of: asOf,
+
+      source_classification: "FIXTURE",
+
+      required_state: "KNOWN",
+      secured_state: "KNOWN",
+      confirmed_incoming_state: "KNOWN",
+      tentative_incoming_state: "UNKNOWN",
+      shortage_state: "KNOWN",
+
+      evidence_ids: [
+        "fixture_evidence_reservation_sufficient",
+      ],
+    },
+
+    {
+      reservation_id: "reservation_fixture_unknown",
+      product_name: "합성 예약 상품 - 입고 확인 필요",
+      sku_id: "sku_fixture_unknown",
+
+      required_qty: 7,
+      secured_qty: null,
+      confirmed_incoming: null,
+      tentative_incoming: null,
+      shortage: null,
+
+      aging: 9,
+      priority: null,
+
+      as_of: asOf,
+
+      source_classification: "FIXTURE",
+
+      required_state: "KNOWN",
+      secured_state: "UNKNOWN",
+      confirmed_incoming_state: "BLOCKED",
+      tentative_incoming_state: "UNKNOWN",
+      shortage_state: "BLOCKED",
+
+      evidence_ids: [
+        "fixture_evidence_reservation_unknown",
+      ],
+    },
+  ],
+  "reservation_risk_ui_001",
+  [
+    "fixture_evidence_reservation_shortage",
+    "fixture_evidence_reservation_sufficient",
+    "fixture_evidence_reservation_unknown",
+  ],
+  [
+    "FIXTURE_ONLY: 실제 Backend 통합 증거로 사용하지 않습니다.",
+  ],
+);
 
 function envelope<T>(data: T, suffix: string, evidenceIds: string[] = [], warnings: string[] = []): ApiEnvelope<T> {
   return {
@@ -382,3 +527,467 @@ export const inquiryWorkbenchItems: InquiryListItem[] = [
     },
   },
 ];
+
+export const reservationTimelineFixture: ReservationTimeline = {
+  reservation_id: "reservation_fixture_timeline_001",
+
+  product_name:
+    "합성 예약 상품 - Timeline 상태 검증용",
+
+  as_of: "2026-09-10T10:00:00Z",
+
+  evidence_ids: [
+    "evidence_reservation_created",
+  ],
+
+  steps: [
+    {
+      id: "timeline_step_reservation",
+
+      stage: "RESERVATION",
+
+      status: "CONFIRMED",
+
+      title: "예약 접수",
+
+      as_of: "2026-09-08T09:00:00Z",
+
+      source_classification:
+        "SANITIZED_REAL",
+
+      source_event_id:
+        "evt_reservation_created_001",
+
+      evidence: [
+        {
+          source_type: "order",
+          source_id:
+            "reservation_fixture_timeline_001",
+          as_of:
+            "2026-09-08T09:00:00Z",
+        },
+      ],
+
+      note:
+        "Cafe24 예약주문에서 확인된 예약 접수 단계입니다.",
+    },
+
+    {
+      id: "timeline_step_purchase_order",
+
+      stage: "PURCHASE_ORDER",
+
+      status: "CONTRACT_ONLY",
+
+      title: "발주",
+
+      as_of: null,
+
+      source_classification:
+        "CONTRACT_ONLY",
+
+      source_event_id: null,
+
+      evidence: [],
+
+      note:
+        "발주 단계 계약은 존재하지만 실제 발주 여부를 확인할 authoritative source가 없습니다.",
+    },
+
+    {
+      id: "timeline_step_incoming",
+
+      stage: "INCOMING",
+
+      status: "BLOCKED",
+
+      title: "입고",
+
+      as_of: null,
+
+      source_classification:
+        "BLOCKED",
+
+      source_event_id: null,
+
+      evidence: [],
+
+      note:
+        "eCount/Gmail 입고 확정 source가 확보되지 않아 실제 입고 여부를 확인할 수 없습니다.",
+    },
+
+    {
+      id: "timeline_step_fulfillment",
+
+      stage: "FULFILLMENT",
+
+      status: "UNKNOWN",
+
+      title: "출고",
+
+      as_of: null,
+
+      source_classification:
+        "SANITIZED_REAL",
+
+      source_event_id: null,
+
+      evidence: [],
+
+      note:
+        "현재 확인 가능한 근거만으로 출고 여부를 확정할 수 없습니다.",
+    },
+  ],
+};
+
+export const day10DelayImpacts: ScheduleDelayImpact[] = [
+  {
+    incoming_id: "incoming_day10_001",
+
+    expected_at_before:
+      "2026-09-20T01:00:00Z",
+    expected_at_after:
+      "2026-09-22T01:00:00Z",
+
+    impact_state: "KNOWN",
+
+    affected_tasks: [
+      {
+        target_type: "TASK",
+        target_id: "task_day10_002",
+
+        before:
+          "2026-09-18T09:00:00Z",
+        after:
+          "2026-09-20T09:00:00Z",
+
+        lag_hours: 48,
+
+        reason:
+          "입고 일정 지연에 따른 Task 검토 필요",
+
+        evidence_ids: [
+          "ev_impact_task_001",
+        ],
+      },
+    ],
+
+    affected_reservations: [
+      {
+        target_type:
+          "RESERVATION_ORDER",
+        target_id:
+          "reservation_demo_001",
+
+        before: null,
+        after: null,
+
+        lag_hours: null,
+
+        reason:
+          "예약주문 실제 일정 Source 미연결",
+
+        evidence_ids: [],
+      },
+    ],
+
+    affected_launch_events: [
+      {
+        target_type:
+          "LAUNCH_EVENT",
+        target_id:
+          "launch_day10_001",
+
+        before:
+          "2026-09-20T01:00:00Z",
+        after:
+          "2026-09-22T01:00:00Z",
+
+        lag_hours: 48,
+
+        reason:
+          "입고 지연에 따른 출시 일정 영향",
+
+        evidence_ids: [
+          "ev_impact_launch_001",
+        ],
+      },
+    ],
+
+    critical_path_affected: true,
+
+    as_of:
+      "2026-09-11T06:00:00Z",
+
+    freshness: "FRESH",
+
+    quality:
+      "FIXTURE_VALIDATED",
+
+    source_classification:
+      "FIXTURE",
+
+    evidence_ids: [
+      "ev_impact_day10_001",
+    ],
+
+    request_id:
+      "req_impact_day10_001",
+
+    trace_id:
+      "trace_impact_day10_001",
+  },
+];
+
+export const day10DelayImpactsFixture =
+  envelope(
+    day10DelayImpacts,
+    "day10_delay_impacts",
+    ["ev_impact_day10_001"],
+  );
+
+  export const day10ReplanProposals:
+  ScheduleReplanProposal[] = [
+  {
+    proposal_id:
+      "replan_day10_001",
+
+    incoming_id:
+      "incoming_day10_001",
+
+    status: "PROPOSED",
+
+    before: [
+      {
+        target_type:
+          "LAUNCH_EVENT",
+
+        target_id:
+          "launch_day10_001",
+
+        scheduled_at:
+          "2026-09-20T01:00:00Z",
+
+        evidence_ids: [
+          "ev_replan_before_001",
+        ],
+      },
+    ],
+
+    proposed_after: [
+      {
+        target_type:
+          "LAUNCH_EVENT",
+
+        target_id:
+          "launch_day10_001",
+
+        scheduled_at:
+          "2026-09-22T01:00:00Z",
+
+        evidence_ids: [
+          "ev_replan_after_001",
+        ],
+      },
+    ],
+
+    reason:
+      "입고 지연 Fixture 기반 재계획 검토",
+
+    confidence: 0.82,
+
+    downstream_impact:
+      "출시 준비 Task 및 예약주문 검토 필요",
+
+    conflict: null,
+
+    as_of:
+      "2026-09-11T06:00:00Z",
+
+    freshness: "FRESH",
+
+    source_classification:
+      "FIXTURE",
+
+    evidence_ids: [
+      "ev_replan_day10_001",
+    ],
+
+    request_id:
+      "req_replan_day10_001",
+
+    trace_id:
+      "trace_replan_day10_001",
+
+    external_execution_allowed:
+      false,
+  },
+];
+
+export const day10ReplanProposalsFixture =
+  envelope(
+    day10ReplanProposals,
+    "day10_replans",
+    ["ev_replan_day10_001"],
+  );
+
+export const day10Dependencies: ScheduleDependency[] = [
+  {
+    predecessor_id: "task_day10_001",
+    successor_id: "task_day10_002",
+
+    lag_hours: null,
+
+    as_of: null,
+
+    source_classification:
+      "CONTRACT_ONLY",
+
+    evidence_ids: [],
+  },
+];
+
+export const day10DependenciesFixture =
+  envelope(
+    day10Dependencies,
+    "day10_dependencies",
+    [],
+  );
+
+// Day 10 — 출시 일정 Fixture
+export const day10LaunchEvents: ScheduleLaunchEvent[] = [
+  {
+    id: "launch_day10_001",
+    product_id: "prd_demo_002",
+    launch_at: "2026-09-20T01:00:00Z",
+    flow_template: "STANDARD_LAUNCH",
+    status: "PLANNED",
+
+    flow: "FLOW_A",
+    template_id: "launch-flow-a",
+    version: "1.0",
+    timezone: "Asia/Seoul",
+
+    as_of: "2026-09-11T06:00:00Z",
+    freshness: "FRESH",
+    source_classification: "FIXTURE",
+
+    evidence_ids: [
+      "ev_launch_day10_001",
+    ],
+  },
+];
+export const day10Tasks: ScheduleTask[] = [
+  {
+    /*
+     * 기존 InventoryPage가 사용하던 Task를 유지한다.
+     * Day 10 일정 Projection 필드만 추가한다.
+     */
+    id: "task_demo_001",
+    type: "INVENTORY_REVIEW",
+    title: "합성 SKU 재고 차이 확인",
+
+    deadline: "2026-09-02T09:00:00Z",
+    priority: "HIGH",
+    status: "PROPOSED",
+
+    source_reason:
+      "inventory discrepancy",
+
+    owner: null,
+    duration_hours: null,
+
+    flow: "FLOW_A",
+
+    as_of:
+      "2026-09-11T06:00:00Z",
+
+    freshness: "FRESH",
+
+    source_classification:
+      "FIXTURE",
+
+    evidence_ids: [
+      "task_demo_001",
+    ],
+  },
+
+  {
+    /*
+     * 기존 Inquiry 관련 Task도 유지한다.
+     */
+    id: "task_demo_002",
+    type: "INQUIRY_REVIEW",
+    title: "합성 문의 초안 검토",
+
+    deadline: "2026-09-02T10:00:00Z",
+    priority: "MEDIUM",
+    status: "IN_PROGRESS",
+
+    source_reason:
+      "draft ready",
+
+    owner: null,
+    duration_hours: null,
+
+    flow: "FLOW_B",
+
+    as_of:
+      "2026-09-11T06:00:00Z",
+
+    freshness: "FRESH",
+
+    source_classification:
+      "FIXTURE",
+
+    evidence_ids: [
+      "task_demo_002",
+    ],
+  },
+
+  {
+    /*
+     * Day 10 일정 화면 검증용 Task.
+     */
+    id: "task_day10_001",
+    type: "LAUNCH_PREPARATION",
+    title: "출시 준비 상태 검토",
+
+    deadline: null,
+    priority: "MEDIUM",
+    status: "PROPOSED",
+
+    source_reason:
+      "Day 10 Fixture 일정 검토",
+
+    owner: null,
+    duration_hours: null,
+
+    flow: "FLOW_A",
+
+    as_of: null,
+    freshness: "UNKNOWN",
+
+    source_classification:
+      "FIXTURE",
+
+    evidence_ids: [],
+  },
+];
+
+export const day10TasksFixture =
+  envelope(
+    day10Tasks,
+    "day10_tasks",
+    [
+      "task_demo_001",
+      "task_demo_002",
+    ],
+  );
+
+export const day10LaunchEventsFixture =
+  envelope(
+    day10LaunchEvents,
+    "day10_launch_events",
+    ["ev_launch_day10_001"],
+  );

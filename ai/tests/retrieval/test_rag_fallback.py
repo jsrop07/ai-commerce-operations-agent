@@ -185,7 +185,7 @@ def test_source_conflict_returns_hold() -> None:
     )
 
 
-def test_live_order_lookup_requires_human_review() -> None:
+def test_live_order_lookup_is_blocked_from_ai_retrieval() -> None:
     response = _service().search(
         RetrievalRequest(
             query="주문 상태",
@@ -200,11 +200,14 @@ def test_live_order_lookup_requires_human_review() -> None:
         == "HUMAN_REVIEW"
     )
 
-    assert "ORDER_STATUS" in (
-        response.required_lookup
-    )
+    assert response.required_lookup == ()
 
     assert response.human_review_required
+
+    assert (
+        response.human_review_reason
+        == ("ORDER_LINKED_LOOKUP_FORBIDDEN",)
+    )
 
 
 def test_delivery_address_change_requires_human_review() -> None:

@@ -5,7 +5,15 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as day04 from "../src/api/day04";
+import * as evidenceApi from "../src/mocks/evidence";
+
+const mode = vi.hoisted(() => ({ actual: false }));
+vi.mock("../src/api/day04", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../src/api/day04")>();
+  return { ...original, get useRealBackend() { return mode.actual; } };
+});
 
 import DashboardPage from "../src/app/pages/DashboardPage";
 import { mockGetEvidenceByRequestId } from "../src/mocks/evidence";
@@ -14,6 +22,65 @@ import {
 } from "../src/mocks/fixtures/urgentQueue";
 
 describe("D03-FE-02 request_id evidence flow", () => {
+  afterEach(() => { mode.actual = false; vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it("Actual request_id/evidence_ids가 있어도 C04 key 없으면 근거 버튼을 비활성화한다", async () => {
+    mode.actual = true;
+    const fixture = urgentQueueFixtures[0];
+    vi.spyOn(day04, "getDay04Insights").mockResolvedValue({ ...fixture, data: [fixture.data] });
+    const mockLookup = vi.spyOn(evidenceApi, "mockGetEvidenceByRequestId");
+    const fetcher = vi.fn().mockRejectedValue(new Error("Unavailable"));
+    vi.stubGlobal("fetch", fetcher);
+    render(<DashboardPage />);
+    const button = await screen.findByRole("button", { name: "예약 재고 부족 판단 근거 보기" });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(await screen.findByText("근거 연결 없음")).toBeInTheDocument();
+    expect(mockLookup).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes("/c04/lookup"))).toBe(false);
+  });
+
+  it("Actual insight별 C04 key를 그대로 조회하고 200 문서를 표시한다", async () => {
+    mode.actual = true;
+    const fixture = urgentQueueFixtures[0];
+    const key = { source_id: "policy_from_backend", version: "v7", chunk_id: "provided:chunk:7" };
+    const otherKey = { source_id: "another_backend_source", version: "v2", chunk_id: "another:chunk" };
+    vi.spyOn(day04, "getDay04Insights").mockResolvedValue({ ...fixture, data: [
+      { ...fixture.data, c04_lookup: key },
+      { ...urgentQueueFixtures[1].data, c04_lookup: otherKey },
+    ] });
+    const mockLookup = vi.spyOn(evidenceApi, "mockGetEvidenceByRequestId");
+    const lookup = vi.spyOn(day04, "getC04Lookup");
+    const fetcher = vi.fn().mockImplementation(async (url: string) => {
+      if (!url.includes("/c04/lookup")) throw new Error("Unavailable");
+      const query = new URL(url, "http://localhost").searchParams;
+      const selected = query.get("source_id") === key.source_id ? key : otherKey;
+      return new Response(JSON.stringify({ ...fixture, data: {
+        ...selected, title: selected.source_id, source_type: "POLICY", as_of: fixture.as_of,
+        excerpt: "Backend synthetic policy excerpt", excerpt_hash: "sha256:test",
+        stale: false, warnings: [], data_mode: "SYNTHETIC_DEMO", visibility: "DEMO_PUBLIC",
+        definitive_answer_allowed: false,
+      } }));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(<DashboardPage />);
+    const first = await screen.findByRole("button", { name: "예약 재고 부족 판단 근거 보기" });
+    expect(first).toBeEnabled();
+    first.focus();
+    fireEvent.click(first);
+    expect(await screen.findByTestId("c04-document")).toHaveTextContent(key.source_id);
+    expect(lookup).toHaveBeenLastCalledWith(key, expect.any(AbortSignal));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(first).toHaveFocus();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "일정 충돌 판단 근거 보기" }));
+    expect(await screen.findByTestId("c04-document")).toHaveTextContent(otherKey.source_id);
+    expect(lookup).toHaveBeenLastCalledWith(otherKey, expect.any(AbortSignal));
+    const urls = fetcher.mock.calls.map(([url]) => String(url)).filter((url) => url.includes("/c04/lookup"));
+    expect(urls.map((url) => Object.fromEntries(new URL(url, "http://localhost").searchParams))).toEqual([key, otherKey]);
+    expect(mockLookup).not.toHaveBeenCalled();
+  });
   it("각 request_id가 자기 Insight만 반환한다", async () => {
     for (const fixture of urgentQueueFixtures) {
       const result =

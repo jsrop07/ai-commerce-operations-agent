@@ -11,6 +11,7 @@ from fastapi import APIRouter, Request
 
 from backend.app.services.ingestion.mapping_projection import (
     build_mapping_read_projection,
+    build_mapping_review_projection,
 )
 from contracts.api import ApiEnvelope
 
@@ -50,5 +51,74 @@ def mappings(
         trace_id=trace_id,
         data=[asdict(item) for item in projection],
         evidence_ids=[item.source_identity_key for item in projection],
+        as_of=datetime.now(UTC),
+    )
+@router.get(
+    "/mappings/review",
+    response_model=ApiEnvelope[
+        list[dict[str, Any]]
+    ],
+)
+def mappings_review(
+    request: Request,
+) -> ApiEnvelope[
+    list[dict[str, Any]]
+]:
+    """D09-BE-01 Mapping Review Read API."""
+
+    request_id = request.headers.get(
+        "x-request-id",
+        f"req_{uuid4().hex}",
+    )
+
+    trace_id = request.headers.get(
+        "x-trace-id",
+        f"tr_{uuid4().hex}",
+    )
+
+    projection = (
+        build_mapping_review_projection(
+            queue=(
+                request
+                .app
+                .state
+                .mapping_queue
+            ),
+        )
+    )
+
+    projection = [
+        item
+        for item in projection
+        if item.tenant_id
+        == (
+            request
+            .app
+            .state
+            .settings
+            .tenant_id
+        )
+    ]
+
+    return ApiEnvelope(
+        tenant_id=(
+            request
+            .app
+            .state
+            .settings
+            .tenant_id
+        ),
+        request_id=request_id,
+        trace_id=trace_id,
+        data=[
+            asdict(item)
+            for item in projection
+        ],
+        evidence_ids=[
+            evidence_id
+            for item in projection
+            for evidence_id
+            in item.evidence
+        ],
         as_of=datetime.now(UTC),
     )

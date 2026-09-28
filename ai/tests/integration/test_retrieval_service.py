@@ -232,6 +232,9 @@ def test_bm25_method_returns_contract_fields(
     assert citation["title"]
     assert citation["record_or_field"]
     assert citation["score"] >= 0.0
+    assert citation["version"]
+    assert citation["semantic_chunk_id"]
+    assert citation["excerpt"]
 
     assert citation[
         "excerpt_hash"
@@ -379,3 +382,32 @@ def test_excessive_top_k_is_rejected() -> None:
             query="워해머",
             top_k=51,
         )
+
+def test_search_collapses_chunks_by_source_and_version() -> None:
+    bm25_docs = [
+        BM25Document(chunk_id="same-v1-a", source_id="same-source", source_type="PRODUCT", version="v1", text="황혼 요새 상품 설명 기본 정보", metadata={"title": "황혼 요새 v1"}),
+        BM25Document(chunk_id="same-v1-b", source_id="same-source", source_type="PRODUCT", version="v1", text="황혼 요새 상품 설명 추가 정보", metadata={"title": "황혼 요새 v1"}),
+        BM25Document(chunk_id="same-v2-a", source_id="same-source", source_type="PRODUCT", version="v2", text="황혼 요새 상품 설명 최신 정보", metadata={"title": "황혼 요새 v2"}),
+        BM25Document(chunk_id="other-v1-a", source_id="other-source", source_type="PRODUCT", version="v1", text="황혼 요새 관련 다른 상품", metadata={"title": "다른 상품"}),
+    ]
+    dense_docs = [
+        DenseDocument(chunk_id=x.chunk_id, source_id=x.source_id, source_type=x.source_type, version=x.version, text=x.text, metadata=x.metadata)
+        for x in bm25_docs
+    ]
+
+    service = RetrievalService(
+        bm25_index=BM25Index(bm25_docs),
+        dense_index=DenseIndex(dense_docs, embed_texts=_fake_embed_texts),
+        bm25_index_version="collapse-test-bm25",
+        dense_index_version="collapse-test-dense",
+    )
+
+    response = service.search(
+        RetrievalRequest(query="황혼 요새", top_k=4, method=RetrievalMethod.BM25)
+    )
+
+    keys = [(x.source_id, x.version) for x in response.citations]
+    assert keys.count(("same-source", "v1")) == 1
+    assert ("same-source", "v2") in keys
+    assert ("other-source", "v1") in keys
+    assert len(keys) == len(set(keys))

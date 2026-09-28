@@ -50,13 +50,3 @@ sources:
     refresh_preferred: true
     definitive_answer_allowed_when_stale: false
 
-  ORDER_STATUS:
-    freshness_mode: "TTL"
-    ttl_seconds: 900
-    required_time_field: "as_of"
-    stale_when:
-      - "as_of_missing"
-      - "age_exceeds_ttl"
-    fallback: "HUMAN_REVIEW"
-    refresh_preferred: true
-    definitive_answer_allowed_when_stale: false

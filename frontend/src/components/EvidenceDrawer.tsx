@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { BackendGetError, getC04Lookup, type C04Key, type C04Document } from "../api/day04";
 import type { InsightSummary } from "../types/contracts";
 import { getInsightTypeLabel } from "./statusLabels";
 
@@ -6,6 +7,7 @@ type EvidenceDrawerProps = {
   open: boolean;
   insight: InsightSummary | null;
   onClose: () => void;
+  c04Key?: C04Key;
 };
 
 const sourceTypeLabels: Record<string, string> = {
@@ -31,7 +33,39 @@ export default function EvidenceDrawer({
   open,
   insight,
   onClose,
+  c04Key,
 }: EvidenceDrawerProps) {
+  const sourceId = c04Key?.source_id;
+  const version = c04Key?.version;
+  const chunkId = c04Key?.chunk_id;
+  const target = c04Key ? JSON.stringify([sourceId, version, chunkId]) : null;
+  const [lookup, setLookup] = useState<{ target: string; document?: C04Document; error?: string } | null>(null);
+  const requestRef = useRef(0);
+  const visible = open && (!!insight || !!c04Key);
+
+  useEffect(() => {
+    const request = ++requestRef.current;
+    setLookup(null);
+    if (!open || sourceId === undefined || version === undefined || target === null) return;
+    const controller = new AbortController();
+    getC04Lookup({ source_id: sourceId, version, ...(chunkId !== undefined ? { chunk_id: chunkId } : {}) }, controller.signal)
+      .then((document) => {
+        if (request === requestRef.current && !controller.signal.aborted) setLookup({ target, document });
+      })
+      .catch((error: unknown) => {
+        if (request !== requestRef.current || controller.signal.aborted) return;
+        const messages: Record<number, string> = {
+          403: "접근/안전 정책으로 근거 조회가 차단되었습니다.",
+          404: "근거가 없거나 version/chunk가 일치하지 않습니다.",
+          422: "잘못된 근거 조회 요청입니다.",
+          503: "근거 registry를 사용할 수 없습니다.",
+        };
+        setLookup({ target, error: error instanceof BackendGetError
+          ? messages[error.status] ?? "근거를 불러오지 못했습니다."
+          : "근거 응답 또는 연결 상태를 확인할 수 없습니다." });
+      });
+    return () => { requestRef.current += 1; controller.abort(); };
+  }, [open, sourceId, version, chunkId, target]);
   const dialogRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
@@ -42,7 +76,7 @@ export default function EvidenceDrawer({
   }, [onClose]);
 
   useEffect(() => {
-    if (!open || !insight) return;
+    if (!visible) return;
 
     previouslyFocusedRef.current =
       document.activeElement instanceof HTMLElement
@@ -97,14 +131,16 @@ export default function EvidenceDrawer({
       window.removeEventListener("keydown", handleKeyDown);
       previouslyFocusedRef.current?.focus();
     };
-  }, [open, insight]);
+  }, [visible]);
 
-  if (!open || !insight) {
+  if (!visible) {
     return null;
   }
 
-  const calculation = formatCalculation(insight.calculation);
-  const hasModelRunId = insight.model_run_id !== null;
+  const calculation = formatCalculation(insight?.calculation);
+  const hasModelRunId = insight?.model_run_id != null;
+  const currentLookup = lookup?.target === target ? lookup : null;
+  const c04Document = currentLookup?.document;
 
   return (
     <>
@@ -126,7 +162,7 @@ export default function EvidenceDrawer({
           <div>
             <div className="tertiary">판단 근거</div>
             <h2 id="evidence-drawer-title">
-              {getInsightTypeLabel(insight.type)}
+              {c04Key ? "C04 원문 근거" : getInsightTypeLabel(insight!.type)}
             </h2>
           </div>
 
@@ -142,6 +178,22 @@ export default function EvidenceDrawer({
         </div>
 
         <div className="evidence-drawer-body">
+          {c04Key ? (
+            currentLookup?.error ? <div className="notice" role="alert">{currentLookup.error}</div> :
+            c04Document ? <section className="evidence-section" data-testid="c04-document">
+              <h3>{c04Document.title}</h3>
+              <div className="notice">합성 Demo 근거 (SYNTHETIC_DEMO)</div>
+              {c04Document.stale && <div className="notice" role="alert">오래된 자료입니다. 최신 자료를 확인하세요.</div>}
+              {!c04Document.definitive_answer_allowed && <div className="notice">원문은 조회됐지만 이 자료 하나만으로 현재 상태를 확정할 수 없습니다.</div>}
+              <p>{c04Document.excerpt}</p>
+              <dl className="evidence-details">
+                {(["source_id", "source_type", "version", "as_of", "stale", "data_mode", "visibility", "chunk_id", "definitive_answer_allowed"] as const).map((field) =>
+                  <div key={field}><dt>{field}</dt><dd>{String(c04Document[field])}</dd></div>,
+                )}
+                <div><dt>warnings</dt><dd>{c04Document.warnings.length ? c04Document.warnings.join(" / ") : "없음"}</dd></div>
+              </dl>
+            </section> : <p role="status">근거를 불러오는 중입니다.</p>
+          ) : insight ? <>
           <section className="evidence-section">
             <h3>1. 원천 근거</h3>
 
@@ -251,6 +303,7 @@ export default function EvidenceDrawer({
               </div>
             )}
           </section>
+          </> : null}
         </div>
       </aside>
     </>

@@ -1,5 +1,13 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import type { ReservationShortageTask, ReservationRiskItem } from "../src/types/contracts";
+
+const getFeedback = vi.fn();
+const postFeedback = vi.fn();
+vi.mock("../src/api/day10", () => ({
+  getTaskFeedback: (...args: unknown[]) => getFeedback(...args),
+  postTaskFeedback: (...args: unknown[]) => postFeedback(...args),
+}));
 
 import UrgentQueue, {
   sortUrgentQueue,
@@ -237,5 +245,92 @@ describe("Dashboard Day 3 today tasks", () => {
     expect(
       screen.queryByText("draft ready")
     ).not.toBeInTheDocument();
+  });
+});
+
+const feature = { raw: null, normalized: null, weight: 0.25, contribution: null, reason: "missing" };
+const shortageTask: ReservationShortageTask = {
+  id: "task-a", tenant_id: "demo_store", reservation_id: "reservation-a", sku_id: "same-sku",
+  task_type: "RESERVATION_SHORTAGE", title: "예약 부족", deadline: null, risk_level: "HIGH",
+  affected_count: 1, aging_hours: 12, priority: 21.25, priority_reason: "rule", status: "PROPOSED",
+  source_reason: "CONFIRMED", source_classification: "FIXTURE", evidence_ids: [], as_of: null,
+  replay_count: 0, priority_rule_score: 21.25,
+  priority_breakdown: { deadline: { ...feature, raw: "DEADLINE_UNKNOWN" }, risk: feature, business_impact: feature, aging: feature },
+  priority_rule_version: "task-priority.v0.1", priority_provenance: "RULE",
+  priority_calibration_status: "DAY11_BASELINE_UNVALIDATED", priority_missing_features: ["deadline"],
+  priority_coverage_weight: 0.75, priority_as_of: null,
+};
+const reservation = (id: string, shortage: number | null): ReservationRiskItem => ({
+  reservation_id: id, product_name: "demo", sku_id: "same-sku", required_qty: 5,
+  secured_qty: 1, confirmed_incoming: 2, tentative_incoming: 0,
+  confirmed_incoming_qty: 2, tentative_incoming_qty: 0, shortage,
+  calculation_status: "CONFIRMED", as_of: "2026-09-11T06:00:00Z", source_classification: "FIXTURE",
+});
+
+describe("C03 dashboard task", () => {
+  it("reservation_id로만 결합하고 5/1/2/0/2 및 미검증 priority를 표시한다", async () => {
+    getFeedback.mockResolvedValue({ data: [] });
+    render(<TodayTasks tasks={[]} shortageTasks={[shortageTask]} reservations={[reservation("other", 99), reservation("reservation-a", 2)]} />);
+    const card = screen.getByTestId("shortage-task-task-a");
+    const quantities = within(card).getByRole("region", { name: "예약 수량" });
+    for (const [label, value] of [["예약 수요", "5"], ["확보·배정", "1"], ["확정 입고", "2"], ["잠정 입고", "0"], ["부족 수량", "2"]]) {
+      const term = within(quantities).getByText(label);
+      expect(term.parentElement).toHaveTextContent(value);
+    }
+    expect(within(card).queryByText(/99/)).not.toBeInTheDocument();
+    expect(within(card).getByText(/규칙 기반 우선순위: 21.25/)).toBeInTheDocument();
+    expect(within(card).getByText(/기준선 검증 전/)).toBeInTheDocument();
+    expect(within(card).getByText(/출처: 규칙 기반/)).toBeInTheDocument();
+    expect(within(card).getByText(/원본값 마감일 정보 없음 · 기여도 확인 필요/)).toBeInTheDocument();
+    expect(within(card).getAllByText(/정규화 확인 필요/)).toHaveLength(4);
+    expect(within(card).queryByText(/private-order/)).not.toBeInTheDocument();
+    await waitFor(() => expect(within(card).getByText("의견 기록: 0건")).toBeInTheDocument());
+  });
+
+  it("null 부족은 0으로 표시하지 않는다", () => {
+    getFeedback.mockResolvedValue({ data: [] });
+    render(<TodayTasks tasks={[]} shortageTasks={[shortageTask]} reservations={[reservation("reservation-a", null)]} />);
+    expect(screen.getByText("부족 수량").parentElement).toHaveTextContent("확인 필요");
+  });
+
+  it("EDIT와 REJECT는 POST 뒤 GET readback을 거치며 실패는 성공으로 표시하지 않는다", async () => {
+    getFeedback.mockReset().mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({ data: [{ id: "f1", feedback_version: 1, decision: "EDIT", target_field: "title", after_value: "새 제목", reason: "수정", actor: "DEMO_OPERATOR" }] });
+    postFeedback.mockReset().mockResolvedValue({ id: "f1" });
+    render(<TodayTasks tasks={[]} shortageTasks={[shortageTask]} reservations={[]} />);
+    await waitFor(() => expect(screen.getByText("의견 기록: 0건")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("수정 제안값"), { target: { value: "새 제목" } });
+    fireEvent.change(screen.getByLabelText("사유"), { target: { value: "수정" } });
+    fireEvent.click(screen.getByRole("button", { name: "수정 의견 저장" }));
+    await waitFor(() => expect(screen.getByText("의견 기록: 1건")).toBeInTheDocument());
+    expect(screen.getByText("수정 의견 · 버전 1")).toBeInTheDocument();
+    expect(screen.getByText("새 제목")).toBeInTheDocument();
+    expect(screen.getByText("DEMO_OPERATOR")).toBeInTheDocument();
+    expect(screen.getByText("내부 업무 의견입니다. 외부 시스템 변경이나 Agent 재개를 의미하지 않습니다.")).toBeInTheDocument();
+    expect(postFeedback.mock.calls[0][1]).toMatchObject({ decision: "EDIT", target_field: "title", expected_version: 0 });
+    getFeedback.mockResolvedValueOnce({ data: [{ id: "f1", feedback_version: 1, decision: "EDIT", reason: "수정", actor: "DEMO_OPERATOR" }] });
+    postFeedback.mockRejectedValueOnce(new Error("409 FEEDBACK_VERSION_CONFLICT"));
+    fireEvent.change(screen.getByLabelText("의견 유형"), { target: { value: "REJECT" } });
+    fireEvent.change(screen.getByLabelText("사유"), { target: { value: "거절" } });
+    fireEvent.click(screen.getByRole("button", { name: "거절 의견 저장" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("FEEDBACK_VERSION_CONFLICT"));
+    expect(postFeedback.mock.calls[1][1]).toMatchObject({ decision: "REJECT", target_field: null, after_value: null, expected_version: 1 });
+    expect(screen.getByLabelText("사유")).toHaveValue("거절");
+    expect(screen.queryByText("서버 의견 기록을 다시 확인했습니다.")).not.toBeInTheDocument();
+    postFeedback.mockRejectedValueOnce(new Error("500 storage failure"));
+    fireEvent.click(screen.getByRole("button", { name: "거절 의견 저장" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("500 storage failure"));
+    expect(screen.getByLabelText("사유")).toHaveValue("거절");
+    expect(screen.queryByText("서버 의견 기록을 다시 확인했습니다.")).not.toBeInTheDocument();
+  });
+
+  it("새로고침과 같은 재마운트 후 서버 의견 이력을 다시 표시한다", async () => {
+    const entry = { id: "f1", feedback_version: 1, decision: "EDIT", target_field: "title", after_value: "새 제목", reason: "수정", actor: "DEMO_OPERATOR" };
+    getFeedback.mockReset().mockResolvedValue({ data: [entry] });
+    const first = render(<TodayTasks tasks={[]} shortageTasks={[shortageTask]} />);
+    await waitFor(() => expect(screen.getByText("의견 기록: 1건")).toBeInTheDocument());
+    first.unmount();
+    render(<TodayTasks tasks={[]} shortageTasks={[shortageTask]} />);
+    await waitFor(() => expect(screen.getByText("새 제목")).toBeInTheDocument());
+    expect(getFeedback).toHaveBeenCalledTimes(2);
   });
 });

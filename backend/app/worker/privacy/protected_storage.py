@@ -275,6 +275,7 @@ def write_protected_raw_response(
 def write_sanitized_export(
     *, protected_root: Path, provider: str, resource: str, batch_id: str,
     records: list[dict[str, Any]],
+    snapshot_metadata: dict[str, Any] | None = None,
 ) -> SanitizedSnapshotResult:
     """Export adapter staging records without pretending they are provider raw."""
     root = _require_protected_root(protected_root)
@@ -284,6 +285,10 @@ def write_sanitized_export(
     _require_contained(root, target)
     payload = {"provider": provider, "resource": resource, "batch_id": batch_id,
                "records": [sanitize_record(record) for record in records]}
+    if snapshot_metadata is not None:
+        payload["snapshot_metadata"] = sanitize_record(
+            snapshot_metadata
+        )
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("x", encoding="utf-8") as stream:

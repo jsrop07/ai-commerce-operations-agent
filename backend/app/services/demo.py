@@ -33,7 +33,12 @@ DEMO_SCENARIOS: dict[str, dict[str, object]] = {
     "offline_sale": _event(
         2,
         "offline_sale.recorded",
-        {"sku_id": "sku_demo_001", "quantity": 1, "amount": {"currency": "KRW", "value": 39000}},
+        {
+            "sku_id": "sku_demo_001",
+            "quantity": 1,
+            "amount": {"currency": "KRW", "value": 39000},
+            "business_identity_key": "demo-business-sale-001",
+        },
     ),
     "reservation_shortage": _event(
         3,

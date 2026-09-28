@@ -56,6 +56,9 @@
     "return.recorded"
   ],
   "paths": {
+    "/api/v1/c04/lookup": [
+      "get"
+    ],
     "/api/v1/demo/events": [
       "post"
     ],

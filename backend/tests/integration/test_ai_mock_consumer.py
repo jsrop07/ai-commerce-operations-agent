@@ -1,6 +1,6 @@
 import json
+from unittest.mock import Mock
 
-import jsonschema
 import pytest
 
 from backend.app.services.ai_mock_consumer import (
@@ -90,7 +90,7 @@ def test_backend_ai_consumer_preserves_prohibited_route() -> None:
         == 0
     )
 
-def test_inquiry_event_flows_to_ai_mock_consumer() -> None:
+def test_inquiry_event_does_not_flow_to_ai_mock_consumer() -> None:
     pipeline = OfflineSalePipeline()
 
     event = DEMO_SCENARIOS["product_inquiry"]
@@ -104,38 +104,26 @@ def test_inquiry_event_flows_to_ai_mock_consumer() -> None:
 
     assert receipt.status == "ACCEPTED"
 
-    assert len(pipeline.ai_results) == 1
-
-    result = pipeline.ai_results[0]
-
-    assert (
-        result["request_id"]
-        == "req_day04_inquiry_e2e"
-    )
-
-    assert (
-        result["trace_id"]
-        == "trace_day04_inquiry_e2e"
-    )
-
-    assert "correlation_id" not in result
+    assert pipeline.ai_results == []
 
     route_record = next(
         json.loads(record)
         for record in pipeline.trace
-        if json.loads(record)["message"] == "mock_ai_inquiry_route"
+        if json.loads(record)["message"] == "INQUIRY_AI_DISABLED"
     )
     assert route_record["correlation_id"] == event["correlation_id"]
 
-    assert result["intent"] == "PRODUCT_INFO"
-    assert result["route"] == "RULE_SQL"
 
-    assert (
-        result["model"]["model_run_id"]
-        is None
-    )
+def test_inquiry_ai_consumer_call_count_is_zero() -> None:
+    pipeline = OfflineSalePipeline()
+    consumer = Mock()
+    pipeline.ai_consumer = consumer
 
-def test_prohibited_inquiry_event_is_policy_denied() -> None:
+    pipeline.process(DEMO_SCENARIOS["product_inquiry"])
+
+    consumer.classify_inquiry.assert_not_called()
+
+def test_prohibited_inquiry_event_does_not_call_ai() -> None:
     pipeline = OfflineSalePipeline()
 
     event = DEMO_SCENARIOS["risk_inquiry"]
@@ -149,11 +137,7 @@ def test_prohibited_inquiry_event_is_policy_denied() -> None:
 
     assert receipt.status == "ACCEPTED"
 
-    assert len(pipeline.ai_results) == 1
-
-    result = pipeline.ai_results[0]
-
-    assert result["route"] == "POLICY_DENY"
+    assert pipeline.ai_results == []
 
     assert (
         pipeline.ai_consumer.runtime.counters
@@ -183,7 +167,7 @@ def test_prohibited_inquiry_event_is_policy_denied() -> None:
 
 
 @pytest.mark.parametrize("scenario_name", ["product_inquiry", "risk_inquiry"])
-def test_duplicate_inquiry_has_one_ai_effect_and_zero_external_actions(
+def test_duplicate_inquiry_has_zero_ai_effects_and_external_actions(
     scenario_name: str,
 ) -> None:
     pipeline = OfflineSalePipeline()
@@ -194,12 +178,10 @@ def test_duplicate_inquiry_has_one_ai_effect_and_zero_external_actions(
 
     assert first.status == "ACCEPTED"
     assert second.status == "REPLAYED"
-    assert len(pipeline.ai_results) == 1
-    assert pipeline.effects.business_effect_count == 1
+    assert pipeline.ai_results == []
+    assert pipeline.effects.business_effect_count == 0
     assert pipeline.inbox.accepted_count == 1
     assert pipeline.inbox.replayed_count == 1
-    jsonschema.validate(pipeline.ai_results[0], pipeline.ai_consumer.schema)
-
     counters = pipeline.ai_consumer.runtime.counters
     assert counters.external_model_calls == 0
     assert counters.tool_calls == 0

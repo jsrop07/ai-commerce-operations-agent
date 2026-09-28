@@ -211,13 +211,17 @@ def collapse_results_by_source(
     results: list[Any],
 ) -> list[Any]:
     collapsed: list[Any] = []
-    seen: set[str] = set()
+    seen: set[tuple[str, str]] = set()
 
     for result in results:
-        if result.source_id in seen:
+        key = (
+            str(result.source_id),
+            str(result.version),
+        )
+        if key in seen:
             continue
 
-        seen.add(result.source_id)
+        seen.add(key)
         collapsed.append(result)
 
     return collapsed
@@ -230,6 +234,7 @@ def prefer_fresh_versioned_results(
         str,
         list[str],
     ],
+    now=None,
 ) -> list[Any]:
     """
     VERSIONED source에 최신 valid version이 있으면
@@ -266,6 +271,7 @@ def prefer_fresh_versioned_results(
             version_catalog=(
                 version_catalog
             ),
+            now=now,
         )
 
         states_by_result_id[

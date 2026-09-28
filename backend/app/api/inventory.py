@@ -33,6 +33,15 @@ def inventory(
         f"tr_{uuid4().hex}",
     )
 
+    pipeline = request.app.state.pipeline
+    if (
+        pipeline.db_session_factory is not None
+        and not pipeline.inventory_projections
+    ):
+        pipeline.rebuild_inventory_projections(
+            tenant_id=request.app.state.settings.tenant_id,
+        )
+
     projections = [
         projection
         for projection in request.app.state.inventory_projections
@@ -45,11 +54,21 @@ def inventory(
         evidence_id for projection in projections for evidence_id in projection.evidence
     ]
 
+    warnings: list[str] = []
+
+    if not data:
+        warnings.append(
+            "INVENTORY_PROJECTION_EMPTY:"
+            " usable actual inventory "
+            "projection is not available"
+        )
+
     return ApiEnvelope(
         tenant_id=request.app.state.settings.tenant_id,
         request_id=request_id,
         trace_id=trace_id,
         data=data,
         evidence_ids=evidence_ids,
+        warnings=warnings,
         as_of=datetime.now(UTC),
     )

@@ -16,7 +16,7 @@ from backend.app.models.operations import (
     Task,
     TaskDependency,
 )
-
+from backend.app.models.feedback import TaskFeedback  # noqa: F401
 __all__ = [
     "Brand",
     "EventInbox",
@@ -38,3 +38,4 @@ __all__ = [
     "Tenant",
     "SyncState",
 ]
+from backend.app.models.agent import AgentRun

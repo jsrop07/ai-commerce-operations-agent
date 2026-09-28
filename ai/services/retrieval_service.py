@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 from uuid import uuid4
 
 from ai.retrieval.bm25 import BM25Index
@@ -11,7 +11,8 @@ from ai.retrieval.confidence import (
     ConfidenceLevel,
     evaluate_confidence,
 )
-from ai.retrieval.dense import DenseIndex
+if TYPE_CHECKING:
+    from ai.retrieval.dense import DenseIndex
 from ai.retrieval.filters import MetadataFilter
 from ai.retrieval.freshness import FreshnessState
 
@@ -80,6 +81,9 @@ class RetrievalCitation:
     source_id: str
     title: str
     record_or_field: str
+    version: str
+    semantic_chunk_id: str
+    excerpt: str
     as_of: str | None
     score: float
     excerpt_hash: str
@@ -144,10 +148,10 @@ class RetrievalService:
     def __init__(
         self,
         *,
-        bm25_index: BM25Index,
-        dense_index: DenseIndex,
-        bm25_index_version: str,
-        dense_index_version: str,
+        bm25_index: BM25Index | None = None,
+        dense_index: DenseIndex | None = None,
+        bm25_index_version: str = "",
+        dense_index_version: str = "",
     ) -> None:
         self._bm25_index = bm25_index
         self._dense_index = dense_index
@@ -170,9 +174,11 @@ class RetrievalService:
         )
 
         if method == RetrievalMethod.BM25:
+            if self._bm25_index is None or not self._index_versions[method]:
+                raise RuntimeError("RETRIEVAL_INDEX_UNAVAILABLE")
             results = self._bm25_index.search(
                 request.query,
-                top_k=request.top_k,
+                top_k=self._bm25_index.document_count,
                 filters=request.filters,
             )
             documents = (
@@ -181,9 +187,11 @@ class RetrievalService:
             confidence_retriever = "bm25"
 
         elif method == RetrievalMethod.VECTOR:
+            if self._dense_index is None or not self._index_versions[method]:
+                raise RuntimeError("RETRIEVAL_INDEX_UNAVAILABLE")
             results = self._dense_index.search(
                 request.query,
-                top_k=request.top_k,
+                top_k=self._dense_index.document_count,
                 filters=request.filters,
             )
             documents = (
@@ -195,6 +203,10 @@ class RetrievalService:
             raise ValueError(
                 f"unsupported retrieval method: {method}"
             )
+
+        results = self._collapse_results_by_source_version(
+            results
+        )[:request.top_k]
 
         documents_by_chunk_id = {
             document.chunk_id: document
@@ -323,6 +335,27 @@ class RetrievalService:
             ),
         )
     @staticmethod
+    def _collapse_results_by_source_version(
+        results: Sequence[Any],
+    ) -> list[Any]:
+        """같은 source/version의 여러 chunk는 최고 순위 하나만 유지한다."""
+        collapsed: list[Any] = []
+        seen: set[tuple[str, str]] = set()
+
+        for result in results:
+            key = (
+                str(result.source_id),
+                str(result.version),
+            )
+            if key in seen:
+                continue
+
+            seen.add(key)
+            collapsed.append(result)
+
+        return collapsed
+
+    @staticmethod
     def _resolve_freshness_state(
         *,
         source_type: str,
@@ -340,9 +373,8 @@ class RetrievalService:
         live_source_types = {
             "INVENTORY_SNAPSHOT",
             "INCOMING_STOCK",
-            "ORDER_STATUS",
         }
-
+        
         if source_type not in live_source_types:
             return FreshnessState.FRESH
 
@@ -397,6 +429,9 @@ class RetrievalService:
             record_or_field=(
                 validated.field_or_path
             ),
+            version=result.version,
+            semantic_chunk_id=result.chunk_id,
+            excerpt=document.text,
             as_of=validated.as_of,
             score=float(result.score),
             excerpt_hash=(
@@ -502,15 +537,11 @@ class RetrievalService:
             )
 
         if safety.live_order_lookup_required:
-            required_lookup.append(
-                "ORDER_STATUS"
-            )
-
             return (
                 "HUMAN_REVIEW",
-                tuple(required_lookup),
+                (),
                 True,
-                ("LIVE_ORDER_LOOKUP_REQUIRED",),
+                ("ORDER_LINKED_LOOKUP_FORBIDDEN",),
             )
 
         if safety.delivery_address_change:

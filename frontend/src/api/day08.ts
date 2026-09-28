@@ -1,4 +1,5 @@
 import { mockApiGet } from "../mocks/handlers";
+import type { C04Key } from "./day04";
 import type {
   ApiEnvelope,
   Freshness,
@@ -14,6 +15,150 @@ const useRealBackend =
 
 const backendBaseUrl =
   import.meta.env.VITE_BACKEND_BASE_URL ?? "";
+
+export class RetrievalHttpError extends Error {
+  constructor(public readonly status: number) {
+    super(`Retrieval HTTP failed: ${status}`);
+  }
+}
+
+export interface RetrievalCitation {
+  rank: number;
+  score: number;
+  source_type: string;
+  source_id: string;
+  title: string;
+  version: string;
+  semantic_chunk_id: string;
+  semantic_excerpt: string;
+  semantic_excerpt_hash: string;
+  as_of: string | null;
+  c04_lookup?: Required<C04Key> | null;
+}
+
+export interface RetrievalSearch {
+  method: "BM25";
+  selection_status: "PROVISIONAL_DEV_SELECTION";
+  data_mode: "SYNTHETIC_DEMO";
+  actual_retrieval_executed: boolean;
+  index_version: string;
+  result_status: "RESULTS" | "ZERO_CITATIONS";
+  citations: RetrievalCitation[];
+  answer_status: string;
+  human_review_required: boolean;
+  human_review_reason: string[];
+  warnings: string[];
+  required_lookup: string[];
+}
+
+interface RetrievalMethodSummary {
+  method: string;
+  executed: boolean | null;
+  execution_status: string;
+  source_status: string | null;
+  mean_recall_at_5: number | null;
+  mean_mrr_at_5: number | null;
+  full_evidence_numerator: number | null;
+  full_evidence_denominator: number | null;
+  metric_status: Record<string, string>;
+}
+
+export interface RetrievalSummary {
+  selection: { method: "bm25"; status: "PROVISIONAL_DEV_SELECTION" };
+  data_mode: "SYNTHETIC_DEMO";
+  query_count: number;
+  execution_count: number;
+  error_count: number;
+  actual_scale_retrieval_validation_required: boolean;
+  methods: RetrievalMethodSummary[];
+}
+
+function requireRetrieval(condition: unknown): asserts condition {
+  if (!condition) throw new Error("Retrieval response is malformed");
+}
+const textValue = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0;
+const stringList = (value: unknown): value is string[] => Array.isArray(value) && value.every(textValue);
+const countValue = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+
+function retrievalEnvelope(value: unknown): ApiEnvelope<unknown> {
+  requireRetrieval(isRecord(value) && !Array.isArray(value));
+  requireRetrieval(value.schema_version === "1.0" && textValue(value.tenant_id) &&
+    textValue(value.request_id) && textValue(value.trace_id) && stringList(value.warnings) &&
+    stringList(value.evidence_ids) && textValue(value.as_of) && isRecord(value.data) && !Array.isArray(value.data));
+  return value as unknown as ApiEnvelope<unknown>;
+}
+
+export function parseRetrievalSearch(value: unknown): ApiEnvelope<RetrievalSearch> {
+  const envelope = retrievalEnvelope(value);
+  const data = envelope.data as Record<string, unknown>;
+  requireRetrieval(data.method === "BM25" && data.selection_status === "PROVISIONAL_DEV_SELECTION" &&
+    data.data_mode === "SYNTHETIC_DEMO" && typeof data.actual_retrieval_executed === "boolean" &&
+    textValue(data.index_version) && textValue(data.answer_status) && typeof data.human_review_required === "boolean" &&
+    stringList(data.human_review_reason) && stringList(data.warnings) && stringList(data.required_lookup) && Array.isArray(data.citations));
+  requireRetrieval((data.result_status === "ZERO_CITATIONS" && data.citations.length === 0) ||
+    (data.result_status === "RESULTS" && data.citations.length > 0));
+  for (const citation of data.citations) {
+    requireRetrieval(isRecord(citation) && !Array.isArray(citation) && countValue(citation.rank) && citation.rank > 0 &&
+      typeof citation.score === "number" && Number.isFinite(citation.score));
+    for (const field of ["source_type", "source_id", "title", "version", "semantic_chunk_id", "semantic_excerpt", "semantic_excerpt_hash"]) {
+      requireRetrieval(textValue(citation[field]));
+    }
+    requireRetrieval(["PRODUCT", "POLICY", "INVENTORY_SNAPSHOT", "INCOMING_STOCK"].includes(String(citation.source_type)));
+    requireRetrieval((citation.as_of === null && ["PRODUCT", "POLICY"].includes(String(citation.source_type))) ||
+      (textValue(citation.as_of) && Number.isFinite(Date.parse(citation.as_of))));
+    const key = citation.c04_lookup;
+    if (key !== undefined && key !== null) {
+      requireRetrieval(isRecord(key) && !Array.isArray(key) && textValue(key.source_id) && textValue(key.version) && textValue(key.chunk_id));
+      requireRetrieval(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(key.source_id) &&
+        /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(key.version) && key.chunk_id.length <= 300);
+    }
+  }
+  return envelope as ApiEnvelope<RetrievalSearch>;
+}
+
+export function parseRetrievalSummary(value: unknown): ApiEnvelope<RetrievalSummary> {
+  const envelope = retrievalEnvelope(value);
+  const data = envelope.data as Record<string, unknown>;
+  requireRetrieval(isRecord(data.selection) && !Array.isArray(data.selection) && data.selection.method === "bm25" &&
+    data.selection.status === "PROVISIONAL_DEV_SELECTION" && data.data_mode === "SYNTHETIC_DEMO" &&
+    countValue(data.query_count) && countValue(data.execution_count) && countValue(data.error_count) &&
+    typeof data.actual_scale_retrieval_validation_required === "boolean" && Array.isArray(data.methods));
+  requireRetrieval(data.methods.filter((method) => isRecord(method) && method.method === "bm25").length === 1);
+  for (const method of data.methods) {
+    requireRetrieval(isRecord(method) && !Array.isArray(method) && textValue(method.method) &&
+      (method.executed === null || typeof method.executed === "boolean") && textValue(method.execution_status) &&
+      (method.source_status === null || textValue(method.source_status)) && isRecord(method.metric_status) && !Array.isArray(method.metric_status) &&
+      Object.values(method.metric_status).every(textValue));
+    for (const field of ["mean_recall_at_5", "mean_mrr_at_5"]) {
+      const metric = method[field];
+      requireRetrieval(metric === null || (typeof metric === "number" && Number.isFinite(metric) && metric >= 0 && metric <= 1));
+    }
+    requireRetrieval((method.full_evidence_numerator === null || countValue(method.full_evidence_numerator)) &&
+      (method.full_evidence_denominator === null || countValue(method.full_evidence_denominator)));
+    requireRetrieval(method.full_evidence_numerator === null ||
+      (typeof method.full_evidence_denominator === "number" && method.full_evidence_numerator <= method.full_evidence_denominator));
+  }
+  return envelope as ApiEnvelope<RetrievalSummary>;
+}
+
+async function retrievalRequest(path: string, signal?: AbortSignal, body?: { query: string; top_k: 5; method: "BM25" }): Promise<unknown> {
+  const response = await fetch(`${backendBaseUrl}${path}`, {
+    method: body ? "POST" : "GET",
+    headers: { Accept: "application/json", ...(body ? { "Content-Type": "application/json" } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}), signal,
+  });
+  if (!response.ok) throw new RetrievalHttpError(response.status);
+  return response.json();
+}
+
+export async function searchRetrieval(query: string, signal?: AbortSignal) {
+  if (!query.trim() || query.length > 2000) throw new RetrievalHttpError(422);
+  return parseRetrievalSearch(await retrievalRequest("/api/v1/retrieval/search", signal, { query, top_k: 5, method: "BM25" }));
+}
+
+export async function getRetrievalSummary(signal?: AbortSignal) {
+  return parseRetrievalSummary(await retrievalRequest("/api/v1/retrieval/summary", signal));
+}
 
 const providers: readonly Provider[] = [
   "CAFE24",

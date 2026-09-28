@@ -17,10 +17,14 @@ import SystemState from "../../components/SystemStates";
 import UrgentQueue from "../../components/UrgentQueue";
 import { urgentQueueFixtures } from "../../mocks/fixtures/urgentQueue";
 import TodayTasks from "../../components/TodayTasks";
+import { getDay10Tasks } from "../../api/day10";
+import { getDay09Reservations } from "../../api/day09";
+import type { ReservationShortageTask, ReservationRiskItem } from "../../types/contracts";
 import {
   getDay04Insights,
   toUrgentQueueItems,
   useRealBackend,
+  type C04Key,
 } from "../../api/day04";
 import { providerFailureFixture } from "../../mocks/fixtures/degradedDashboard";
 import type { UrgentQueueInsight } from "../../components/UrgentQueue";
@@ -35,9 +39,13 @@ export default function DashboardPage() {
       urgentQueueFixtures,
     );
   const [insightsUnavailable, setInsightsUnavailable] = useState(false);
+  const [shortageTasks, setShortageTasks] = useState<ReservationShortageTask[]>([]);
+  const [reservations, setReservations] = useState<ReservationRiskItem[]>([]);
+  const [tasksUnavailable, setTasksUnavailable] = useState(false);
 
   const [selectedInsight, setSelectedInsight] =
     useState<InsightSummary | null>(null);
+  const [selectedC04Key, setSelectedC04Key] = useState<C04Key | undefined>();
 
   const [evidenceMissing, setEvidenceMissing] =
     useState(false);
@@ -58,6 +66,14 @@ export default function DashboardPage() {
     });
 
     if (useRealBackend) {
+      Promise.all([getDay10Tasks(controller.signal), getDay09Reservations(controller.signal)])
+        .then(([taskResponse, reservationResponse]) => {
+          if (!active) return;
+          setShortageTasks(taskResponse.data.filter((task): task is ReservationShortageTask => "reservation_id" in task));
+          setReservations(reservationResponse.data);
+          setTasksUnavailable(false);
+        })
+        .catch(() => { if (active && !controller.signal.aborted) { setShortageTasks([]); setReservations([]); setTasksUnavailable(true); } });
       setUrgentItems([]);
       getDay04Insights(controller.signal)
         .then((response) => {
@@ -89,6 +105,13 @@ export default function DashboardPage() {
     const requestNumber = ++evidenceRequestRef.current;
     setEvidenceMissing(false);
 
+    // Actual evidence is selected by insight, never by envelope request_id.
+    if (useRealBackend) {
+      setSelectedInsight(null);
+      setEvidenceMissing(true);
+      return;
+    }
+
     const response =
       await mockGetEvidenceByRequestId(requestId);
 
@@ -103,6 +126,13 @@ export default function DashboardPage() {
     }
 
     setSelectedInsight(response.data);
+  }
+
+  function openActualEvidence(insight: UrgentQueueInsight) {
+    evidenceRequestRef.current += 1;
+    setSelectedInsight(null);
+    setEvidenceMissing(false);
+    setSelectedC04Key(insight.c04_lookup);
   }
 
   if (!dashboard) {
@@ -122,7 +152,8 @@ export default function DashboardPage() {
     (item) => item.freshness === "STALE",
   ).length;
 
-  const proposedTaskCount = data.tasks.filter(
+  const visibleTasks = useRealBackend ? [] : data.tasks;
+  const proposedTaskCount = visibleTasks.filter(
     (task) => task.status === "PROPOSED",
   ).length;
 
@@ -161,7 +192,7 @@ export default function DashboardPage() {
     ],
     [
       "오늘 확인 업무",
-      `${data.tasks.length}건`,
+      `${visibleTasks.length + shortageTasks.length}건`,
       "사람이 확인할 업무",
       "warning",
     ],
@@ -211,6 +242,7 @@ export default function DashboardPage() {
           <UrgentQueue
             items={urgentItems}
             onSelect={openEvidence}
+            onSelectActual={useRealBackend ? openActualEvidence : undefined}
           />
 
           {insightsUnavailable && (
@@ -227,15 +259,20 @@ export default function DashboardPage() {
               <SystemState
                 state="empty"
                 title="판단 근거를 찾을 수 없습니다"
-                description="선택한 위험 항목의 근거 데이터를 찾을 수 없습니다. 다른 위험 항목을 확인하거나 연결 상태를 확인하세요."
+                description={useRealBackend
+                  ? "근거 연결 없음"
+                  : "선택한 위험 항목의 근거 데이터를 찾을 수 없습니다. 다른 위험 항목을 확인하거나 연결 상태를 확인하세요."}
               />
             </div>
           )}
 
           <TodayTasks
-            tasks={data.tasks}
+            tasks={visibleTasks}
+            shortageTasks={shortageTasks}
+            reservations={reservations}
             compact
           />
+          {tasksUnavailable && <div className="notice" role="alert">실제 업무·예약 데이터를 불러오지 못했습니다.</div>}
         </main>
 
         <aside className="dashboard-console-side">
@@ -367,11 +404,15 @@ export default function DashboardPage() {
 
       {/* 판단 근거 Drawer */}
       <EvidenceDrawer
-        open={selectedInsight !== null}
+        open={selectedInsight !== null || selectedC04Key !== undefined}
         insight={selectedInsight}
-        onClose={() =>
-          setSelectedInsight(null)
-        }
+        c04Key={selectedC04Key}
+        onClose={() => {
+          evidenceRequestRef.current += 1;
+          setSelectedInsight(null);
+          setSelectedC04Key(undefined);
+          setEvidenceMissing(false);
+        }}
       />
     </div>
   );

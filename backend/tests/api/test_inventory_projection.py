@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi.testclient import TestClient
 
 from backend.app.core.config import (
@@ -30,6 +32,8 @@ def _client_with_projection():
         quality_status="CONFIRMED",
         ttl_seconds=300,
         age_seconds=120,
+        provider="DEMO",
+        as_of=datetime(2026, 9, 23, 10, 0, tzinfo=UTC),
         risk_level="LOW",
         evidence=(
             "snapshot-001",
@@ -56,7 +60,8 @@ def test_inventory_projection_api_returns_backend_calculation() -> None:
     assert item["source_on_hand"] == 10
     assert item["ledger_delta"] == -2
     assert item["reserved"] == 1
-    assert item["expected_inventory"] == 7
+    assert item["expected_inventory"] == 8
+    assert item["available_inventory"] == 7
     assert item["confirmed_incoming"] == 3
 
     assert item["risk_level"] == "LOW"
@@ -66,12 +71,16 @@ def test_inventory_projection_api_returns_backend_calculation() -> None:
     assert item["age_seconds"] == 120
     assert item["freshness_reason"] == "FRESH"
     assert item["confirmed_for_total"] is True
+    assert item["provider"] == "DEMO"
+    assert item["as_of"] == "2026-09-23T10:00:00Z"
+    assert item["freshness"] == "FRESH"
 
     assert item["calculation"] == {
         "source_on_hand": 10,
         "ledger_delta": -2,
+        "expected_inventory": 8,
         "reserved": 1,
-        "expected_inventory": 7,
+        "available_inventory": 7,
     }
 
     assert item["evidence"] == [
@@ -114,6 +123,7 @@ def test_inventory_projection_api_preserves_unknown_as_null() -> None:
     assert item["source_on_hand"] is None
     assert item["reserved"] is None
     assert item["expected_inventory"] is None
+    assert item["available_inventory"] is None
     assert item["confirmed_incoming"] is None
 
     assert item["confirmed_for_total"] is False
@@ -148,5 +158,7 @@ def test_stale_inventory_is_excluded_from_confirmed_total() -> None:
     item = client.get("/api/v1/inventory").json()["data"][0]
 
     assert item["expected_inventory"] == 9
+    assert item["available_inventory"] == 9
+    assert item["freshness"] == "STALE"
     assert item["freshness_reason"] == "STALE"
     assert item["confirmed_for_total"] is False

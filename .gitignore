@@ -46,7 +46,19 @@ Thumbs.db
 alembic.ini
 pyproject.toml
 
-docs/projects
-artifacts/integration/day08/
+docs
+artifacts
 frontend/tsconfig.tsbuildinfo
 frontend_day8_openapi.json
+
+*.zip
+
+*yaml
+
+r02_sale*
+r04*
+
+*json
+*yaml
+
+*bak

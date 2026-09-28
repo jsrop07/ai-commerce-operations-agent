@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import EvidenceDrawer from "../src/components/EvidenceDrawer";
 import { insights } from "../src/mocks/fixtures";
 
@@ -255,5 +255,101 @@ describe("EvidenceDrawer", () => {
     expect(
       screen.getAllByText("현재 계약에서 제공되지 않음")
     ).toHaveLength(3);
+  });
+});
+
+// Synthetic response fixtures only: no live retrieval or LLM execution.
+describe("C04 lookup drawer", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const key = { source_id: "product_demo_001", version: "v1" };
+  const document = {
+    ...key, title: "Synthetic board game", source_type: "PRODUCT",
+    as_of: "2026-09-26T00:00:00Z", excerpt: "합성 보드게임: 2–4명, 한국어판.",
+    excerpt_hash: "sha256:test", data_mode: "SYNTHETIC_DEMO", visibility: "DEMO_PUBLIC",
+    chunk_id: "product_demo_001:v1:c04:0", stale: false, warnings: [],
+    definitive_answer_allowed: false,
+  };
+  function response(data = document) {
+    return new Response(JSON.stringify({ schema_version: "1.0", tenant_id: "demo",
+      request_id: "req_test", trace_id: "tr_test", evidence_ids: [], warnings: [],
+      as_of: data.as_of, data }), { status: 200 });
+  }
+
+  it("200 원문과 모든 metadata, 합성 및 확정 불가 안내를 표시한다", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response());
+    vi.stubGlobal("fetch", fetcher);
+    render(<EvidenceDrawer open insight={null} c04Key={key} onClose={() => {}} />);
+    expect(await screen.findByTestId("c04-document")).toHaveTextContent(document.title);
+    for (const field of ["source_type", "version", "as_of", "stale", "warnings", "data_mode", "visibility", "chunk_id", "definitive_answer_allowed"]) {
+      expect(screen.getByText(field)).toBeInTheDocument();
+    }
+    expect(screen.getByText(document.excerpt)).toBeInTheDocument();
+    expect(screen.getByText(/합성 Demo 근거/)).toBeInTheDocument();
+    expect(screen.getByText(/이 자료 하나만으로 현재 상태를 확정할 수 없습니다/)).toBeInTheDocument();
+    expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("/api/v1/c04/lookup?source_id=product_demo_001&version=v1"), expect.objectContaining({ method: "GET", signal: expect.any(AbortSignal) }));
+  });
+
+  it("stale 경고와 서버 warnings를 표시한다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({ ...document, stale: true, warnings: ["C04_STALE"] } as typeof document)));
+    render(<EvidenceDrawer open insight={null} c04Key={key} onClose={() => {}} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("오래된 자료");
+    expect(screen.getByText("C04_STALE")).toBeInTheDocument();
+  });
+
+  it.each([
+    [403, "접근/안전 정책"], [404, "근거가 없거나 version/chunk"],
+    [422, "잘못된 근거 조회 요청"], [503, "근거 registry"],
+  ])("HTTP %s를 성공 문서나 Mock으로 표시하지 않는다", async (status, message) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: Number(status) })));
+    render(<EvidenceDrawer open insight={insights[0]} c04Key={key} onClose={() => {}} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(String(message));
+    expect(screen.queryByTestId("c04-document")).not.toBeInTheDocument();
+    expect(screen.queryByText("ord_demo_002")).not.toBeInTheDocument();
+  });
+
+  it("대상 전환 시 이전 응답 역전과 닫기 후 응답을 무시한다", async () => {
+    const resolves: Array<(value: Response) => void> = [];
+    const fetcher = vi.fn(() => new Promise<Response>((resolve) => resolves.push(resolve)));
+    vi.stubGlobal("fetch", fetcher);
+    const { rerender } = render(<EvidenceDrawer open insight={null} c04Key={key} onClose={() => {}} />);
+    const nextKey = { source_id: "product_demo_002", version: "v2", chunk_id: "provided-chunk" };
+    rerender(<EvidenceDrawer open insight={null} c04Key={nextKey} onClose={() => {}} />);
+    await act(async () => resolves[1](response({ ...document, ...nextKey, title: "Second document" })));
+    expect(screen.getByText("Second document")).toBeInTheDocument();
+    await act(async () => resolves[0](response()));
+    expect(screen.queryByText(document.title)).not.toBeInTheDocument();
+    expect(screen.getByText("Second document")).toBeInTheDocument();
+    rerender(<EvidenceDrawer open insight={null} c04Key={key} onClose={() => {}} />);
+    expect(screen.queryByText("Second document")).not.toBeInTheDocument();
+    rerender(<EvidenceDrawer open={false} insight={null} c04Key={key} onClose={() => {}} />);
+    await act(async () => resolves[2](response()));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    rerender(<EvidenceDrawer open insight={null} c04Key={key} onClose={() => {}} />);
+    expect(screen.queryByTestId("c04-document")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("불러오는 중");
+    expect(fetcher.mock.calls[1]).toBeDefined();
+  });
+
+  it("C04 로딩/성공에서도 focus trap, Esc와 focus 복귀를 유지한다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response()));
+    const onClose = vi.fn();
+    const trigger = window.document.createElement("button");
+    window.document.body.append(trigger);
+    trigger.focus();
+    const { rerender } = render(<EvidenceDrawer open insight={null} c04Key={key} onClose={onClose} />);
+    const close = screen.getByRole("button", { name: "판단 근거 패널 닫기" });
+    expect(close).toHaveFocus();
+    await screen.findByTestId("c04-document");
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(close);
+    expect(onClose).toHaveBeenCalledTimes(2);
+    rerender(<EvidenceDrawer open={false} insight={null} c04Key={key} onClose={onClose} />);
+    await waitFor(() => expect(trigger).toHaveFocus());
+    trigger.remove();
   });
 });

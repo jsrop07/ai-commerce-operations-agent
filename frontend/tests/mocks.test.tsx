@@ -14,6 +14,9 @@ const expectedGetPaths = [
   "/api/v1/launch-events",
   "/api/v1/tasks",
   "/api/v1/insights",
+  "/api/v1/schedule/dependencies",
+  "/api/v1/schedule/delay-impacts",
+  "/api/v1/schedule/replan-proposals",
 ];
 
 describe("contract mock handlers", () => {

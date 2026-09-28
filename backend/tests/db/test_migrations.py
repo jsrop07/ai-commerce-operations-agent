@@ -8,7 +8,7 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from sqlalchemy import create_engine, inspect, text
-
+from alembic.script import ScriptDirectory
 import backend.app.models  # noqa: F401
 from backend.app.db.base import Base
 
@@ -23,6 +23,8 @@ def test_postgresql_offline_upgrade_and_downgrade_sql_compile() -> None:
     assert "CREATE TABLE" in upgrade.stdout
     assert "inventory_ledger" in upgrade.stdout
     assert "sync_states" in upgrade.stdout
+    assert "task_feedback" in upgrade.stdout
+    assert "task_feedback_append_only" in upgrade.stdout
     assert "fk_skus_product_same_tenant" in upgrade.stdout
     assert "fk_sale_events_sku_same_tenant" in upgrade.stdout
     assert "fk_task_dependencies_successor_same_tenant" in upgrade.stdout
@@ -71,6 +73,17 @@ def test_live_postgresql_upgrade_schema_and_rollback() -> None:
             is None
         )
     command.upgrade(config, "head")
+    script = ScriptDirectory.from_config(
+        config
+    )
+    expected_head = script.get_current_head()
+
     with engine.connect() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "f38aa7ef5019"
+        assert connection.scalar(
+            text(
+                "SELECT version_num "
+                "FROM alembic_version"
+            )
+        ) == expected_head
     engine.dispose()
+

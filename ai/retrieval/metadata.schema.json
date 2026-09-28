@@ -51,8 +51,7 @@
         "PRODUCT",
         "POLICY",
         "INVENTORY_SNAPSHOT",
-        "INCOMING_STOCK",
-        "ORDER_STATUS"
+        "INCOMING_STOCK"
       ]
     },
     "as_of": {
@@ -71,8 +70,7 @@
           "source_type": {
             "enum": [
               "INVENTORY_SNAPSHOT",
-              "INCOMING_STOCK",
-              "ORDER_STATUS"
+              "INCOMING_STOCK"
             ]
           }
         },

@@ -10,12 +10,13 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from backend.app.worker.privacy.protected_storage import (
-    ProtectedSnapshotResult,
     ProtectedRawResponse,
+    ProtectedSnapshotResult,
     _require_component,
     _require_contained,
     _require_protected_root,
 )
+
 
 @dataclass(frozen=True)
 class SnapshotManifestEntry:
@@ -136,6 +137,7 @@ def _raw_resource_count(body: bytes, resource: str) -> int:
         "variants": "variants",
         "variant_inventories": "inventory",
         "categories": "categories",
+        "category_product_relations": "products",
         "boards": "boards",
         "article_comments": "comments",
         "orders": "orders",

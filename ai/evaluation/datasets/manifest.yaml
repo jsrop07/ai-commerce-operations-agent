@@ -1,80 +1,95 @@
-schema_version: "dataset-manifest.v0.1"
-split_policy_version: "split-policy.v0.1"
-
+schema_version: dataset-manifest.v0.1
+split_policy_version: split-policy.v0.1
 global_rules:
   split_unit:
-    - customer
-    - thread
-    - time
+  - customer
+  - thread
+  - time
   train_validation_test_isolation: true
   synthetic_test_answer_visibility: false
   pii_required_status: CLEAN
   real_data_publication_allowed: false
   manifest_hash_required_before_measured_run: true
-
 datasets:
   golden_nlu:
-    purpose: "문의 intent/entity/risk 평가 정답셋"
-    owner: "AI_ML"
-    version: "v0.1"
-    expected_hash: "17f86dcefa6401bb93fb9e8c8274da4e37724d79a1971f6aa034aed7b96a93f5"
+    purpose: 문의 intent/entity/risk 평가 정답셋
+    owner: AI_ML
+    version: v0.1
+    expected_hash: 17f86dcefa6401bb93fb9e8c8274da4e37724d79a1971f6aa034aed7b96a93f5
     visibility: PRIVATE_EVAL
     contains_real_data: false
     pii_status: CLEAN
     split_strategy: THREAD_GROUP
     status: READY
-
   golden_retrieval:
-    purpose: "query에서 관련 source 검색 품질 평가"
-    owner: "AI_ML"
-    version: "v0.1"
-    expected_hash: "766ffcdcf5522bd34d00e46e42782ada6c5b11fb272c935c602ed5d6ffbee751"
+    purpose: query에서 관련 source 검색 품질 평가
+    owner: AI_ML
+    version: v0.1
+    expected_hash: 766ffcdcf5522bd34d00e46e42782ada6c5b11fb272c935c602ed5d6ffbee751
     visibility: PRIVATE_EVAL
     contains_real_data: false
     pii_status: CLEAN
     split_strategy: QUERY_SOURCE_GROUP
     status: READY
-
   golden_graph:
-    purpose: "entity/path/multi-hop relation 평가"
-    owner: "AI_ML"
-    version: "v0.1"
-    expected_hash: "PENDING_DATASET_BUILD"
+    purpose: entity/path/multi-hop relation 평가
+    owner: AI_ML
+    version: v0.1
+    expected_hash: PENDING_DATASET_BUILD
     visibility: PRIVATE_EVAL
     contains_real_data: false
     pii_status: CLEAN
     split_strategy: ENTITY_RELATION_GROUP
     status: PLANNED
-
   memory_scenarios:
-    purpose: "entity carryover, contradiction, summary drift 평가"
-    owner: "AI_ML"
-    version: "v0.1"
-    expected_hash: "PENDING_DATASET_BUILD"
+    purpose: entity carryover, contradiction, summary drift 평가
+    owner: AI_ML
+    version: v0.1
+    expected_hash: PENDING_DATASET_BUILD
     visibility: PRIVATE_EVAL
     contains_real_data: false
     pii_status: CLEAN
     split_strategy: THREAD_GROUP
     status: PLANNED
-
   agent_scenarios:
-    purpose: "state transition, failure recovery, HITL 평가"
-    owner: "AI_ML"
-    version: "v0.1"
-    expected_hash: "PENDING_DATASET_BUILD"
+    purpose: state transition, failure recovery, HITL 평가
+    owner: AI_ML
+    version: v0.1
+    expected_hash: PENDING_DATASET_BUILD
     visibility: PRIVATE_EVAL
     contains_real_data: false
     pii_status: CLEAN
     split_strategy: SCENARIO_GROUP
     status: PLANNED
-
   private_business_validation:
-    purpose: "비식별 실제 사업 데이터 기반 비공개 검증"
-    owner: "AI_ML"
-    version: "v0.1"
-    expected_hash: "PENDING_PRIVATE_DATA"
+    purpose: 비식별 실제 사업 데이터 기반 비공개 검증
+    owner: AI_ML
+    version: v0.1
+    expected_hash: PENDING_PRIVATE_DATA
     visibility: PRIVATE_RESTRICTED
     contains_real_data: true
     pii_status: MUST_BE_SANITIZED_BEFORE_USE
     split_strategy: CUSTOMER_THREAD_TIME_GROUP
     status: NOT_INGESTED
+  grounded_eval_dev:
+    purpose: Grounded retrieval/explanation development evaluation
+    owner: AI_ML
+    version: v0.2
+    expected_hash: dc2c752dbd42a3be09fa122972f7cff3dc45e0bf677c55ccd1be5c2246ec7d5a
+    visibility: PRIVATE_EVAL
+    contains_real_data: false
+    pii_status: CLEAN
+    split_strategy: CASE_GROUP
+    status: READY
+    evaluation_as_of: '2026-09-26T04:10:00Z'
+  grounded_eval_final:
+    purpose: Locked final grounded evaluation set
+    owner: AI_ML
+    version: v0.2
+    expected_hash: 918e35e1b87110ab8fe3e58c533b5fdd9233ac94728f7138f03575f731191cfc
+    visibility: PRIVATE_RESTRICTED
+    contains_real_data: false
+    pii_status: CLEAN
+    split_strategy: CASE_GROUP
+    evaluation_as_of: '2026-09-26T04:10:00Z'
+    status: LOCKED

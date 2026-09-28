@@ -9,16 +9,18 @@ import {
   RiskLevelBadge,
 } from "./StatusBadges";
 import SystemState from "./SystemStates";
+import type { C04Key } from "../api/day04";
 
 type UrgentQueueProps = {
   items: ApiEnvelope<UrgentQueueInsight>[];
   onSelect?: (requestId: string) => void;
+  onSelectActual?: (insight: UrgentQueueInsight) => void;
 };
 
 export type UrgentQueueInsight = Pick<
   InsightSummary,
   "insight_id" | "type" | "severity" | "confidence" | "summary"
->;
+> & { c04_lookup?: Required<C04Key> };
 
 const severityPriority: Record<
   RiskLevel,
@@ -71,6 +73,7 @@ function formatDateTime(
 export default function UrgentQueue({
   items,
   onSelect,
+  onSelectActual,
 }: UrgentQueueProps) {
   const sortedItems =
     sortUrgentQueue(items);
@@ -126,7 +129,8 @@ export default function UrgentQueue({
                 <button
                     type="button"
                     className="urgent-card-button"
-                    onClick={() => onSelect?.(item.request_id)}
+                    disabled={!!onSelectActual && !insight.c04_lookup}
+                    onClick={() => onSelectActual ? onSelectActual(insight) : onSelect?.(item.request_id)}
                     aria-label={`${getInsightTypeLabel(
                     insight.type,
                     )} 판단 근거 보기`}
@@ -165,6 +169,7 @@ export default function UrgentQueue({
                 >
                     {insight.summary}
                 </p>
+                {onSelectActual && !insight.c04_lookup && <span>근거 연결 없음</span>}
                 </button>
               </article>
             );

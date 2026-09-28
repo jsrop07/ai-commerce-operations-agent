@@ -30,11 +30,13 @@ def test_same_source_event_with_different_schema_version_is_distinct() -> None:
     second = dict(DEMO_SCENARIOS["offline_sale"])
 
     first["schema_version"] = "1.0"
+    first["payload"] = dict(first["payload"], business_identity_key="business-schema-1.0")
     first["idempotency_key"] = (
         f"{first['source']}:{first['source_event_id']}:{first['schema_version']}"
     )
 
     second["schema_version"] = "1.1"
+    second["payload"] = dict(second["payload"], business_identity_key="business-schema-1.1")
     second["idempotency_key"] = (
         f"{second['source']}:{second['source_event_id']}:{second['schema_version']}"
     )
@@ -341,6 +343,8 @@ def test_production_sale_without_business_identity_has_no_effect() -> None:
     from copy import deepcopy
 
     raw = deepcopy(DEMO_SCENARIOS["offline_sale"])
+    raw["payload"] = dict(raw["payload"])
+    raw["payload"].pop("business_identity_key", None)
     pipeline = OfflineSalePipeline()
 
     receipt = pipeline.process(raw, environment="PRODUCTION_READ")

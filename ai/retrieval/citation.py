@@ -6,7 +6,6 @@ from typing import Any
 LIVE_SOURCE_TYPES = {
     "INVENTORY_SNAPSHOT",
     "INCOMING_STOCK",
-    "ORDER_STATUS",
 }
 
 

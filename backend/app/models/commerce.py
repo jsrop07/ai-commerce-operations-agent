@@ -107,6 +107,11 @@ class InventoryLedger(Base, IdentityMixin, TenantMixin, VersionedMixin):
     __tablename__ = "inventory_ledger"
     __table_args__ = (
         UniqueConstraint("tenant_id", "source_event_id", "sku_id", "reason"),
+        UniqueConstraint(
+            "tenant_id",
+            "business_key",
+            name="uq_inventory_ledger_business_key",
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "sku_id"],
             ["skus.tenant_id", "skus.id"],
@@ -117,6 +122,7 @@ class InventoryLedger(Base, IdentityMixin, TenantMixin, VersionedMixin):
     sku_id: Mapped[str] = mapped_column(String(36), nullable=False)
     delta: Mapped[int] = mapped_column(nullable=False)
     reason: Mapped[str] = mapped_column(String(80), nullable=False)
+    business_key: Mapped[str | None] = mapped_column(String(255))
     source_event_id: Mapped[str] = mapped_column(String(255), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

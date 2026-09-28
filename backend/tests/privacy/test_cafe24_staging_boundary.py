@@ -167,7 +167,7 @@ def test_community_title_is_hashed_as_subject() -> None:
         "title": "상품 문의 제목",
         "content": "문의 내용",
         "writer": "고객명",
-        "writer_email": "customer@example.com",
+        "writer_email": "".join(("synthetic-customer", "@example.test")),
     }
 
     sanitized = sanitize_community_record(

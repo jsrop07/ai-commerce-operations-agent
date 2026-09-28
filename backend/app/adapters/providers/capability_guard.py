@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection
 import re
+from collections.abc import Collection
 from urllib.parse import parse_qsl, urlsplit
 
 
@@ -45,6 +45,9 @@ CAFE24_ALLOWED_READ_PATH_PATTERNS = (
     ),
     re.compile(
         r"^/api/v2/admin/categories/[1-9][0-9]*$"
+    ),
+    re.compile(
+        r"^/api/v2/admin/categories/[1-9][0-9]*/products$"
     ),
     re.compile(
         r"^/api/v2/admin/orders/[A-Za-z0-9_-]+/items$"

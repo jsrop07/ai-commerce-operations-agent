@@ -3,7 +3,7 @@ from backend.app.services.inventory_projection import (
 )
 
 
-def test_expected_inventory_is_snapshot_plus_delta_minus_reserved() -> None:
+def test_expected_inventory_and_available_inventory_have_distinct_meanings() -> None:
     result = build_inventory_projection(
         tenant_id="store-a",
         sku_id="sku-001",
@@ -16,15 +16,17 @@ def test_expected_inventory_is_snapshot_plus_delta_minus_reserved() -> None:
         age_seconds=120,
     )
 
-    assert result.expected_inventory == 5
+    assert result.expected_inventory == 8
+    assert result.available_inventory == 5
     assert result.confirmed_for_total is True
     assert result.freshness_reason == "FRESH"
 
     assert result.calculation == {
         "source_on_hand": 10,
         "ledger_delta": -2,
+        "expected_inventory": 8,
         "reserved": 3,
-        "expected_inventory": 5,
+        "available_inventory": 5,
     }
 
 
@@ -42,6 +44,7 @@ def test_source_on_hand_none_is_not_converted_to_zero() -> None:
     )
 
     assert result.expected_inventory is None
+    assert result.available_inventory is None
     assert result.confirmed_for_total is False
     assert result.freshness_reason == "SOURCE_ON_HAND_UNKNOWN"
 
@@ -59,7 +62,8 @@ def test_reserved_none_is_not_converted_to_zero() -> None:
         age_seconds=30,
     )
 
-    assert result.expected_inventory is None
+    assert result.expected_inventory == 8
+    assert result.available_inventory is None
     assert result.confirmed_for_total is False
     assert result.freshness_reason == "RESERVED_UNKNOWN"
 
@@ -77,7 +81,8 @@ def test_stale_projection_is_not_confirmed_for_total() -> None:
         age_seconds=301,
     )
 
-    assert result.expected_inventory == 7
+    assert result.expected_inventory == 8
+    assert result.available_inventory == 7
     assert result.freshness_reason == "STALE"
     assert result.confirmed_for_total is False
 
@@ -96,5 +101,6 @@ def test_unconfirmed_quality_is_excluded() -> None:
     )
 
     assert result.expected_inventory is None
+    assert result.available_inventory is None
     assert result.confirmed_for_total is False
     assert result.freshness_reason == "SOURCE_QUALITY_NOT_CONFIRMED"

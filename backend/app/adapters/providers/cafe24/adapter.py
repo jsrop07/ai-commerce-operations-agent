@@ -466,6 +466,76 @@ class Cafe24Adapter(WriteDisabledMixin, CommerceProvider):
 
         return sanitized_items[0]
 
+    def read_category_products(
+        self,
+        category_no: int,
+        *,
+        display_group: int = 1,
+    ) -> ProviderReadPage[dict[str, Any]]:
+        """현재 Cafe24 상품분류의 상품 관계를 Read-Only로 조회한다."""
+
+        if type(category_no) is not int or category_no < 1:
+            raise ProviderNonRetryableError(
+                "Cafe24 category_no는 1 이상이어야 합니다."
+            )
+        if (
+            type(display_group) is not int
+            or display_group not in {1, 2, 3}
+        ):
+            raise ProviderNonRetryableError(
+                "Cafe24 display_group은 1, 2, 3 중 하나여야 합니다."
+            )
+
+        transport = self._require_transport()
+        url = (
+            f"https://{self.mall_id}.cafe24api.com"
+            f"/api/v2/admin/categories/{category_no}/products"
+        )
+        payload = transport.get(
+            url=url,
+            required_scopes={self.PRODUCT_SCOPE},
+            headers=self._authorization_headers(),
+            params={
+                "display_group": display_group,
+                "limit": 50_000,
+            },
+        )
+
+        if not isinstance(payload, dict):
+            raise ProviderNonRetryableError(
+                "Cafe24 Category Product 응답은 JSON Object여야 합니다."
+            )
+        products = payload.get("products")
+        if not isinstance(products, list):
+            raise ProviderNonRetryableError(
+                "Cafe24 Category Product 응답에 products 배열이 없습니다."
+            )
+        if not all(isinstance(item, dict) for item in products):
+            raise ProviderNonRetryableError(
+                "Cafe24 Category Product 항목은 JSON Object여야 합니다."
+            )
+
+        relations: list[dict[str, Any]] = []
+        for item in products:
+            product_no = item.get("product_no")
+            if type(product_no) is not int or product_no < 1:
+                raise ProviderNonRetryableError(
+                    "Cafe24 Category Product에 product_no가 없습니다."
+                )
+            relations.append(
+                {
+                    "category_no": category_no,
+                    "product_no": product_no,
+                }
+            )
+
+        return self._page(
+            resource="category_product_relations",
+            items=relations,
+            offset=0,
+            paginated=False,
+        )
+
     def read_orders(
         self,
         cursor: str | None = None,

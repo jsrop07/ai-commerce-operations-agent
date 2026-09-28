@@ -24,7 +24,6 @@ def test_corpus_catalog_has_required_sources() -> None:
         "POLICY",
         "INVENTORY_SNAPSHOT",
         "INCOMING_STOCK",
-        "ORDER_STATUS",
     }
 
 
@@ -48,7 +47,6 @@ def test_live_operational_sources_use_sql_evidence() -> None:
     for source_type in {
         "INVENTORY_SNAPSHOT",
         "INCOMING_STOCK",
-        "ORDER_STATUS",
     }:
         assert by_type[source_type]["retrieval_mode"] == "SQL_EVIDENCE"
 
