@@ -36,6 +36,7 @@ class ReservationRiskProjection:
     quality_status: str
 
     as_of: datetime
+    data_mode: str | None = None
 
 
 def build_reservation_risk_projection(
@@ -57,6 +58,7 @@ def build_reservation_risk_projection(
     source_classification: str,
     quality_status: str,
     as_of: datetime | None = None,
+    data_mode: str | None = None,
 ) -> ReservationRiskProjection:
     if not reservation_id:
         raise ValueError(
@@ -126,4 +128,5 @@ def build_reservation_risk_projection(
         ),
         quality_status=quality_status,
         as_of=as_of or datetime.now(UTC),
+        data_mode=data_mode,
     )

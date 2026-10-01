@@ -557,6 +557,10 @@ print(
     preorder_scope.direct_product_count,
 )
 print(
+    "PRODUCT_NO_2190_IS_PREORDER=",
+    2190 in preorder_scope.direct_product_nos,
+)
+print(
     "PREORDER_RECURSIVE_PRODUCTS=",
     preorder_scope.recursive_product_count,
 )

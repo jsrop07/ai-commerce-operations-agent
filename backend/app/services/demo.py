@@ -3,8 +3,21 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
+from backend.app.core.config import Environment
+from backend.app.services.reservation_projection import build_reservation_risk_projection
+from backend.app.services.reservation_service import (
+    ReservationIdentification,
+    ReservationIdentificationInput,
+    identify_reservation,
+)
+from backend.app.services.reservation_shortage import (
+    IncomingEvidence,
+    calculate_reservation_shortage,
+)
+from backend.app.services.reservation_tasks import register_reservation_risk_projection
 from contracts.events import CanonicalCommerceEvent
 
 FIXED_TIME = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
@@ -87,3 +100,120 @@ def scenario(name: str) -> CanonicalCommerceEvent:
 
 def duplicate_offline_sale_fixture() -> list[CanonicalCommerceEvent]:
     return [scenario("offline_sale"), scenario("duplicate_event")]
+
+
+@dataclass(frozen=True)
+class SyntheticReservationInput:
+    """Curated Day9 domain inputs; no real order or customer row is loaded."""
+
+    reservation_id: str
+    sku_id: str
+    required_qty: int
+    secured_qty: int | None
+    incoming: tuple[IncomingEvidence, ...]
+    aging_hours: int = 0
+
+
+# Separate C03-style Demo inputs. The C01 event's reserved/available fields
+# are not converted into secured_qty or an actual C02 aggregate.
+SYNTHETIC_RESERVATION_INPUTS = (
+    SyntheticReservationInput(
+        reservation_id="demo_reservation_r06_known",
+        sku_id="sku_demo_reservation_known",
+        required_qty=6,
+        secured_qty=2,
+        incoming=(
+            IncomingEvidence(
+                evidence_id="demo_incoming_confirmed_known", quantity=1,
+                confirmation_status="CONFIRMED", quality_status="CONFIRMED",
+                freshness="FRESH", source_classification="SYNTHETIC_DEMO",
+            ),
+            IncomingEvidence(
+                evidence_id="demo_incoming_tentative_known", quantity=3,
+                confirmation_status="TENTATIVE", quality_status="CONFIRMED",
+                freshness="FRESH", source_classification="SYNTHETIC_DEMO",
+            ),
+        ),
+    ),
+    SyntheticReservationInput(
+        reservation_id="demo_reservation_r06_unknown",
+        sku_id="sku_demo_reservation_unknown",
+        required_qty=4,
+        secured_qty=None,
+        incoming=(IncomingEvidence(
+            evidence_id="demo_incoming_quantity_unknown", quantity=None,
+            confirmation_status="CONFIRMED", quality_status="CONFIRMED",
+            freshness="FRESH", source_classification="SYNTHETIC_DEMO",
+        ),),
+    ),
+)
+
+
+def prepare_synthetic_reservations(app_state, *, tenant_id: str) -> tuple[int, int]:
+    """Explicit, in-memory Demo caller for the existing Day9 services."""
+    settings = app_state.settings
+    if settings.environment != Environment.DEMO or tenant_id != settings.tenant_id:
+        raise ValueError("SYNTHETIC_RESERVATION_DEMO_ONLY")
+
+    created = 0
+    with app_state.reservation_demo_prepare_lock:
+        for seed in SYNTHETIC_RESERVATION_INPUTS:
+            matches = [item for item in app_state.reservation_risk_projections
+                       if item.tenant_id == tenant_id
+                       and item.reservation_id == seed.reservation_id]
+            if matches:
+                if (len(matches) != 1 or matches[0].data_mode != "SYNTHETIC_DEMO"
+                        or matches[0].source_classification != "SYNTHETIC_DEMO"):
+                    raise ValueError("SYNTHETIC_RESERVATION_IDENTITY_CONFLICT")
+                continue
+
+            as_of = datetime.now(UTC)
+            identified = identify_reservation(ReservationIdentificationInput(
+                order_id=f"synthetic_{seed.reservation_id}",
+                order_category_snapshot="PREORDER",
+                reservation_evidence_ids=(f"{seed.reservation_id}_category_snapshot",),
+                mapping_approved=True, selected_sku_id=seed.sku_id,
+                source_classification="SYNTHETIC_DEMO", as_of=as_of,
+            ))
+            if (identified.status != ReservationIdentification.CONFIRMED_RESERVATION
+                    or identified.selected_sku_id != seed.sku_id):
+                raise ValueError("SYNTHETIC_RESERVATION_IDENTIFICATION_FAILED")
+
+            shortage = calculate_reservation_shortage(
+                required_qty=seed.required_qty, secured_qty=seed.secured_qty,
+                incoming=tuple(replace(item, as_of=as_of) for item in seed.incoming),
+                as_of=as_of,
+            )
+            priority, reason = app_state.reservation_task_service._priority_for_aging(
+                seed.aging_hours,
+            )
+            projection = build_reservation_risk_projection(
+                reservation_id=seed.reservation_id, tenant_id=tenant_id,
+                sku_id=identified.selected_sku_id,
+                required_qty=shortage.required_qty,
+                secured_qty=shortage.secured_qty,
+                confirmed_incoming_qty=shortage.confirmed_incoming_qty,
+                tentative_incoming_qty=shortage.tentative_incoming_qty,
+                shortage=shortage.shortage,
+                affected_order_ids=(), aging_hours=seed.aging_hours,
+                priority=priority, priority_reason=reason,
+                calculation_status=shortage.calculation_status,
+                evidence=tuple(dict.fromkeys(
+                    (*identified.evidence_ids, *shortage.evidence_ids),
+                )),
+                source_classification="SYNTHETIC_DEMO",
+                quality_status=("CONFIRMED" if shortage.calculation_status == "CONFIRMED"
+                                else "UNKNOWN"),
+                as_of=as_of, data_mode="SYNTHETIC_DEMO",
+            )
+            register_reservation_risk_projection(app_state, projection)
+            created += 1
+
+        total = sum(
+            item.tenant_id == tenant_id and item.data_mode == "SYNTHETIC_DEMO"
+            and item.reservation_id in {
+                seed.reservation_id for seed in SYNTHETIC_RESERVATION_INPUTS
+            }
+            for item in app_state.reservation_risk_projections
+        )
+    return created, total

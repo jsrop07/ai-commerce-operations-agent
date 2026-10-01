@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/app/App";
 import { routes } from "../src/app/routes";
 import InsightsPage from "../src/app/pages/InsightsPage";
+import { parseActualRetrievalSummary } from "../src/api/day08";
 
 describe("routes", () => {
   it.each(routes)("renders $path", ({ path, label }) => {
@@ -59,19 +60,223 @@ describe("InsightsPage actual backend", () => {
       mean_recall_at_5: 1, mean_mrr_at_5: 0.9375, full_evidence_numerator: 16, full_evidence_denominator: 16,
       mean_latency_ms: 999, p95_latency_ms: 1234, metric_status: {} }],
   };
-  function setupRetrieval(data: unknown = searchData, status = 200, summary: unknown = summaryData, summaryStatus = 200) {
+  const actualSummaryData = {
+    status: "COMPLETE_WITH_LIMITS",
+    data_mode: "PRIVATE_ACTUAL_EVAL",
+    validation_scope:
+      "PRODUCT-only actual-scale mixed DEV24 retrieval baseline",
+    experiment_id: "OPS-RAG-SCALE-01",
+    experiment: "E08",
+    task_id: "R07-PRE-AI-01",
+    run_group: "OPS-RAG-SCALE-01 / E08",
+    run_id: null,
+    corpus_alias: "PRODUCT-SAFE-SNAPSHOT",
+    question_set_alias: "R07-PRE-ACTUAL-DEV24",
+
+    source_support: {
+      PRODUCT: "SUPPORTED",
+      POLICY: "MISSING",
+      INVENTORY_SNAPSHOT: "BLOCKED",
+      INCOMING_STOCK: "MISSING",
+      C02: "BLOCKED",
+    },
+
+    counts: {
+      document_count: 2167,
+      chunk_count: 2167,
+      question_count: 24,
+      answerable_count: 24,
+      hold_count: 0,
+      review_completed_count: 24,
+    },
+
+    execution: {
+      planned_count: 72,
+      executed_count: 72,
+      succeeded_count: 72,
+      failed_count: 0,
+      blocked_count: 0,
+      not_run_count: 0,
+    },
+
+    methods: [
+      {
+        method: "BM25",
+        execution_status: "SUCCEEDED",
+        executed_count: 24,
+        metric_status: "MEASURED",
+        recall_at_5: 0.8333,
+        mrr_at_5: 0.7917,
+        full_evidence: {
+          full_evidence_count: 20,
+          full_evidence_denominator: 24,
+        },
+        latency: {
+          kind: "SEARCH",
+          unit: "ms",
+          avg_ms: 27.84,
+          warm_p95_ms: 38.96,
+          http_round_trip: false,
+        },
+        preparation: {
+          status: "NOT_APPLICABLE",
+          model_load_seconds: null,
+          document_embedding_seconds: null,
+        },
+      },
+      {
+        method: "DENSE",
+        execution_status: "SUCCEEDED",
+        executed_count: 24,
+        metric_status: "MEASURED",
+        recall_at_5: 0.4167,
+        mrr_at_5: 0.2861,
+        full_evidence: {
+          full_evidence_count: 10,
+          full_evidence_denominator: 24,
+        },
+        latency: {
+          kind: "SEARCH",
+          unit: "ms",
+          avg_ms: 59.31,
+          warm_p95_ms: 76.47,
+          http_round_trip: false,
+        },
+        preparation: {
+          status: "MEASURED",
+          model_load_seconds: 3.03,
+          document_embedding_seconds: 30.07,
+        },
+      },
+      {
+        method: "RRF_HYBRID",
+        execution_status: "SUCCEEDED",
+        executed_count: 24,
+        metric_status: "MEASURED",
+        recall_at_5: 0.8333,
+        mrr_at_5: 0.7292,
+        full_evidence: {
+          full_evidence_count: 20,
+          full_evidence_denominator: 24,
+        },
+        latency: {
+          kind: "SERIAL_SEARCH_E2E",
+          unit: "ms",
+          avg_ms: 87.36,
+          warm_p95_ms: 117.92,
+          http_round_trip: false,
+        },
+        preparation: {
+          status: "NOT_APPLICABLE",
+          model_load_seconds: null,
+          document_embedding_seconds: null,
+        },
+      },
+    ],
+
+    selection: {
+      selected_method: "BM25",
+      status: "PROVISIONAL_PRODUCT_ONLY",
+      selection_scope:
+        "PRODUCT-only mixed actual-scale DEV24",
+      reasons: [
+        "Hybrid Recall@5 did not improve over BM25.",
+        "Hybrid MRR@5 decreased and serial search latency increased.",
+        "Dense actual-scale retrieval metrics were lower than BM25.",
+        "Three semantic cases failed for all three methods (task handoff).",
+        "DEV24 is lexical-heavy; do not generalize to all natural-language product search.",
+      ],
+      final_natural_language_retriever: false,
+    },
+    r07: {
+      status: "COMPLETE_WITH_LIMITS",
+      experiment_id: "OPS-RAG-02",
+      run_id: null,
+      input_hashes: { product_snapshot_sha256: "safe-product-hash", dev24_sha256: "safe-dev24-hash", final12_used: false },
+      validated_baseline: "BM25",
+      reranker: {
+        evaluation_status: "PASS_WITH_FINDING", baseline: "BM25",
+        always_on_selected: false, conditional_candidate: true,
+        conditional_routing_validated: false, runtime_enabled: false,
+        fallback_target: "BM25",
+        before: { recall_at_5: 0.8333333333333334, mrr_at_5: 0.7916666666666666, full_evidence_count: 20, full_evidence_rate: 0.8333333333333334 },
+        after: { recall_at_5: 0.8333333333333334, mrr_at_5: 0.8125, full_evidence_count: 20, full_evidence_rate: 0.8333333333333334 },
+        candidate_miss_count: 4, candidate_miss_category: "RETRIEVAL_CANDIDATE_MISS",
+        latency: [
+          { kind: "RERANK_ONLY", unit: "ms", count: 24, mean_ms: 1687.3297916664949, p95_ms: 2469.209809999938, http_round_trip: false },
+          { kind: "SEARCH_PLUS_RERANK_E2E", unit: "ms", count: 24, mean_ms: 1706.9181083332599, p95_ms: 2489.187160001074, http_round_trip: false },
+        ],
+        observed_events: { timeout_count: 0, retry_count: 0, fallback_count: 0 },
+        timeout_seconds: 120, max_retries: 1,
+        model: "BAAI/bge-reranker-v2-m3", revision: "safe-revision", device: "cpu",
+      },
+      compression: {
+        evaluation_status: "PASS_WITH_LIMITATION", scope: "SYNTHETIC_POLICY_COMPRESSION_ONLY",
+        case_count: 3, before_tokens: 903, after_tokens: 445,
+        reduction_ratio: 0.5071982281284606,
+        evidence_preserved_count: 3, citation_preserved_count: 3, fallback_count: 0,
+        latency: { kind: "SYNTHETIC_COMPRESSION", unit: "ms", count: 3, mean_ms: 0.17933333401742857, p95_ms: null, http_round_trip: false },
+        actual_context_validated: false, runtime_enabled: false,
+      },
+    },
+  };
+  function setupRetrieval(
+    data: unknown = searchData,
+    status = 200,
+    summary: unknown = summaryData,
+    summaryStatus = 200,
+    actualSummary: unknown = actualSummaryData,
+    actualSummaryStatus = 200,
+  ) {
     const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith("/retrieval/actual-summary")) {
+        return new Response(
+          JSON.stringify(actualSummary),
+          { status: actualSummaryStatus },
+        );
+      }
+
       let payload: unknown = [];
       let httpStatus = 200;
-      if (url.endsWith("/retrieval/search")) { payload = data; httpStatus = status; }
-      if (url.endsWith("/retrieval/summary")) { payload = summary; httpStatus = summaryStatus; }
-      if (url.includes("/c04/lookup?")) payload = {
-        ...key, title: "C04 원문 제목", source_type: "PRODUCT", as_of: null, excerpt: "원문 전체 범위 발췌",
-        excerpt_hash: "sha256:full", data_mode: "SYNTHETIC_DEMO", visibility: "DEMO_PUBLIC",
-        stale: true, warnings: ["STALE_EVIDENCE"], definitive_answer_allowed: false,
-      };
-      return new Response(JSON.stringify({ ...envelope, ...(url.includes("/c04/lookup?") ? { as_of: null } : {}), data: payload }), { status: httpStatus });
+
+      if (url.endsWith("/retrieval/search")) {
+        payload = data;
+        httpStatus = status;
+      }
+
+      if (url.endsWith("/retrieval/summary")) {
+        payload = summary;
+        httpStatus = summaryStatus;
+      }
+
+      if (url.includes("/c04/lookup?")) {
+        payload = {
+          ...key,
+          title: "C04 ・尖ｬｸ ・罹ｪｩ",
+          source_type: "PRODUCT",
+          as_of: null,
+          excerpt: "원문 전체 범위 발췌",
+          excerpt_hash: "sha256:full",
+          data_mode: "SYNTHETIC_DEMO",
+          visibility: "DEMO_PUBLIC",
+          stale: true,
+          warnings: ["STALE_EVIDENCE"],
+          definitive_answer_allowed: false,
+        };
+      }
+
+      return new Response(
+        JSON.stringify({
+          ...envelope,
+          ...(url.includes("/c04/lookup?")
+            ? { as_of: null }
+            : {}),
+          data: payload,
+        }),
+        { status: httpStatus },
+      );
     });
+
     vi.stubGlobal("fetch", fetcher);
     return fetcher;
   }
@@ -93,7 +298,11 @@ describe("InsightsPage actual backend", () => {
     expect(card).toHaveTextContent("검색 범위 발췌");
     expect(card).toHaveTextContent("버전: semantic-v9");
     expect(card).toHaveTextContent("기준 시각 (as_of): 미제공");
-    expect(screen.getByTestId("retrieval-result")).toHaveTextContent("request_id: request_test · trace_id: trace_test");
+    const result = screen.getByTestId("retrieval-result");
+    for (const text of ["BM25", "PROVISIONAL_DEV_SELECTION", "SYNTHETIC_DEMO", "answer_status): HOLD", "human_review_reason): STALE_EVIDENCE", "warnings): STALE_EVIDENCE", "actual_retrieval_executed): true"]) {
+      expect(result).toHaveTextContent(text);
+    }
+    expect(document.body.outerHTML).not.toMatch(/request_id|trace_id|request_test|trace_test/);
     expect(screen.getByText(/고정 검색 조건/)).toHaveTextContent("method=BM25 · top_k=5");
     expect(screen.getByText(/서로 다른 범위일 수 있습니다/)).toBeInTheDocument();
     expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("/retrieval/search"), expect.objectContaining({
@@ -102,8 +311,26 @@ describe("InsightsPage actual backend", () => {
     fireEvent.click(within(card).getByRole("button", { name: "원문 근거 열기" }));
     expect(await screen.findByTestId("c04-document")).toHaveTextContent("원문 전체 범위 발췌");
     expect(screen.getByRole("dialog", { name: "C04 원문 근거" })).toBeInTheDocument();
+    expect(document.body.outerHTML).not.toMatch(/request_id|trace_id|request_test|trace_test/);
     expect(fetcher).toHaveBeenCalledWith(expect.stringContaining(`/c04/lookup?${new URLSearchParams(key)}`), expect.objectContaining({ method: "GET" }));
     expect(fetcher.mock.calls.some(([url]) => url.includes("/c04/lookup?") && url.includes("semantic_source"))).toBe(false);
+  });
+
+  it("LOCAL_EVAL 운영 카드마다 합성 자료모드를 표시하고 문의 예시를 실제 AI 분석과 구분한다", () => {
+    vi.stubEnv("VITE_USE_REAL_BACKEND", "false");
+    setupRetrieval();
+    render(<InsightsPage />);
+
+    const cards = document.querySelectorAll(".insight-card");
+    expect(cards).toHaveLength(3);
+    for (const card of cards) {
+      expect(card).toHaveTextContent("합성 예시 · SYNTHETIC_DEMO");
+    }
+    expect(cards[0]).toHaveTextContent("주요 케이크 재고 소진 예상");
+    expect(cards[1]).toHaveTextContent("예약 주문 6건 충족 어려움");
+    expect(cards[2]).toHaveTextContent("배송 지연 문의 23건 집중");
+    expect(cards[2]).toHaveTextContent("합성 문의 예시이며 실제 문의 AI 분석 결과가 아닙니다.");
+    expect(screen.queryByText(/실제 문의 AI 분석 결과입니다/)).not.toBeInTheDocument();
   });
 
   it.each([null, undefined])("c04_lookup %s이면 원문 버튼을 비활성화한다", async (lookup) => {
@@ -264,4 +491,309 @@ describe("InsightsPage actual backend", () => {
     expect(screen.queryByTestId("system-state-empty")).not.toBeInTheDocument();
     expect(screen.queryByText("Insight를 불러오는 중입니다.")).not.toBeInTheDocument();
   });
+
+  it("actual-summary의 R07 중첩 aggregate를 기존 parser가 검증해 보존한다", () => {
+    const parsed = parseActualRetrievalSummary(actualSummaryData);
+    expect(parsed.r07?.reranker.before.mrr_at_5).toBe(0.7916666666666666);
+    expect(parsed.r07?.reranker.after.mrr_at_5).toBe(0.8125);
+    expect(parsed.r07?.reranker.candidate_miss_count).toBe(4);
+    expect(parsed.r07?.reranker.observed_events.fallback_count).toBe(0);
+    expect(parsed.r07?.compression.reduction_ratio).toBe(0.5071982281284606);
+  });
+
+  it("R07 Reranker와 Synthetic Compression 평가를 원본 수치와 제한 상태로 표시한다", async () => {
+    setupRetrieval();
+    render(<InsightsPage />);
+
+    const reranker = await screen.findByTestId("r07-reranker");
+    expect(reranker).toHaveTextContent("PASS_WITH_FINDING");
+    expect(reranker).toHaveTextContent("Baseline: BM25");
+    expect(reranker).toHaveTextContent("Recall@5 before / after: 0.833333 / 0.833333");
+    expect(reranker).toHaveTextContent("MRR@5 before / after: 0.791667 / 0.812500");
+    expect(reranker).toHaveTextContent("Full Evidence before / after: 20/24 / 20/24");
+    expect(reranker).toHaveTextContent("Candidate miss: 4 · RETRIEVAL_CANDIDATE_MISS");
+    expect(reranker).toHaveTextContent("Reranker fallback: 0");
+    expect(reranker).toHaveTextContent("RERANK_ONLY");
+    expect(reranker).toHaveTextContent("1687.33 ms");
+    expect(reranker).toHaveTextContent("SEARCH_PLUS_RERANK_E2E");
+    expect(reranker).toHaveTextContent("1706.92 ms");
+    expect(reranker).toHaveTextContent("Always-on: 미선택");
+    expect(reranker).toHaveTextContent("조건부 적용 후보: 예");
+    expect(reranker).toHaveTextContent("조건부 routing 기준: 미검증");
+    expect(reranker).toHaveTextContent("Runtime: 비활성 · Fallback 기준선: BM25");
+    expect(reranker).not.toHaveTextContent("활성화됨");
+
+    const compression = screen.getByTestId("r07-compression");
+    expect(compression).toHaveTextContent("PASS_WITH_LIMITATION");
+    expect(compression).toHaveTextContent("SYNTHETIC_POLICY_COMPRESSION_ONLY");
+    expect(compression).toHaveTextContent("Synthetic 정책 설명: 3건");
+    expect(compression).toHaveTextContent("Tokens before / after: 903 → 445");
+    expect(compression).toHaveTextContent("약 50.72% (Synthetic 정책 설명 기준)");
+    expect(compression).toHaveTextContent("Evidence 보존: 3/3 · Citation 보존: 3/3");
+    expect(compression).toHaveTextContent("Compression fallback: 0");
+    expect(compression).toHaveTextContent("0.179 ms");
+    expect(compression).toHaveTextContent("Actual context: 미검증 · Runtime: 비활성");
+    expect(compression).not.toHaveTextContent("운영 비용");
+    expect(screen.getByTestId("actual-scale-retrieval-summary")).toHaveTextContent("C02 예약 집계: 사용 차단");
+    expect(document.body.outerHTML).not.toMatch(/gold_answer|gold_evidence|private_path|FINAL12 결과|FINAL12 점수/);
+  });
+
+  it("r07 결과가 없으면 평가 결과 미수신만 표시한다", async () => {
+    setupRetrieval(undefined, 200, undefined, 200, { ...actualSummaryData, r07: undefined });
+    render(<InsightsPage />);
+    const actual = await screen.findByTestId("actual-scale-retrieval-summary");
+    expect(await within(actual).findByRole("status")).toHaveTextContent("R07 평가 결과 미수신");
+    expect(screen.queryByTestId("r07-reranker")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("r07-compression")).not.toBeInTheDocument();
+  });
+
+  it("malformed r07은 Actual 평가 전체를 fail closed 한다", async () => {
+    const malformed = { ...actualSummaryData, r07: { ...actualSummaryData.r07, reranker: { ...actualSummaryData.r07.reranker, conditional_routing_validated: true } } };
+    expect(() => parseActualRetrievalSummary(malformed)).toThrow("Retrieval response is malformed");
+    setupRetrieval(undefined, 200, undefined, 200, malformed);
+    render(<InsightsPage />);
+    const actual = await screen.findByTestId("actual-scale-retrieval-summary");
+    expect(await within(actual).findByRole("alert")).toHaveTextContent("실제 규모 평가 요약을 불러오지 못했습니다");
+    expect(screen.queryByTestId("r07-reranker")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("r07-compression")).not.toBeInTheDocument();
+  });
+
+  it("C07 actual-scale PRODUCT 한정 평가를 Synthetic과 분리해 표시한다", async () => {
+    setupRetrieval();
+
+    render(<InsightsPage />);
+
+    const actual = await screen.findByTestId(
+      "actual-scale-retrieval-summary",
+    );
+
+    expect(actual).toHaveTextContent(
+      "PRODUCT 한정 actual-scale retrieval 평가",
+    );
+
+    expect(actual).toHaveTextContent(
+      "PRIVATE_ACTUAL_EVAL",
+    );
+    expect(actual).not.toHaveTextContent("SYNTHETIC_DEMO");
+
+    expect(actual).toHaveTextContent(
+      "PRODUCT-only actual-scale mixed DEV24 retrieval baseline",
+    );
+
+    expect(actual).toHaveTextContent(
+      "문서 2167 / 청크 2167",
+    );
+
+    expect(actual).toHaveTextContent(
+      "질문 24 / 답가능 24 / HOLD 0",
+    );
+
+    expect(actual).toHaveTextContent(
+      "계획 72 / 실제 실행 72 / 성공 72",
+    );
+
+    expect(actual).toHaveTextContent(
+      "실패 0 / 차단 0 / 미실행 0",
+    );
+
+    expect(actual).toHaveTextContent(
+      "PRODUCT: 지원",
+    );
+
+    expect(actual).toHaveTextContent(
+      "POLICY: 자료 미확보",
+    );
+
+    expect(actual).toHaveTextContent(
+      "INVENTORY_SNAPSHOT: 사용 차단",
+    );
+
+    expect(actual).toHaveTextContent(
+      "C02 예약 집계: 사용 차단",
+    );
+  });
+  it("C07 actual metric과 latency를 Backend 값 그대로 표시한다", async () => {
+  setupRetrieval();
+
+  render(<InsightsPage />);
+
+  const bm25 = await screen.findByTestId(
+    "actual-method-BM25",
+  );
+
+  expect(bm25).toHaveTextContent(
+    "Recall@5 = 0.8333",
+  );
+  expect(bm25).toHaveTextContent(
+    "MRR@5 = 0.7917",
+  );
+  expect(bm25).toHaveTextContent(
+    "Full evidence = 20/24",
+  );
+  expect(bm25).toHaveTextContent(
+    "SEARCH",
+  );
+  expect(bm25).toHaveTextContent(
+    "27.84 ms",
+  );
+  expect(bm25).toHaveTextContent(
+    "38.96 ms",
+  );
+
+  const dense = screen.getByTestId(
+    "actual-method-DENSE",
+  );
+
+  expect(dense).toHaveTextContent(
+    "Recall@5 = 0.4167",
+  );
+  expect(dense).toHaveTextContent(
+    "MRR@5 = 0.2861",
+  );
+  expect(dense).toHaveTextContent(
+    "Full evidence = 10/24",
+  );
+  expect(dense).toHaveTextContent(
+    "model load 3.03초",
+  );
+  expect(dense).toHaveTextContent(
+    "document embedding 30.07초",
+  );
+
+  const hybrid = screen.getByTestId(
+    "actual-method-RRF_HYBRID",
+  );
+
+  expect(hybrid).toHaveTextContent(
+    "Recall@5 = 0.8333",
+  );
+  expect(hybrid).toHaveTextContent(
+    "MRR@5 = 0.7292",
+  );
+  expect(hybrid).toHaveTextContent(
+    "SERIAL_SEARCH_E2E",
+  );
+  expect(hybrid).toHaveTextContent(
+    "87.36 ms",
+  );
+  expect(hybrid).toHaveTextContent(
+    "117.92 ms",
+  );
+});
+
+it("C07 actual summary가 403이면 가짜 평가값 대신 unavailable 상태를 표시한다", async () => {
+  setupRetrieval(
+    searchData,
+    200,
+    summaryData,
+    200,
+    null,
+    403,
+  );
+
+  render(<InsightsPage />);
+
+const actual = await screen.findByTestId(
+  "actual-scale-retrieval-summary",
+);
+
+const unavailable = await within(actual).findByRole(
+  "status",
+);
+
+expect(unavailable).toHaveTextContent(
+  "현재 환경에서는 실제 규모 평가 요약을 사용할 수 없습니다.",
+);
+
+  expect(actual).not.toHaveTextContent(
+    "문서 2167",
+  );
+
+  expect(
+    screen.queryByTestId("actual-method-BM25"),
+  ).not.toBeInTheDocument();
+});
+it("C07 actual summary schema가 다르면 fail closed 한다", async () => {
+  setupRetrieval(
+    searchData,
+    200,
+    summaryData,
+    200,
+    {
+      ...actualSummaryData,
+      data_mode: "SYNTHETIC_DEMO",
+    },
+    200,
+  );
+
+  render(<InsightsPage />);
+
+const actual = await screen.findByTestId(
+  "actual-scale-retrieval-summary",
+);
+
+const alert = await within(actual).findByRole(
+  "alert",
+);
+
+expect(alert).toHaveTextContent(
+  "실제 규모 평가 요약을 불러오지 못했습니다",
+);
+
+expect(actual).not.toHaveTextContent(
+  "문서 2167",
+);
+});
+
+it("C07 미측정 null 값을 0으로 표시하지 않는다", async () => {
+  const actualWithUnmeasured = {
+    ...actualSummaryData,
+    methods: actualSummaryData.methods.map((method) =>
+      method.method === "BM25"
+        ? {
+            ...method,
+            metric_status: "UNMEASURED",
+            recall_at_5: null,
+            mrr_at_5: null,
+            latency: {
+              ...method.latency,
+              avg_ms: null,
+              warm_p95_ms: null,
+            },
+          }
+        : method,
+    ),
+  };
+
+  setupRetrieval(
+    searchData,
+    200,
+    summaryData,
+    200,
+    actualWithUnmeasured,
+    200,
+  );
+
+  render(<InsightsPage />);
+
+  const bm25 = await screen.findByTestId(
+    "actual-method-BM25",
+  );
+
+  expect(bm25).toHaveTextContent(
+    "Recall@5 = 미측정",
+  );
+
+  expect(bm25).toHaveTextContent(
+    "MRR@5 = 미측정",
+  );
+
+  expect(bm25).toHaveTextContent(
+    "평균 미측정",
+  );
+
+  expect(bm25).toHaveTextContent(
+    "warm p95 미측정",
+  );
+});
 });

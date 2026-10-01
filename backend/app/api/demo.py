@@ -10,10 +10,35 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.app.core.config import Environment
 from backend.app.services.c04_lookup import C04LookupService
+from backend.app.services.demo import prepare_synthetic_reservations
 from contracts.api import ApiEnvelope
 from contracts.events import CanonicalCommerceEvent, EventType
 
 router = APIRouter(prefix="/api/v1", tags=["demo"])
+
+
+@router.post("/demo/reservations/prepare")
+async def prepare_demo_reservations(request: Request) -> dict[str, object]:
+    """Explicit in-memory Day9 reservation preparation for Synthetic Demo."""
+    settings = request.app.state.settings
+    if settings.environment != Environment.DEMO:
+        raise HTTPException(status_code=403, detail={"code": "POLICY_DENIED"})
+    if request.query_params or await request.body():
+        raise HTTPException(status_code=422, detail="DEMO_RESERVATION_INPUT_FORBIDDEN")
+    try:
+        created, total = prepare_synthetic_reservations(
+            request.app.state, tenant_id=settings.tenant_id,
+        )
+    except ValueError:
+        raise HTTPException(status_code=409, detail="DEMO_RESERVATION_CONFLICT") from None
+    return {
+        "status": "READY" if created else "ALREADY_READY",
+        "data_mode": "SYNTHETIC_DEMO",
+        "tenant_id": settings.tenant_id,
+        "created_count": created,
+        "row_count": total,
+        "request_id": request.headers.get("x-request-id", f"req_{uuid4().hex}"),
+    }
 
 
 def _demo_inventory_source_id(tenant_id: str, insight_id: str) -> str:

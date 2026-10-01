@@ -31,7 +31,7 @@ export function getReservationRiskDisplayState(
   item: ReservationRiskItem,
 ): ReservationRiskDisplayState {
   if (
-    item.shortage_state !== "KNOWN" ||
+    (item.shortage_state !== undefined && item.shortage_state !== "KNOWN") ||
     item.shortage === null
   ) {
     return "UNCERTAIN";
@@ -68,6 +68,8 @@ export function getSourceClassificationLabel(
   switch (value) {
     case "SANITIZED_REAL":
       return "실제 데이터 · 비식별 처리";
+    case "SYNTHETIC_DEMO":
+      return "합성 Demo 데이터";
     case "FIXTURE":
       return "테스트 Fixture";
     case "CONTRACT_ONLY":

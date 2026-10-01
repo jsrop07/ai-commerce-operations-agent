@@ -94,6 +94,11 @@ describe("reservationViewModels", () => {
     ).toBe("▲ 부족");
   });
 
+  it("Backend가 shortage_state를 생략해도 알려진 shortage를 보존한다", () => {
+    const item = makeItem({ shortage: 3, shortage_state: undefined });
+    expect(getReservationRiskDisplayState(item)).toBe("SHORTAGE");
+  });
+
   it("Backend shortage가 0이면 충분으로 표시한다", () => {
     const item = makeItem({
       shortage: 0,

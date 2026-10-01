@@ -1,6 +1,8 @@
 import type {
   ReservationRiskItem,
 } from "../../types/contracts";
+import { useState } from "react";
+import PolicyExplanation from "./PolicyExplanation";
 
 import {
   formatReservationQuantity,
@@ -11,6 +13,7 @@ import {
 
 type ReservationListProps = {
   items: ReservationRiskItem[];
+  showPolicyExplanation?: boolean;
 };
 
 function displayOptionalNumber(
@@ -23,7 +26,14 @@ function displayOptionalNumber(
 
 export default function ReservationList({
   items,
+  showPolicyExplanation = false,
 }: ReservationListProps) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = items.find((item) =>
+    item.reservation_id === selectedId &&
+    item.source_classification === "SYNTHETIC_DEMO" &&
+    getReservationRiskDisplayState(item) !== "UNCERTAIN",
+  );
   if (items.length === 0) {
     return (
       <section
@@ -101,6 +111,19 @@ export default function ReservationList({
                         {item.sku_id}
                       </div>
                     ) : null}
+                    {showPolicyExplanation &&
+                      item.source_classification === "SYNTHETIC_DEMO" &&
+                      displayState !== "UNCERTAIN" && (
+                        <button
+                          type="button"
+                          className="filter"
+                          aria-label={`${item.product_name} 예약상품 출고 정책 선택`}
+                          aria-pressed={selectedId === item.reservation_id}
+                          onClick={() => setSelectedId(item.reservation_id)}
+                        >
+                          출고 정책
+                        </button>
+                      )}
                   </td>
 
                   <td className="number">
@@ -157,6 +180,8 @@ export default function ReservationList({
           </tbody>
         </table>
       </div>
+      {showPolicyExplanation && selected &&
+        <PolicyExplanation key={selected.reservation_id} targetId={selected.reservation_id} productName={selected.product_name} />}
     </section>
   );
 }

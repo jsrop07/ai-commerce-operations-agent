@@ -1,5 +1,7 @@
 """FastAPI application factory."""
 
+from threading import Lock
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.engine import Engine
@@ -97,6 +99,7 @@ def create_app(
         application.state.pipeline.inventory_projections
     )
     application.state.reservation_risk_projections = []
+    application.state.reservation_demo_prepare_lock = Lock()
     application.state.reservation_task_service = ReservationTaskService()
     application.state.mapping_queue = MappingReviewQueue()
     application.state.schedule_launch_event_projections = []

@@ -10,7 +10,20 @@ export default function App({ environment }: { environment?: EnvironmentVariant 
   const [pathname, setPathname] = useState(currentPath);
   const activeRoute = resolveRoute(pathname);
   const queryEnvironment = new URLSearchParams(window.location.search).get("environment");
-  const activeEnvironment = environment ?? (queryEnvironment === "production-read" ? "PRODUCTION_READ" : "DEMO");
+  const activeEnvironment =
+    environment ??
+    (queryEnvironment === "production-read"
+      ? "PRODUCTION_READ"
+      : queryEnvironment === "local-eval"
+        ? "LOCAL_EVAL"
+        : "DEMO");
+
+  const headerDataLabel =
+    activeEnvironment === "LOCAL_EVAL"
+      ? "로컬 평가 데이터"
+      : activeEnvironment === "PRODUCTION_READ"
+        ? "운영 데이터 · 읽기 전용"
+        : "합성 데이터";
 
   useEffect(() => {
     const handlePopState = () => setPathname(currentPath());
@@ -60,7 +73,9 @@ export default function App({ environment }: { environment?: EnvironmentVariant 
               <span className="badge success">● Toss POS</span>
               <span className="badge warning">▲ eCount 지연</span>
             </div>
-            <time className="header-meta">합성 데이터 · 최근 확인 11:42 KST</time>
+            <time className="header-meta">
+              {headerDataLabel} · 최근 확인 11:42 KST
+            </time>
           </header>
           <main className="main">
             <activeRoute.Component />

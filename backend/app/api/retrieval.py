@@ -1,19 +1,50 @@
-"""Synthetic retrieval citations only; no generated answer or external action."""
+"""Synthetic retrieval and guarded C06 policy explanation endpoints."""
 
 from datetime import UTC, datetime
 from typing import Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import AwareDatetime, BaseModel
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
+from backend.app.services.actual_retrieval_summary import (
+    ActualSummary,
+    ActualSummaryFailure,
+    load_actual_summary,
+)
 from backend.app.services.c04_lookup import SourceType
+from backend.app.services.grounded_explanation_bridge import (
+    explain_policy,
+    forbidden_structure,
+    hold,
+)
 from backend.app.services.retrieval_runtime import RetrievalFailure, SearchInput
 from backend.app.services.retrieval_summary import DevSummary, SummaryFailure, load_summary
 from contracts.api import ApiEnvelope
 
 router = APIRouter(prefix="/api/v1/retrieval", tags=["retrieval"])
+
+
+class ExplanationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    question: str = Field(min_length=1, max_length=2000)
+    condition: Literal["BASIC", "CITATION"] = "CITATION"
+    scope: Literal["POLICY_ONLY", "C02_AGGREGATE"] = "POLICY_ONLY"
+
+
+class ExplanationResponse(BaseModel):
+    status: Literal["ANSWER", "HOLD"]
+    conclusion: str
+    used_facts: list[str]
+    used_numeric_facts: list[dict]
+    citations: list[dict]
+    next_check: str | None
+    model_used: bool
+    data_mode: str
+    request_id: str
+    warnings: list[str]
+    c04_lookup: list[dict]
 
 
 class C04Key(BaseModel):
@@ -82,6 +113,22 @@ async def summary(request: Request):
                        trace_id=f"tr_{uuid4().hex}", data=data, as_of=datetime.now(UTC))
 
 
+@router.get("/actual-summary", response_model=ActualSummary, responses={
+    403: {"model": SearchError, "description": "Private evaluation scope only"},
+    422: {"model": SearchError, "description": "No query parameters or body accepted"},
+    503: {"model": SearchError, "description": "Aggregate artifact unavailable or invalid"},
+})
+async def actual_summary(request: Request):
+    if request.query_params or await request.body():
+        raise HTTPException(422, "ACTUAL_SUMMARY_INPUT_FORBIDDEN")
+    if request.app.state.settings.environment.value not in {"TEST", "LOCAL"}:
+        raise HTTPException(403, "ACTUAL_SUMMARY_PRIVATE_ONLY")
+    try:
+        return await run_in_threadpool(load_actual_summary)
+    except ActualSummaryFailure as exc:
+        raise HTTPException(503, str(exc)) from None
+
+
 @router.post("/search", response_model=ApiEnvelope[SearchProjection], responses={
     403: {"model": SearchError, "description": "Query safety blocked before retrieval"},
     503: {"model": SearchError, "description": "Runtime or index unavailable/busy"},
@@ -100,3 +147,52 @@ async def search(body: SearchInput, request: Request):
         request_id=result.request_id, trace_id=result.trace_id,
         data=projection, warnings=list(result.warnings), as_of=datetime.now(UTC),
     )
+
+
+@router.post("/explanations", response_model=ApiEnvelope[ExplanationResponse])
+async def explain(request: Request):
+    request_id = f"req_{uuid4().hex}"
+    settings = request.app.state.settings
+    try:
+        raw = await request.json()
+    except ValueError:
+        raise HTTPException(422, "C06_REQUEST_INVALID") from None
+    if not isinstance(raw, dict):
+        raise HTTPException(422, "C06_REQUEST_INVALID")
+    if forbidden_structure(raw):
+        return ApiEnvelope(tenant_id=settings.tenant_id, request_id=request_id,
+                           trace_id=f"tr_{uuid4().hex}",
+                           data=hold("FORBIDDEN_INPUT", "SYNTHETIC_DEMO", request_id),
+                           as_of=datetime.now(UTC))
+    if set(raw) - {"question", "condition", "scope"}:
+        raise HTTPException(422, "C06_REQUEST_INVALID")
+    try:
+        body = ExplanationRequest.model_validate(raw)
+    except ValidationError:
+        raise HTTPException(422, "C06_REQUEST_INVALID") from None
+    if body.scope == "C02_AGGREGATE":
+        data = hold("NOT_SUPPORTED_C02_RUNTIME_SOURCE_MISSING",
+                    "SYNTHETIC_DEMO", request_id)
+    else:
+        runtime = getattr(request.app.state, "retrieval_runtime", None)
+        if runtime is None:
+            data = hold("RUNTIME_UNAVAILABLE", "SYNTHETIC_DEMO", request_id)
+        else:
+            try:
+                _, projection = await runtime.search(SearchInput(query=body.question))
+                data = await run_in_threadpool(
+                    explain_policy, question=body.question, condition=body.condition,
+                    projection=projection,
+                    lookup_service=request.app.state.c04_lookup_service,
+                    tenant_id=settings.tenant_id, request_id=request_id,
+                    provider=getattr(request.app.state, "c06_provider", None),
+                    settings=settings,
+                )
+            except RetrievalFailure as exc:
+                reason = ("NO_SOURCE" if exc.code == "RETRIEVAL_INDEX_UNAVAILABLE"
+                          else "FORBIDDEN_INPUT" if exc.status == 403
+                          else "RUNTIME_UNAVAILABLE")
+                data = hold(reason, "SYNTHETIC_DEMO", request_id)
+    return ApiEnvelope(tenant_id=settings.tenant_id, request_id=request_id,
+                       trace_id=f"tr_{uuid4().hex}", data=data,
+                       as_of=datetime.now(UTC))

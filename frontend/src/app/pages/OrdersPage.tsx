@@ -132,6 +132,7 @@ export default function OrdersPage() {
 
           <ReservationList
             items={reservationItems}
+            showPolicyExplanation
           />
         </>
       )}

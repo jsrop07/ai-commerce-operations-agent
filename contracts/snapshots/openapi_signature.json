@@ -62,10 +62,28 @@
     "/api/v1/demo/events": [
       "post"
     ],
+    "/api/v1/demo/reservations/prepare": [
+      "post"
+    ],
+    "/api/v1/demo/schedule/replan-proposals/draft": [
+      "post"
+    ],
     "/api/v1/health": [
       "get"
     ],
     "/api/v1/insights": [
+      "get"
+    ],
+    "/api/v1/inventory": [
+      "get"
+    ],
+    "/api/v1/launch-events": [
+      "get"
+    ],
+    "/api/v1/mappings": [
+      "get"
+    ],
+    "/api/v1/mappings/review": [
       "get"
     ],
     "/api/v1/meta": [
@@ -74,13 +92,107 @@
     "/api/v1/ready": [
       "get"
     ],
+    "/api/v1/reservations": [
+      "get"
+    ],
+    "/api/v1/retrieval/actual-summary": [
+      "get"
+    ],
+    "/api/v1/retrieval/explanations": [
+      "post"
+    ],
+    "/api/v1/retrieval/search": [
+      "post"
+    ],
+    "/api/v1/retrieval/summary": [
+      "get"
+    ],
+    "/api/v1/schedule/delay-impacts": [
+      "get"
+    ],
+    "/api/v1/schedule/delay-impacts/{incoming_id}": [
+      "get"
+    ],
+    "/api/v1/schedule/dependencies": [
+      "get"
+    ],
+    "/api/v1/schedule/replan-proposals": [
+      "get"
+    ],
+    "/api/v1/schedule/replan-proposals/{proposal_id}": [
+      "get"
+    ],
+    "/api/v1/tasks": [
+      "get"
+    ],
+    "/api/v1/tasks/{task_id}/feedback": [
+      "get",
+      "post"
+    ],
+    "/api/v1/workflows/{workflow_id}/threads/{thread_id}/state": [
+      "get"
+    ],
+    "/internal/cafe24/bootstrap/categories/full/run": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/categories/probe": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/category-products/snapshot": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/community/articles/full/run": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/community/attachments/full/run": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/community/comments/full/run": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/community/probe": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/orders/full/run": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/orders/items/full/run": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/orders/probe": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/products/full": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/products/full/run": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/products/probe": [
+      "post"
+    ],
+    "/internal/cafe24/bootstrap/refunds/full/run": [
+      "post"
+    ],
     "/internal/cafe24/oauth/callback": [
       "get"
+    ],
+    "/internal/cafe24/oauth/persist-current": [
+      "post"
+    ],
+    "/internal/cafe24/oauth/refresh": [
+      "post"
+    ],
+    "/internal/cafe24/oauth/restore": [
+      "post"
     ],
     "/internal/cafe24/oauth/start": [
       "get"
     ],
     "/internal/cafe24/smoke": [
+      "get"
+    ],
+    "/internal/cafe24/smoke-core": [
       "get"
     ]
   },

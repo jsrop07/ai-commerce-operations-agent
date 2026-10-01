@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     retrieval_method: str | None = None  # None follows the handoff selection.
     retrieval_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    openai_api_key: SecretStr | None = None
 
     cafe24_mall_id: str | None = None
     cafe24_access_token: str | None = None

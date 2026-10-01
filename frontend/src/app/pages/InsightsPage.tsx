@@ -14,10 +14,12 @@ import {
   getDay08Insights,
   type Day08Insight,
   getRetrievalSummary,
+  getActualRetrievalSummary,
   searchRetrieval,
   RetrievalHttpError,
   type RetrievalSearch,
   type RetrievalSummary,
+  type ActualRetrievalSummary,
 } from "../../api/day08";
 
 const insights = [
@@ -147,7 +149,7 @@ if (useRealBackend) {
       <div className="notice ai"><AIBadge>AI 인사이트 · 운영 패턴 감지</AIBadge><br /><span className="muted">합성 운영 데이터를 바탕으로 검토 항목을 제안하며 자동 실행하지 않습니다.</span></div>
       <div className="grid insight-kpis">{[["오늘 분석", "7건"],["검토 필요", "5건"],["평균 신뢰도", "89%"],["자동 실행", "0건"]].map(([label,value]) => <article className="kpi" key={label}><div className="kpi-label">{label}</div><div className="kpi-value">{value}</div></article>)}</div>
       <div className="toolbar"><button className="filter active">전체</button><button className="filter">위험</button><button className="filter">주의</button><span className="right tertiary">데이터 기준: 최근 확인 시각</span></div>
-      <section className="stack">{insights.map((insight) => <article className={`card insight-card ${insight.level}`} key={insight.title}><div className="card-header badges"><RiskBadge level={insight.level} /><AIBadge>AI 설명</AIBadge><strong>{insight.title}</strong><span className="right badge ai">신뢰도 {insight.confidence}</span></div><div className="card-body grid insight-questions"><div><div className="kpi-label">무슨 문제인가요?</div><p>{insight.problem}</p></div><div><div className="kpi-label">어떤 데이터로 판단했나요?</div><p><SourceBadge>{insight.source}</SourceBadge></p></div><div><div className="kpi-label">지금 무엇을 확인하나요?</div><p>{insight.action}</p></div><div style={{ alignSelf: "end", justifySelf: "end" }}><InternalTaskAction compact /></div></div></article>)}</section>
+      <section className="stack">{insights.map((insight) => <article className={`card insight-card ${insight.level}`} key={insight.title}><div className="card-header badges"><RiskBadge level={insight.level} /><span className="badge">합성 예시 · SYNTHETIC_DEMO</span><AIBadge>AI 설명</AIBadge><strong>{insight.title}</strong><span className="right badge ai">신뢰도 {insight.confidence}</span></div><div className="card-body grid insight-questions"><div><div className="kpi-label">무슨 문제인가요?</div><p>{insight.problem}</p>{insight.title === "배송 지연 문의 23건 집중" && <p className="muted">합성 문의 예시이며 실제 문의 AI 분석 결과가 아닙니다.</p>}</div><div><div className="kpi-label">어떤 데이터로 판단했나요?</div><p><SourceBadge>{insight.source}</SourceBadge></p></div><div><div className="kpi-label">지금 무엇을 확인하나요?</div><p>{insight.action}</p></div><div style={{ alignSelf: "end", justifySelf: "end" }}><InternalTaskAction compact /></div></div></article>)}</section>
       <DevRetrieval />
     </div>
   );
@@ -165,10 +167,38 @@ function retrievalError(error: unknown) {
     : "응답 형식 또는 연결 상태를 확인할 수 없습니다.";
 }
 
+const actualSourceLabel = (status: string) => {
+  switch (status) {
+    case "SUPPORTED":
+      return "지원";
+    case "MISSING":
+      return "자료 미확보";
+    case "BLOCKED":
+      return "사용 차단";
+    default:
+      return status;
+  }
+};
+
+const formatActualMetric = (
+  value: number | null,
+) => value === null ? "미측정" : value.toFixed(4);
+
+const formatActualMilliseconds = (
+  value: number | null,
+) => value === null ? "미측정" : `${value.toFixed(2)} ms`;
+
+const formatActualSeconds = (
+  value: number | null,
+) => value === null ? "미측정" : `${value.toFixed(2)}초`;
+
 function DevRetrieval() {
   const [query, setQuery] = useState("");
   const [summary, setSummary] = useState<ApiEnvelope<RetrievalSummary> | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [actualSummary, setActualSummary] = useState<ActualRetrievalSummary | null>(null);
+  const [actualSummaryError, setActualSummaryError] = useState<string | null>(null);
+  const [actualSummaryUnavailable, setActualSummaryUnavailable] = useState(false);
   const [result, setResult] = useState<ApiEnvelope<RetrievalSearch> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -177,10 +207,47 @@ function DevRetrieval() {
 
   useEffect(() => {
     const controller = new AbortController();
+
     getRetrievalSummary(controller.signal)
-      .then((value) => { if (!controller.signal.aborted) setSummary(value); })
-      .catch((failure: unknown) => { if (!controller.signal.aborted) setSummaryError(retrievalError(failure)); });
-    return () => { controller.abort(); searchController.current?.abort(); };
+      .then((value) => {
+        if (!controller.signal.aborted) {
+          setSummary(value);
+        }
+      })
+      .catch((failure: unknown) => {
+        if (!controller.signal.aborted) {
+          setSummaryError(retrievalError(failure));
+        }
+      });
+
+    getActualRetrievalSummary(controller.signal)
+      .then((value) => {
+        if (!controller.signal.aborted) {
+          setActualSummary(value);
+        }
+      })
+      .catch((failure: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (
+          failure instanceof RetrievalHttpError &&
+          failure.status === 403
+        ) {
+          setActualSummaryUnavailable(true);
+          return;
+        }
+
+        setActualSummaryError(
+          retrievalError(failure),
+        );
+      });
+
+    return () => {
+      controller.abort();
+      searchController.current?.abort();
+    };
   }, []);
 
   async function search() {
@@ -225,6 +292,252 @@ function DevRetrieval() {
         </>}
       </section>
       <p>고정 검색 조건: method=BM25 · top_k=5</p>
+      <section
+        aria-labelledby="actual-scale-retrieval-title"
+        data-testid="actual-scale-retrieval-summary"
+      >
+        <h3 id="actual-scale-retrieval-title">
+          실제 규모 평가
+        </h3>
+
+        {actualSummaryUnavailable ? (
+          <p role="status">
+            현재 환경에서는 실제 규모 평가 요약을 사용할 수 없습니다.
+          </p>
+        ) : actualSummaryError ? (
+          <p role="alert">
+            실제 규모 평가 요약을 불러오지 못했습니다:{" "}
+            {actualSummaryError}
+          </p>
+        ) : !actualSummary ? (
+          <p role="status">
+            실제 규모 평가 요약을 불러오는 중입니다.
+          </p>
+        ) : (
+          <div className="stack">
+            <div className="notice">
+              <strong>
+                PRODUCT 한정 actual-scale retrieval 평가
+              </strong>
+              <p>
+                자료 모드: {actualSummary.data_mode}
+              </p>
+              <p>
+                검증 범위: {actualSummary.validation_scope}
+              </p>
+              <p>
+                전체 운영 성능 또는 최종 자연어 검색기 확정을 의미하지 않습니다.
+              </p>
+            </div>
+
+            <div>
+              <strong>Source 지원 범위</strong>
+              <ul>
+                <li>
+                  PRODUCT:{" "}
+                  {actualSourceLabel(
+                    actualSummary.source_support.PRODUCT,
+                  )}
+                </li>
+                <li>
+                  POLICY:{" "}
+                  {actualSourceLabel(
+                    actualSummary.source_support.POLICY,
+                  )}
+                </li>
+                <li>
+                  INVENTORY_SNAPSHOT:{" "}
+                  {actualSourceLabel(
+                    actualSummary.source_support
+                      .INVENTORY_SNAPSHOT,
+                  )}
+                </li>
+                <li>
+                  INCOMING_STOCK:{" "}
+                  {actualSourceLabel(
+                    actualSummary.source_support
+                      .INCOMING_STOCK,
+                  )}
+                </li>
+                <li>
+                  C02 예약 집계:{" "}
+                  {actualSourceLabel(
+                    actualSummary.source_support.C02,
+                  )}
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <strong>평가 규모</strong>
+              <p>
+                문서 {actualSummary.counts.document_count} / 청크{" "}
+                {actualSummary.counts.chunk_count}
+              </p>
+              <p>
+                질문 {actualSummary.counts.question_count} / 답가능{" "}
+                {actualSummary.counts.answerable_count} / HOLD{" "}
+                {actualSummary.counts.hold_count}
+              </p>
+              <p>
+                사람 검수 완료{" "}
+                {actualSummary.counts.review_completed_count}
+              </p>
+            </div>
+
+            <div>
+              <strong>실행 상태</strong>
+              <p>
+                계획 {actualSummary.execution.planned_count} / 실제 실행{" "}
+                {actualSummary.execution.executed_count} / 성공{" "}
+                {actualSummary.execution.succeeded_count}
+              </p>
+              <p>
+                실패 {actualSummary.execution.failed_count} / 차단{" "}
+                {actualSummary.execution.blocked_count} / 미실행{" "}
+                {actualSummary.execution.not_run_count}
+              </p>
+            </div>
+
+            <div>
+              <strong>검색 방식 비교</strong>
+
+              {actualSummary.methods.map((method) => (
+                <article
+                  className="card"
+                  key={method.method}
+                  data-testid={`actual-method-${method.method}`}
+                >
+                  <div className="card-body stack">
+                    <strong>{method.method}</strong>
+
+                    <p>
+                      실행 상태: {method.execution_status} / 실제 실행{" "}
+                      {method.executed_count}
+                    </p>
+
+                    <p>
+                      Recall@5 ={" "}
+                      {formatActualMetric(method.recall_at_5)}
+                      {" / "}
+                      MRR@5 ={" "}
+                     {formatActualMetric(method.mrr_at_5)}
+                    </p>
+
+                    <p>
+                      Full evidence ={" "}
+                      {method.full_evidence.full_evidence_count}/
+                      {
+                        method.full_evidence
+                          .full_evidence_denominator
+                      }
+                    </p>
+
+                    <p>
+                      지연 종류: {method.latency.kind} / 평균{" "}
+                      {formatActualMilliseconds(method.latency.avg_ms)}
+                      {" / "}
+                      warm p95{" "}
+                      {formatActualMilliseconds(
+                        method.latency.warm_p95_ms,
+                      )}
+                    </p>
+
+                    <p>
+                      HTTP 왕복시간 포함:{" "}
+                      {method.latency.http_round_trip
+                        ? "예"
+                        : "아니오"}
+                    </p>
+
+                    {method.preparation.status === "MEASURED" ? (
+                      <p>
+                        준비 비용: model load{" "}
+                        {formatActualSeconds(
+                          method.preparation.model_load_seconds,
+                        )}
+                        초 / document embedding{" "}
+                        {formatActualSeconds(
+                          method.preparation.document_embedding_seconds,
+                        )}
+                        초
+                      </p>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="notice">
+              <strong>
+                잠정 기준선:{" "}
+                {actualSummary.selection.selected_method}
+              </strong>
+
+              <p>
+                선정 상태: {actualSummary.selection.status}
+              </p>
+
+              <p>
+                선정 범위:{" "}
+                {actualSummary.selection.selection_scope}
+              </p>
+
+              <ul>
+                {actualSummary.selection.reasons.map(
+                  (reason, index) => (
+                    <li key={index}>{reason}</li>
+                  ),
+                )}
+              </ul>
+
+              {!actualSummary.selection
+                .final_natural_language_retriever && (
+                <p>
+                  최종 자연어 상품 검색기로 확정된 결과가 아닙니다.
+                </p>
+              )}
+            </div>
+
+            {actualSummary.r07 ? (
+              <>
+                <section className="card" aria-labelledby="r07-reranker-title" data-testid="r07-reranker">
+                  <div className="card-body stack">
+                    <h4 id="r07-reranker-title">R07 Reranker 평가</h4>
+                    <p>평가 상태: {actualSummary.r07.reranker.evaluation_status} · 실험 완료, 일부 순위 개선</p>
+                    <p>Baseline: {actualSummary.r07.reranker.baseline}</p>
+                    <p>Recall@5 before / after: {actualSummary.r07.reranker.before.recall_at_5.toFixed(6)} / {actualSummary.r07.reranker.after.recall_at_5.toFixed(6)} (변화 없음)</p>
+                    <p>MRR@5 before / after: {actualSummary.r07.reranker.before.mrr_at_5.toFixed(6)} / {actualSummary.r07.reranker.after.mrr_at_5.toFixed(6)}</p>
+                    <p>Full Evidence before / after: {actualSummary.r07.reranker.before.full_evidence_count}/{actualSummary.counts.answerable_count} / {actualSummary.r07.reranker.after.full_evidence_count}/{actualSummary.counts.answerable_count} (변화 없음)</p>
+                    <p>Candidate miss: {actualSummary.r07.reranker.candidate_miss_count} · {actualSummary.r07.reranker.candidate_miss_category}</p>
+                    <p>Reranker fallback: {actualSummary.r07.reranker.observed_events.fallback_count} · Timeout: {actualSummary.r07.reranker.observed_events.timeout_count} · Retry: {actualSummary.r07.reranker.observed_events.retry_count}</p>
+                    <p>Rerank latency ({actualSummary.r07.reranker.latency[0].kind}): 평균 {actualSummary.r07.reranker.latency[0].mean_ms.toFixed(2)} ms · HTTP 왕복시간 포함: 아니오</p>
+                    <p>Search + rerank E2E ({actualSummary.r07.reranker.latency[1].kind}): 평균 {actualSummary.r07.reranker.latency[1].mean_ms.toFixed(2)} ms · HTTP 왕복시간 포함: 아니오</p>
+                    <p>Always-on: 미선택 · 조건부 적용 후보: 예 · 조건부 routing 기준: 미검증</p>
+                    <p>Runtime: 비활성 · Fallback 기준선: {actualSummary.r07.reranker.fallback_target}</p>
+                  </div>
+                </section>
+
+                <section className="card" aria-labelledby="r07-compression-title" data-testid="r07-compression">
+                  <div className="card-body stack">
+                    <h4 id="r07-compression-title">R07 Context Compression</h4>
+                    <p>평가 상태: {actualSummary.r07.compression.evaluation_status}</p>
+                    <p>실험 범위: {actualSummary.r07.compression.scope}</p>
+                    <p>Synthetic 정책 설명: {actualSummary.r07.compression.case_count}건</p>
+                    <p>Tokens before / after: {actualSummary.r07.compression.before_tokens} → {actualSummary.r07.compression.after_tokens}</p>
+                    <p>Token 감소율: 약 {new Intl.NumberFormat("ko-KR", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(actualSummary.r07.compression.reduction_ratio)} (Synthetic 정책 설명 기준)</p>
+                    <p>Evidence 보존: {actualSummary.r07.compression.evidence_preserved_count}/{actualSummary.r07.compression.case_count} · Citation 보존: {actualSummary.r07.compression.citation_preserved_count}/{actualSummary.r07.compression.case_count}</p>
+                    <p>Compression fallback: {actualSummary.r07.compression.fallback_count}</p>
+                    <p>Compression latency ({actualSummary.r07.compression.latency.kind}): 평균 {actualSummary.r07.compression.latency.mean_ms.toFixed(3)} ms · HTTP 왕복시간 포함: 아니오</p>
+                    <p>Actual context: 미검증 · Runtime: 비활성</p>
+                    <p>Actual context 재검증이 필요합니다.</p>
+                  </div>
+                </section>
+              </>
+            ) : <p role="status">R07 평가 결과 미수신</p>}
+          </div>
+        )}
+      </section>
       <form className="toolbar" onSubmit={(event) => { event.preventDefault(); void search(); }}>
         <label htmlFor="dev-retrieval-query">검색 질문</label>
         <input id="dev-retrieval-query" value={query} maxLength={2000} onChange={(event) => setQuery(event.target.value)} placeholder="찾고 싶은 근거를 입력하세요" />
@@ -234,7 +547,6 @@ function DevRetrieval() {
       {pending && <p role="status">근거를 검색하는 중입니다.</p>}
       {error && <p role="alert">검색 실패: {error}</p>}
       {data && <div className="stack" data-testid="retrieval-result">
-        <p>request_id: {result!.request_id} · trace_id: {result!.trace_id}</p>
         <p>{data.method} · {data.selection_status} · {data.data_mode}</p>
         <p>검색 실행 여부 (actual_retrieval_executed): {String(data.actual_retrieval_executed)}</p>
         <p>답변 상태 (answer_status): {data.answer_status}</p>

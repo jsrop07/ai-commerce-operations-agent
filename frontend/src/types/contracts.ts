@@ -150,6 +150,7 @@ export interface DashboardData {
 
 export type ReservationSourceClassification =
   | "SANITIZED_REAL"
+  | "SYNTHETIC_DEMO"
   | "FIXTURE"
   | "CONTRACT_ONLY"
   | "BLOCKED";
@@ -185,10 +186,11 @@ export interface ReservationRiskItem {
   shortage_state?: ReservationValueState;
 
   evidence_ids?: string[];
-  quality_status?: InventoryQualityStatus;
+  quality_status?: InventoryQualityStatus | "CONFIRMED" | "UNKNOWN";
   confirmed_incoming_qty?: number | null;
   tentative_incoming_qty?: number | null;
   calculation_status?: string;
+  delivery_risk?: "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN";
 }
 
 export type ReservationTimelineStage =

@@ -14,6 +14,7 @@ const backendBaseUrl =
 
 const sourceClassifications: ReservationSourceClassification[] = [
   "SANITIZED_REAL",
+  "SYNTHETIC_DEMO",
   "FIXTURE",
   "CONTRACT_ONLY",
   "BLOCKED",
@@ -29,6 +30,11 @@ const riskLevels: RiskLevel[] = [
   "LOW",
   "MEDIUM",
   "HIGH",
+];
+
+const qualityStatuses: NonNullable<ReservationRiskItem["quality_status"]>[] = [
+  "CONFIRMED", "UNKNOWN", "USABLE", "STALE", "UNMAPPED",
+  "QUARANTINED", "SOURCE_QUALITY_BLOCKED",
 ];
 
 function isRecord(
@@ -176,12 +182,14 @@ function parseReservationRiskItem(
     confirmed_incoming_qty: value.confirmed_incoming_qty === undefined ? undefined : parseNullableNumber(value.confirmed_incoming_qty, "confirmed_incoming_qty"),
     tentative_incoming_qty: value.tentative_incoming_qty === undefined ? undefined : parseNullableNumber(value.tentative_incoming_qty, "tentative_incoming_qty"),
     calculation_status: typeof value.calculation_status === "string" ? value.calculation_status : undefined,
+    delivery_risk: value.delivery_risk === "UNKNOWN" || value.delivery_risk === "LOW" || value.delivery_risk === "MEDIUM" || value.delivery_risk === "HIGH" ? value.delivery_risk : undefined,
+    quality_status: typeof value.quality_status === "string" && qualityStatuses.includes(value.quality_status as NonNullable<ReservationRiskItem["quality_status"]>)
+      ? value.quality_status as ReservationRiskItem["quality_status"] : undefined,
 
     aging:
-      value.aging === null ||
-      value.aging === undefined
-        ? value.aging
-        : typeof value.aging === "number"
+      value.aging_hours === null || typeof value.aging_hours === "number"
+        ? value.aging_hours
+        : value.aging === null || typeof value.aging === "number"
           ? value.aging
           : undefined,
 
