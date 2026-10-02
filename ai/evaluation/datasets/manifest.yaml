@@ -35,12 +35,12 @@ datasets:
     purpose: entity/path/multi-hop relation 평가
     owner: AI_ML
     version: v0.1
-    expected_hash: PENDING_DATASET_BUILD
+    expected_hash: 3e42a5f5f2d5e8074932320ee2dc24c7b11ae6a19a923f9078555dad7a6466c5
     visibility: PRIVATE_EVAL
     contains_real_data: false
     pii_status: CLEAN
     split_strategy: ENTITY_RELATION_GROUP
-    status: PLANNED
+    status: READY
   memory_scenarios:
     purpose: entity carryover, contradiction, summary drift 평가
     owner: AI_ML

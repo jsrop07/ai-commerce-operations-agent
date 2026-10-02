@@ -1,8 +1,9 @@
 """D10-BE-05 출시·일정·Task API 계약 시험."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from fastapi.encoders import jsonable_encoder
 from fastapi.testclient import TestClient
 
 from backend.app.core.config import (
@@ -11,7 +12,13 @@ from backend.app.core.config import (
     WriteMode,
 )
 from backend.app.main import create_app
-
+from backend.app.services.delay_impact import (
+    LaunchImpactCandidate,
+    ReservationImpactCandidate,
+    ScheduledTask,
+    calculate_delay_impact,
+)
+from backend.tests.schedule.test_delay_impact import fixture_change, sample_tasks
 
 SEOUL = ZoneInfo("Asia/Seoul")
 AS_OF = datetime(2026, 10, 1, 9, 0, tzinfo=SEOUL)
@@ -179,6 +186,68 @@ def test_delay_impact_detail_not_found() -> None:
         detail["code"]
         == "DELAY_IMPACT_NOT_FOUND"
     )
+
+
+def test_c08_synthetic_demo_nonempty_impact_uses_existing_read_and_draft_paths() -> None:
+    impact = calculate_delay_impact(
+        change=fixture_change(),
+        tasks=sample_tasks() + (
+            ScheduledTask("task-other-incoming", AS_OF, True, incoming_id="incoming-demo-002"),
+        ),
+        reservations=(ReservationImpactCandidate("reservation-001", "incoming-demo-001"),),
+        launch_events=(
+            LaunchImpactCandidate("launch-001", AS_OF, True, "incoming-demo-001"),
+            LaunchImpactCandidate("launch-other-incoming", AS_OF, True, "incoming-demo-002"),
+        ),
+    )
+    projection = {**jsonable_encoder(impact), "data_mode": "SYNTHETIC_DEMO"}
+    app = create_app()
+
+    with TestClient(app) as client:
+        client.app.state.schedule_delay_impact_projections = [projection]
+        listed = client.get("/api/v1/schedule/delay-impacts")
+        detailed = client.get("/api/v1/schedule/delay-impacts/incoming-demo-001")
+
+        draft = client.post(
+            "/api/v1/demo/schedule/replan-proposals/draft",
+            json={
+                "current_schedule": [
+                    {"item_type": "TASK", "item_id": task.task_id,
+                     "scheduled_at": task.deadline.isoformat()}
+                    for task in sample_tasks()
+                ] + [
+                    {"item_type": "LAUNCH_EVENT", "item_id": launch_id,
+                     "scheduled_at": AS_OF.isoformat()}
+                    for launch_id in ("launch-001", "launch-other-incoming")
+                ] + [
+                    {"item_type": "TASK", "item_id": "task-other-incoming",
+                     "scheduled_at": AS_OF.isoformat()}
+                ],
+                "impact": jsonable_encoder(impact),
+                "created_at": AS_OF.isoformat(),
+                "confidence": 0.8,
+            },
+        )
+
+    assert listed.status_code == detailed.status_code == draft.status_code == 200
+    assert len(listed.json()["data"]) == 1
+    data = detailed.json()["data"]
+    assert data["data_mode"] == "SYNTHETIC_DEMO"
+    assert data["source_classification"] == "FIXTURE"
+    assert data["delay_hours"] == 72
+    assert data["impacted_task_ids"] == ["task-inspection", "task-product-page"]
+    assert data["impacted_reservation_ids"] == ["reservation-001"]
+    assert data["impacted_launch_event_ids"] == ["launch-001"]
+    assert {item["target_id"] for item in data["impact_path"]} == {
+        "task-inspection", "task-product-page", "reservation-001", "launch-001"
+    }
+    proposal = draft.json()["data"]
+    assert proposal["source_incoming_id"] == "incoming-demo-001"
+    assert {item["item_id"] for item in proposal["diff"]} == {
+        "task-inspection", "task-product-page", "launch-001"
+    }
+    assert "task-other-incoming" not in proposal["downstream_impact"]
+    assert "launch-other-incoming" not in proposal["downstream_impact"]
 
 
 def test_replan_proposal_detail_not_found() -> None:

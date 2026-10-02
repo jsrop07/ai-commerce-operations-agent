@@ -56,6 +56,7 @@ def fixture_impact():
                 ),
                 depends_on_incoming=True,
                 lag_hours=0,
+                incoming_id="incoming-demo-001",
             ),
             ScheduledTask(
                 task_id="task-product-page",
@@ -64,6 +65,7 @@ def fixture_impact():
                 ),
                 depends_on_incoming=True,
                 lag_hours=8,
+                incoming_id="incoming-demo-001",
             ),
             ScheduledTask(
                 task_id="task-unrelated",
@@ -71,6 +73,12 @@ def fixture_impact():
                     2026, 10, 12, 18, 0, tzinfo=SEOUL
                 ),
                 depends_on_incoming=False,
+            ),
+            ScheduledTask(
+                task_id="task-other-incoming",
+                deadline=BEFORE_INCOMING,
+                depends_on_incoming=True,
+                incoming_id="incoming-demo-002",
             ),
         ),
         reservations=(
@@ -86,6 +94,13 @@ def fixture_impact():
                     2026, 10, 15, 10, 0, tzinfo=SEOUL
                 ),
                 depends_on_incoming=True,
+                incoming_id="incoming-demo-001",
+            ),
+            LaunchImpactCandidate(
+                launch_event_id="launch-other-incoming",
+                launch_at=BEFORE_INCOMING,
+                depends_on_incoming=True,
+                incoming_id="incoming-demo-002",
             ),
         ),
     )
@@ -120,6 +135,16 @@ def current_schedule() -> list[ScheduleItem]:
             scheduled_at=datetime(
                 2026, 10, 15, 10, 0, tzinfo=SEOUL
             ),
+        ),
+        ScheduleItem(
+            item_type="TASK",
+            item_id="task-other-incoming",
+            scheduled_at=BEFORE_INCOMING,
+        ),
+        ScheduleItem(
+            item_type="LAUNCH_EVENT",
+            item_id="launch-other-incoming",
+            scheduled_at=BEFORE_INCOMING,
         ),
     ]
 
@@ -159,6 +184,8 @@ def test_builds_before_after_replan_diff() -> None:
     )
 
     assert "task-unrelated" not in diff_by_id
+    assert "task-other-incoming" not in diff_by_id
+    assert "launch-other-incoming" not in diff_by_id
 
 
 def test_original_schedule_is_not_mutated() -> None:
@@ -280,6 +307,8 @@ def test_downstream_impact_and_evidence_are_preserved() -> None:
     assert "task-product-page" in proposal.downstream_impact
     assert "reservation-001" in proposal.downstream_impact
     assert "launch-001" in proposal.downstream_impact
+    assert "task-other-incoming" not in proposal.downstream_impact
+    assert "launch-other-incoming" not in proposal.downstream_impact
 
 
 def test_invalid_confidence_is_rejected() -> None:

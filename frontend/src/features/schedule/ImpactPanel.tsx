@@ -10,9 +10,13 @@ interface ImpactPanelProps {
 function ImpactList({
   title,
   items,
+  incomingId,
+  asOf,
 }: {
   title: string;
   items: DelayImpactItemViewModel[];
+  incomingId: string;
+  asOf: string | null;
 }) {
   return (
     <section>
@@ -56,6 +60,13 @@ function ImpactList({
 
               <div className="tertiary">
                 사유: {item.reasonLabel}
+              </div>
+              <div className="tertiary">
+                관계: from {incomingId} → to {item.targetId}
+                {" · "}type {item.targetType}
+                {" · "}relation 확인 필요
+                {" · "}source {item.sourceId ?? "확인 필요"}
+                {" · "}as_of {asOf ?? "확인 필요"}
               </div>
 
               {item.evidenceIds.length > 0 && (
@@ -148,6 +159,9 @@ export default function ImpactPanel({
       </div>
 
       <div className="card-body stack">
+        {model.dataMode === "SYNTHETIC_DEMO" && <p role="note">합성 예시 (SYNTHETIC_DEMO) · 실제 사업 입고 자료 아님</p>}
+        {model.status === "CONTRACT_ONLY" && <p>계약 검증용 (CONTRACT_ONLY)</p>}
+        {model.actualDelayConfirmed === false && <p>실제 지연 확정 아님</p>}
         <section>
           <h4>입고 예정 변경</h4>
 
@@ -177,16 +191,22 @@ export default function ImpactPanel({
         <ImpactList
           title="영향받는 Task"
           items={model.tasks}
+          incomingId={model.incomingId}
+          asOf={model.asOf}
         />
 
         <ImpactList
           title="영향받는 예약주문"
           items={model.reservations}
+          incomingId={model.incomingId}
+          asOf={model.asOf}
         />
 
         <ImpactList
           title="영향받는 출시 일정"
           items={model.launchEvents}
+          incomingId={model.incomingId}
+          asOf={model.asOf}
         />
 
         <section>
@@ -201,11 +221,11 @@ export default function ImpactPanel({
           </div>
 
           <div>
-            Quality: {model.qualityLabel}
+            Quality: {model.quality === "TENTATIVE" ? "잠정 (TENTATIVE)" : model.qualityLabel}
           </div>
 
           <div>
-            Source: {model.sourceLabel}
+            Source: {model.sourceClassification === "FIXTURE" ? `${model.sourceLabel} (FIXTURE)` : model.sourceLabel}
           </div>
 
           {model.evidenceIds.length > 0 && (
@@ -215,13 +235,6 @@ export default function ImpactPanel({
             </div>
           )}
 
-          <div className="tertiary">
-            request_id: {model.requestId}
-          </div>
-
-          <div className="tertiary">
-            trace_id: {model.traceId}
-          </div>
         </section>
       </div>
     </section>

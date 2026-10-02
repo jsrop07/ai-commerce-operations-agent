@@ -44,6 +44,7 @@ Thumbs.db
 *.tmp
 
 alembic.ini
+alembic_v2.ini
 pyproject.toml
 
 docs
@@ -62,3 +63,5 @@ r04*
 *yaml
 
 *bak
+
+backend/app/db/migrations_v2/versions

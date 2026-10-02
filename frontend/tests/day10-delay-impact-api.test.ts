@@ -107,6 +107,35 @@ function makeImpact(
 }
 
 describe("Day 10 delay impact API parser", () => {
+  it("C08 합성 예시의 4개 영향만 읽고 다른 incoming 대상을 만들지 않는다", () => {
+    const path = (target_type: string, target_id: string, before: string | null, after: string | null) => ({
+      target_type, target_id, source_id: "fixture:incoming-delay-3d", before, after,
+      lag_hours: 72, reason: "합성 영향", evidence_ids: [],
+    });
+    const result = parseDay10DelayImpactResponse({
+      incoming_id: "incoming-demo-001", status: "CONTRACT_ONLY", actual_delay_confirmed: false,
+      delay_hours: 72, source_id: "fixture:incoming-delay-3d", source_classification: "FIXTURE",
+      data_mode: "SYNTHETIC_DEMO", as_of: "2026-10-01T09:00:00+09:00", freshness: "FRESH",
+      quality: "TENTATIVE", evidence_ids: [], reason: "계약 검증용",
+      impacted_task_ids: ["task-inspection", "task-product-page"],
+      impacted_reservation_ids: ["reservation-001"], impacted_launch_event_ids: ["launch-001"],
+      critical_path: ["task-inspection", "task-product-page"],
+      impact_path: [
+        path("TASK", "task-inspection", "2026-10-10T18:00:00+09:00", "2026-10-13T18:00:00+09:00"),
+        path("TASK", "task-product-page", "2026-10-11T18:00:00+09:00", "2026-10-14T18:00:00+09:00"),
+        path("RESERVATION", "reservation-001", null, null),
+        path("LAUNCH_EVENT", "launch-001", "2026-10-15T10:00:00+09:00", "2026-10-18T10:00:00+09:00"),
+      ],
+    });
+    expect(result.affected_tasks.map((item) => item.target_id)).toEqual(["task-inspection", "task-product-page"]);
+    expect(result.affected_reservations.map((item) => item.target_id)).toEqual(["reservation-001"]);
+    expect(result.affected_launch_events.map((item) => item.target_id)).toEqual(["launch-001"]);
+    expect(JSON.stringify(result)).not.toMatch(/task-other-incoming|launch-other-incoming|task-unrelated/);
+    expect(result.affected_tasks[0].before).toBe("2026-10-10T18:00:00+09:00");
+    expect(result.affected_tasks[0].after).toBe("2026-10-13T18:00:00+09:00");
+    expect(result.actual_delay_confirmed).toBe(false);
+    expect(result.quality).toBe("TENTATIVE");
+  });
   it("KNOWN impact의 Task/예약/출시 영향을 파싱한다", () => {
     const result =
       parseDay10DelayImpactsResponse(

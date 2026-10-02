@@ -98,6 +98,23 @@ function envelope(data: unknown[]) {
 }
 
 describe("Day 10 replan API parser", () => {
+  it("C08 제안의 현재 일정과 제안 일정을 분리하고 입력을 변경하지 않는다", () => {
+    const raw = {
+      proposal_id: "proposal-c08", source_incoming_id: "incoming-demo-001", status: "PROPOSED",
+      reason: "계약 검증용", confidence: 0.8, external_execution_allowed: false,
+      before_schedule: [{ item_type: "LAUNCH_EVENT", item_id: "launch-001", scheduled_at: "2026-10-15T10:00:00+09:00" }],
+      proposed_schedule: [{ item_type: "LAUNCH_EVENT", item_id: "launch-001", scheduled_at: "2026-10-18T10:00:00+09:00" }],
+      downstream_impact: ["launch-001", "reservation-001", "task-inspection", "task-product-page"],
+      evidence_ids: [],
+    };
+    const original = structuredClone(raw);
+    const result = parseDay10ReplanProposalResponse(raw);
+    expect(result.before[0].scheduled_at).toBe("2026-10-15T10:00:00+09:00");
+    expect(result.proposed_after[0].scheduled_at).toBe("2026-10-18T10:00:00+09:00");
+    expect(result.status).toBe("PROPOSED");
+    expect(result.external_execution_allowed).toBe(false);
+    expect(raw).toEqual(original);
+  });
   it("before/proposed_after를 보존한다", () => {
     const result =
       parseDay10ReplanProposalsResponse(

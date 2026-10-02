@@ -102,6 +102,22 @@ function makeModel(
 }
 
 describe("Day 10 ImpactPanel", () => {
+  it("C08 합성 예시와 자료 품질 및 관계 출처를 표시한다", () => {
+    const model = makeModel({
+      incomingId: "incoming-demo-001", dataMode: "SYNTHETIC_DEMO",
+      status: "CONTRACT_ONLY", actualDelayConfirmed: false,
+      quality: "TENTATIVE", qualityLabel: "TENTATIVE",
+      sourceClassification: "FIXTURE", sourceLabel: "테스트/데모 데이터", sourceIsConfirmed: false,
+      tasks: [{ ...makeModel().tasks[0], targetId: "task-inspection", sourceId: "fixture:incoming-delay-3d" }],
+    });
+    render(<ImpactPanel model={model} />);
+    expect(screen.getByText(/합성 예시/)).toBeInTheDocument();
+    expect(screen.getByText(/계약 검증용/)).toBeInTheDocument();
+    expect(screen.getByText("실제 지연 확정 아님")).toBeInTheDocument();
+    expect(screen.getByText(/잠정 \(TENTATIVE\)/)).toBeInTheDocument();
+    expect(screen.getByText(/FIXTURE/)).toBeInTheDocument();
+    expect(screen.getByText(/from incoming-demo-001 → to task-inspection/)).toBeInTheDocument();
+  });
   it("KNOWN 영향과 before/after를 표시한다", () => {
     render(
       <ImpactPanel model={makeModel()} />,
@@ -255,21 +271,17 @@ describe("Day 10 ImpactPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("request_id와 trace_id를 표시한다", () => {
+  it("개발 추적 ID를 운영 화면에 표시하지 않는다", () => {
     render(
       <ImpactPanel model={makeModel()} />,
     );
 
     expect(
-      screen.getByText(
-        /request_id: req_impact_001/,
-      ),
-    ).toBeInTheDocument();
+      screen.queryByText(/request_id/),
+    ).not.toBeInTheDocument();
 
     expect(
-      screen.getByText(
-        /trace_id: trace_impact_001/,
-      ),
-    ).toBeInTheDocument();
+      screen.queryByText(/trace_id/),
+    ).not.toBeInTheDocument();
   });
 });

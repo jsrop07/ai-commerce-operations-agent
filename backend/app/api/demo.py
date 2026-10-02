@@ -10,11 +10,40 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.app.core.config import Environment
 from backend.app.services.c04_lookup import C04LookupService
-from backend.app.services.demo import prepare_synthetic_reservations
+from backend.app.services.demo import (
+    prepare_synthetic_reservations,
+    prepare_synthetic_schedule_c08,
+)
 from contracts.api import ApiEnvelope
 from contracts.events import CanonicalCommerceEvent, EventType
 
 router = APIRouter(prefix="/api/v1", tags=["demo"])
+
+
+@router.post("/demo/schedule/prepare")
+async def prepare_demo_schedule_c08(request: Request) -> dict[str, object]:
+    """Explicit in-memory C08 schedule preparation for Synthetic Demo."""
+    settings = request.app.state.settings
+    if settings.environment != Environment.DEMO:
+        raise HTTPException(status_code=403, detail={"code": "POLICY_DENIED"})
+    if request.query_params or await request.body():
+        raise HTTPException(status_code=422, detail="DEMO_SCHEDULE_INPUT_FORBIDDEN")
+    try:
+        created, total, snapshot_id, snapshot_sha256 = prepare_synthetic_schedule_c08(
+            request.app.state, tenant_id=settings.tenant_id,
+        )
+    except ValueError:
+        raise HTTPException(status_code=409, detail="DEMO_SCHEDULE_CONFLICT") from None
+    return {
+        "status": "READY" if created else "ALREADY_READY",
+        "data_mode": "SYNTHETIC_DEMO",
+        "tenant_id": settings.tenant_id,
+        "created_count": created,
+        "row_count": total,
+        "snapshot_id": snapshot_id,
+        "snapshot_sha256": snapshot_sha256,
+        "request_id": request.headers.get("x-request-id", f"req_{uuid4().hex}"),
+    }
 
 
 @router.post("/demo/reservations/prepare")

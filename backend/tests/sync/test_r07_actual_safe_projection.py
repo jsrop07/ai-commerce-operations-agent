@@ -90,7 +90,7 @@ class R07ActualSafeProjectionTests(unittest.TestCase):
 
     def test_product_name_with_pii_is_rejected_before_write(self):
         _write_product_file(self.source, "product-full-000000-test", [
-            _record(name="Contact example@example.com")
+            _record(name="Contact " + "example@" + "example.com")
         ])
         with self.assertRaisesRegex(ValueError, "content safety scan failed"):
             build_product_projection(

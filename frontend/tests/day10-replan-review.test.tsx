@@ -100,7 +100,7 @@ describe("Day 10 ReplanReview", () => {
 
     expect(
       screen.getByText(
-        "기존 일정",
+        "현재 일정",
       ),
     ).toBeInTheDocument();
 
@@ -139,6 +139,7 @@ describe("Day 10 ReplanReview", () => {
         /Cafe24, eCount, POS/,
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText(/R10 review\/resume 계약 전/)).toBeInTheDocument();
 
     expect(
       screen.queryByRole(
@@ -175,7 +176,7 @@ describe("Day 10 ReplanReview", () => {
     ).toBeInTheDocument();
   });
 
-  it("request_id와 trace_id를 표시한다", () => {
+  it("개발 추적 ID를 운영 화면에 표시하지 않는다", () => {
     render(
       <ReplanReview
         model={
@@ -187,15 +188,15 @@ describe("Day 10 ReplanReview", () => {
     );
 
     expect(
-      screen.getByText(
+      screen.queryByText(
         /req_replan_001/,
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
 
     expect(
-      screen.getByText(
+      screen.queryByText(
         /trace_replan_001/,
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
   });
 });

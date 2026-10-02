@@ -23,6 +23,9 @@ const backendBaseUrl =
   import.meta.env.VITE_BACKEND_BASE_URL ?? "";
 
 const sourceClassifications: ScheduleSourceClassification[] = [
+  "LIVE_READ",
+  "FILE_IMPORT",
+  "UNKNOWN",
   "SANITIZED_REAL",
   "FIXTURE",
   "CONTRACT_ONLY",
@@ -556,6 +559,56 @@ function parseScheduleImpactItem(
             value.evidence_ids,
             "evidence_ids",
           ),
+    source_id: value.source_id === undefined ? null : parseNullableString(value.source_id, "source_id"),
+  };
+}
+
+function parseC08Impact(value: Record<string, unknown>): ScheduleDelayImpact {
+  if (typeof value.incoming_id !== "string" || typeof value.source_id !== "string" ||
+      !["CONTRACT_ONLY", "CALCULATED", "BLOCKED"].includes(String(value.status)) ||
+      typeof value.actual_delay_confirmed !== "boolean" ||
+      !Array.isArray(value.impact_path) ||
+      !Array.isArray(value.impacted_task_ids) || !Array.isArray(value.impacted_reservation_ids) ||
+      !Array.isArray(value.impacted_launch_event_ids) ||
+      (value.data_mode !== undefined && value.data_mode !== "SYNTHETIC_DEMO")) {
+    throw new Error("Backend C08 delay impact is malformed");
+  }
+  const paths = value.impact_path.map((path) => {
+    if (!isRecord(path) || typeof path.source_id !== "string") {
+      throw new Error("Backend C08 impact path is malformed");
+    }
+    return parseScheduleImpactItem({ ...path, target_type: path.target_type === "RESERVATION" ? "RESERVATION_ORDER" : path.target_type });
+  });
+  const targets = (ids: unknown[], type: ScheduleDelayImpactItem["target_type"]) => {
+    const checked = parseStringArray(ids, `impacted_${type}_ids`);
+    return checked.map((id) => {
+      const path = paths.find((item) => item.target_type === type && item.target_id === id);
+      return path ?? { target_type: type, target_id: id, before: null, after: null,
+        lag_hours: null, reason: null, source_id: null, evidence_ids: [] };
+    });
+  };
+  return {
+    incoming_id: value.incoming_id,
+    expected_at_before: null, expected_at_after: null,
+    impact_state: value.status === "BLOCKED" ? "BLOCKED" :
+      (value.impacted_task_ids.length + value.impacted_reservation_ids.length + value.impacted_launch_event_ids.length > 0 ? "KNOWN" : "UNKNOWN"),
+    affected_tasks: targets(value.impacted_task_ids, "TASK"),
+    affected_reservations: targets(value.impacted_reservation_ids, "RESERVATION_ORDER"),
+    affected_launch_events: targets(value.impacted_launch_event_ids, "LAUNCH_EVENT"),
+    critical_path_affected: Array.isArray(value.critical_path) ? value.critical_path.length > 0 : null,
+    as_of: parseNullableString(value.as_of, "as_of"),
+    freshness: parseFreshness(value.freshness),
+    quality: parseNullableString(value.quality, "quality"),
+    source_classification: parseSourceClassification(value.source_classification),
+    evidence_ids: parseStringArray(value.evidence_ids, "evidence_ids"),
+    request_id: "", trace_id: "",
+    data_mode: value.data_mode as "SYNTHETIC_DEMO" | undefined,
+    status: value.status as ScheduleDelayImpact["status"],
+    actual_delay_confirmed: value.actual_delay_confirmed,
+    delay_hours: parseNullableNumber(value.delay_hours, "delay_hours"),
+    source_id: value.source_id,
+    critical_path: parseStringArray(value.critical_path, "critical_path"),
+    reason: typeof value.reason === "string" ? value.reason : undefined,
   };
 }
 
@@ -614,6 +667,7 @@ function parseNullableBoolean(
 function parseDelayImpact(
   value: unknown,
 ): ScheduleDelayImpact {
+  if (isRecord(value) && "impact_path" in value) return parseC08Impact(value);
   if (
     !isRecord(value) ||
     typeof value.incoming_id !== "string" ||
@@ -741,12 +795,12 @@ export async function getDay10DelayImpact(
   assertRealBackend();
 
   return parseDay10DelayImpactResponse(
-    await realApiGet(
+    (await realApiGet(
       `/api/v1/schedule/delay-impacts/${encodeURIComponent(
         incomingId,
       )}`,
       signal,
-    ),
+    ) as { data: unknown }).data,
   );
 }
 
@@ -850,6 +904,27 @@ function parseNullableConfidence(
 function parseReplanProposal(
   value: unknown,
 ): ScheduleReplanProposal {
+  if (isRecord(value) && "before_schedule" in value) {
+    if (typeof value.proposal_id !== "string" || typeof value.source_incoming_id !== "string" ||
+        typeof value.reason !== "string" || value.external_execution_allowed !== false ||
+        !Array.isArray(value.before_schedule) || !Array.isArray(value.proposed_schedule) ||
+        !Array.isArray(value.downstream_impact)) throw new Error("Backend C08 replan proposal is malformed");
+    const values = (items: unknown[]): ScheduleReplanValue[] => items.map((item) => {
+      if (!isRecord(item)) throw new Error("Backend C08 replan value is malformed");
+      return parseReplanValue({ target_type: item.item_type === "RESERVATION" ? "RESERVATION_ORDER" : item.item_type,
+        target_id: item.item_id, scheduled_at: item.scheduled_at });
+    });
+    return {
+      proposal_id: value.proposal_id, incoming_id: value.source_incoming_id,
+      source_incoming_id: value.source_incoming_id, status: parseReplanStatus(value.status),
+      before: values(value.before_schedule), proposed_after: values(value.proposed_schedule),
+      reason: value.reason, confidence: parseNullableConfidence(value.confidence),
+      downstream_impact: parseStringArray(value.downstream_impact, "downstream_impact").join(", "),
+      conflict: null, as_of: null, freshness: "UNKNOWN", source_classification: "UNKNOWN",
+      evidence_ids: parseStringArray(value.evidence_ids, "evidence_ids"),
+      request_id: "", trace_id: "", external_execution_allowed: false,
+    };
+  }
   if (
     !isRecord(value) ||
     typeof value.proposal_id !== "string" ||
@@ -980,13 +1055,67 @@ export async function getDay10ReplanProposal(
   assertRealBackend();
 
   return parseDay10ReplanProposalResponse(
-    await realApiGet(
+    (await realApiGet(
       `/api/v1/schedule/replan-proposals/${encodeURIComponent(
         proposalId,
       )}`,
       signal,
-    ),
+    ) as { data: unknown }).data,
   );
+}
+
+export interface DemoSchedulePrepareResult {
+  status: "READY" | "ALREADY_READY";
+  data_mode: "SYNTHETIC_DEMO";
+  created_count: number;
+  row_count: number;
+  snapshot_id: string;
+  snapshot_sha256: string;
+}
+
+export async function prepareDay10DemoSchedule(): Promise<DemoSchedulePrepareResult> {
+  assertRealBackend();
+  const value = await realApiPost("/api/v1/demo/schedule/prepare", undefined);
+  if (!isRecord(value) || !["READY", "ALREADY_READY"].includes(String(value.status)) ||
+      value.data_mode !== "SYNTHETIC_DEMO" || typeof value.created_count !== "number" ||
+      typeof value.row_count !== "number" || typeof value.snapshot_id !== "string" ||
+      typeof value.snapshot_sha256 !== "string" ||
+      value.snapshot_id !== "c08-r08-synthetic-v1" ||
+      value.snapshot_sha256 !== "aefc694a5c3364752934f2a33616500b464f3e1e21a27413b6f7420a56b45d40")
+    throw new Error("Backend C08 prepare response is malformed");
+  return value as unknown as DemoSchedulePrepareResult;
+}
+
+export async function draftDay10DemoReplan(impact: ScheduleDelayImpact): Promise<ScheduleReplanProposal> {
+  assertRealBackend();
+  if (impact.data_mode !== "SYNTHETIC_DEMO" || impact.status !== "CONTRACT_ONLY" ||
+      impact.actual_delay_confirmed !== false || impact.source_classification !== "FIXTURE" ||
+      impact.as_of === null || impact.delay_hours === undefined || impact.source_id == null ||
+      impact.reason === undefined || impact.critical_path === undefined) {
+    throw new Error("C08 합성 예시 영향만 제안할 수 있습니다.");
+  }
+  const path = [...impact.affected_tasks, ...impact.affected_reservations, ...impact.affected_launch_events];
+  if (path.some((item) => item.source_id == null || item.reason == null || item.lag_hours == null)) {
+    throw new Error("C08 영향 경로의 필수 값이 확인되지 않았습니다.");
+  }
+  const current_schedule = path.filter((item) => item.before !== null && item.target_type !== "RESERVATION_ORDER")
+    .map((item) => ({ item_type: item.target_type, item_id: item.target_id, scheduled_at: item.before }));
+  const body = { current_schedule, created_at: new Date().toISOString(), confidence: 0.8,
+    impact: { status: impact.status, actual_delay_confirmed: impact.actual_delay_confirmed,
+      incoming_id: impact.incoming_id, delay_hours: impact.delay_hours, source_id: impact.source_id,
+      source_classification: impact.source_classification, as_of: impact.as_of,
+      freshness: impact.freshness, quality: impact.quality, evidence_ids: impact.evidence_ids ?? [],
+      impacted_task_ids: impact.affected_tasks.map((item) => item.target_id),
+      impacted_reservation_ids: impact.affected_reservations.map((item) => item.target_id),
+      impacted_launch_event_ids: impact.affected_launch_events.map((item) => item.target_id),
+      critical_path: impact.critical_path,
+      impact_path: path.map((item) => ({ target_type: item.target_type === "RESERVATION_ORDER" ? "RESERVATION" : item.target_type,
+        target_id: item.target_id, source_id: item.source_id, before: item.before, after: item.after,
+        lag_hours: item.lag_hours, reason: item.reason, evidence_ids: item.evidence_ids ?? [] })),
+      reason: impact.reason } };
+  const response = await realApiPost("/api/v1/demo/schedule/replan-proposals/draft", body);
+  if (!isRecord(response)) throw new Error("Backend C08 draft envelope is malformed");
+  return parseDay10ReplanProposalResponse(response.data);
 }
 
 function parseFeedback(value: unknown): TaskFeedback {
@@ -1021,8 +1150,8 @@ async function backendError(response: Response): Promise<Error> {
 async function realApiPost(path: string, body: unknown): Promise<unknown> {
   const response = await fetch(`${backendBaseUrl}${path}`, {
     method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    headers: { Accept: "application/json", ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   if (!response.ok) throw await backendError(response);
   return response.json();

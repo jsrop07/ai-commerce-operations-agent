@@ -116,6 +116,12 @@ function formatSource(
   source: ScheduleSourceClassification,
 ): string {
   switch (source) {
+    case "LIVE_READ":
+      return "실시간 조회 자료";
+    case "FILE_IMPORT":
+      return "파일 입력 자료";
+    case "UNKNOWN":
+      return "Source 확인 필요";
     case "SANITIZED_REAL":
       return "실제 기반 비식별 자료";
 

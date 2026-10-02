@@ -30,19 +30,25 @@ from backend.app.core.observability import (
     RedactCafe24OAuthQueryMiddleware,
     configure_logging,
 )
+
 from backend.app.db.session import build_engine
+from backend.app.db.session_v2 import (
+    build_v2_engine,
+    build_v2_session_factory,
+)
 from backend.app.services.c04_lookup import C04LookupService
 from backend.app.services.corpus_restore import restore_corpus
 from backend.app.services.ingestion.mapping_queue import MappingReviewQueue
 from backend.app.services.offline_sale import OfflineSalePipeline
 from backend.app.services.reservation_tasks import ReservationTaskService
 from backend.app.services.retrieval_runtime import RetrievalRuntime
-
+from backend.app.api.catalog_v2 import (router as catalog_v2_router,)
 
 def create_app(
     settings: Settings | None = None,
     *,
     db_engine: Engine | None = None,
+    v2_db_engine: Engine | None = None,
     c04_lookup_service: C04LookupService | None = None,
 ) -> FastAPI:
     resolved = settings or get_settings()
@@ -92,6 +98,23 @@ def create_app(
         if resolved.environment.value == "DEMO"
         else None
     )
+    application.state.v2_db_engine = None
+    application.state.v2_db_session_factory = None
+
+    if v2_db_engine is not None:
+        application.state.v2_db_engine = v2_db_engine
+        application.state.v2_db_session_factory = (
+            build_v2_session_factory(v2_db_engine)
+        )
+    elif resolved.postgres_v2_url:
+        application.state.v2_db_engine = build_v2_engine(
+            resolved.postgres_v2_url
+        )
+        application.state.v2_db_session_factory = (
+            build_v2_session_factory(
+                application.state.v2_db_engine
+            )
+        )
     application.state.pipeline = OfflineSalePipeline(
         db_session_factory=application.state.db_session_factory
     )
@@ -133,6 +156,7 @@ def create_app(
     application.include_router(reservations_router)
     application.include_router(schedule_router)
     application.include_router(workflows_router)
+    application.include_router(catalog_v2_router)
     return application
 
 

@@ -70,6 +70,7 @@ class ScheduledTask:
     deadline: datetime
     depends_on_incoming: bool
     lag_hours: int = 0
+    incoming_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,7 @@ class LaunchImpactCandidate:
     launch_event_id: str
     launch_at: datetime
     depends_on_incoming: bool
+    incoming_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -245,7 +247,7 @@ def calculate_delay_impact(
     impacted_task_ids: list[str] = []
 
     for task in sorted(tasks, key=lambda item: item.task_id):
-        if not task.depends_on_incoming:
+        if task.depends_on_incoming is not True or task.incoming_id != change.incoming_id:
             continue
 
         impacted_task_ids.append(task.task_id)
@@ -287,7 +289,7 @@ def calculate_delay_impact(
     launch_items: list[ImpactPathItem] = []
 
     for launch in sorted(launch_events, key=lambda item: item.launch_event_id):
-        if not launch.depends_on_incoming:
+        if launch.depends_on_incoming is not True or launch.incoming_id != change.incoming_id:
             continue
 
         impacted_launch_ids.append(launch.launch_event_id)

@@ -1,14 +1,18 @@
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import {
   getDay10DelayImpacts,
+  getDay10DelayImpact,
   getDay10Dependencies,
   getDay10LaunchEvents,
   getDay10ReplanProposals,
   getDay10Tasks,
+  prepareDay10DemoSchedule,
+  draftDay10DemoReplan,
   parseDay10DelayImpactsResponse,
   parseDay10DependenciesResponse,
   parseDay10LaunchEventsResponse,
@@ -19,7 +23,7 @@ import {
 import ImpactPanel from "../../features/schedule/ImpactPanel";
 import ReplanReview from "../../features/schedule/ReplanReview";
 import ScheduleBoard from "../../features/schedule/ScheduleBoard";
-import type { ScheduleTask, ReservationShortageTask } from "../../types/contracts";
+import type { ScheduleTask, ReservationShortageTask, ScheduleDelayImpact } from "../../types/contracts";
 
 const scheduleTasks = (tasks: (ScheduleTask | ReservationShortageTask)[]): ScheduleTask[] =>
   tasks.filter((task): task is ScheduleTask => "flow" in task);
@@ -45,6 +49,7 @@ import {
 
 const useRealBackend =
   import.meta.env.VITE_USE_REAL_BACKEND === "true";
+const demoEnabled = useRealBackend && import.meta.env.VITE_SCHEDULE_DEMO === "true";
 
 type LoadState =
   | "LOADING"
@@ -68,6 +73,17 @@ export default function SchedulePage() {
     impacts,
     setImpacts,
   ] = useState<DelayImpactViewModel[]>([]);
+  const [rawImpacts, setRawImpacts] = useState<ScheduleDelayImpact[]>([]);
+  const [selectedIncomingId, setSelectedIncomingId] = useState<string | null>(null);
+  const selectedIncomingRef = useRef<string | null>(null);
+  const [selectedImpact, setSelectedImpact] = useState<DelayImpactViewModel | null>(null);
+  const [detailState, setDetailState] = useState<LoadState>("READY");
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [actionState, setActionState] = useState<"IDLE" | "PREPARING" | "DRAFTING">("IDLE");
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const actionBusy = useRef(false);
+  selectedIncomingRef.current = selectedIncomingId;
 
   const [
     replans,
@@ -86,6 +102,8 @@ export default function SchedulePage() {
     async function loadSchedule() {
       setLoadState("LOADING");
       setErrorMessage(null);
+      setModel(null);
+      setSelectedImpact(null);
 
       try {
         if (useRealBackend) {
@@ -140,6 +158,9 @@ export default function SchedulePage() {
               buildDelayImpactViewModel,
             ),
           );
+          setRawImpacts(impactResponse.data);
+          setSelectedIncomingId((current) => impactResponse.data.some((item) => item.incoming_id === current)
+            ? current : impactResponse.data[0]?.incoming_id ?? null);
 
           setReplans(
             replanResponse.data.map(
@@ -227,6 +248,9 @@ export default function SchedulePage() {
             buildDelayImpactViewModel,
           ),
         );
+        setRawImpacts(impactResponse.data);
+        setSelectedIncomingId((current) => impactResponse.data.some((item) => item.incoming_id === current)
+          ? current : impactResponse.data[0]?.incoming_id ?? null);
 
         setReplans(
           replanResponse.data.map(
@@ -248,6 +272,7 @@ export default function SchedulePage() {
          */
         setModel(null);
         setImpacts([]);
+        setRawImpacts([]);
         setReplans([]);
 
         setLoadState("ERROR");
@@ -265,7 +290,73 @@ export default function SchedulePage() {
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [reloadKey]);
+
+  useEffect(() => {
+    if (loadState !== "READY" || selectedIncomingId === null) return;
+    const controller = new AbortController();
+    const listed = impacts.find((item) => item.incomingId === selectedIncomingId) ?? null;
+    setSelectedImpact(null);
+    setDetailState("LOADING");
+    setDetailError(null);
+    if (!useRealBackend) {
+      setSelectedImpact(listed);
+      setDetailState("READY");
+      return () => controller.abort();
+    }
+    void getDay10DelayImpact(selectedIncomingId, controller.signal).then((item) => {
+      if (!controller.signal.aborted) {
+        setSelectedImpact(buildDelayImpactViewModel(item));
+        setDetailState("READY");
+      }
+    }).catch((error) => {
+      if (!controller.signal.aborted) {
+        setDetailError(error instanceof Error ? error.message : "영향 상세를 불러오지 못했습니다.");
+        setDetailState("ERROR");
+      }
+    });
+    return () => controller.abort();
+  }, [loadState, selectedIncomingId, impacts]);
+
+  async function prepareDemo() {
+    if (!demoEnabled || actionBusy.current) return;
+    actionBusy.current = true;
+    setActionState("PREPARING");
+    setActionMessage(null);
+    try {
+      const result = await prepareDay10DemoSchedule();
+      setActionMessage(result.status === "ALREADY_READY" ? "합성 예시가 이미 준비되어 있습니다." : "합성 예시를 준비했습니다.");
+      setSelectedIncomingId("incoming-demo-001");
+      setReloadKey((key) => key + 1);
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Demo 준비에 실패했습니다.");
+    } finally {
+      actionBusy.current = false;
+      setActionState("IDLE");
+    }
+  }
+
+  async function draftDemo() {
+    if (!demoEnabled || actionBusy.current || selectedIncomingId === null) return;
+    const impact = rawImpacts.find((item) => item.incoming_id === selectedIncomingId);
+    if (!impact) return;
+    actionBusy.current = true;
+    setActionState("DRAFTING");
+    setActionMessage(null);
+    try {
+      const proposal = await draftDay10DemoReplan(impact);
+      if (selectedIncomingRef.current === impact.incoming_id) {
+        const view = buildReplanReviewViewModel(proposal);
+        setReplans((current) => [view, ...current.filter((item) => item.proposalId !== view.proposalId)]);
+        setActionMessage("재계획 제안을 생성했습니다. 현재 일정은 변경되지 않았습니다.");
+      }
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Demo 제안 생성에 실패했습니다.");
+    } finally {
+      actionBusy.current = false;
+      setActionState("IDLE");
+    }
+  }
 
   return (
     <main className="page">
@@ -287,6 +378,13 @@ export default function SchedulePage() {
           </span>
         </div>
       </header>
+      {demoEnabled && <section className="card"><div className="card-body stack">
+        <p>격리 합성 예시 검증 (SYNTHETIC_DEMO) · 실제 사업 입고 자료 아님</p>
+        <button type="button" disabled={actionState !== "IDLE"} onClick={() => void prepareDemo()}>
+          {actionState === "PREPARING" ? "준비 중..." : "C08 Demo 명시적으로 준비"}
+        </button>
+        {actionMessage && <p role="status">{actionMessage}</p>}
+      </div></section>}
 
       {loadState === "LOADING" && (
         <section
@@ -355,12 +453,20 @@ export default function SchedulePage() {
                   </div>
                 </div>
               ) : (
-                impacts.map((impact) => (
-                  <ImpactPanel
-                    key={impact.incomingId}
-                    model={impact}
-                  />
-                ))
+                <>
+                  <label htmlFor="schedule-incoming">Incoming 선택</label>
+                  <select id="schedule-incoming" value={selectedIncomingId ?? ""}
+                    onChange={(event) => { selectedIncomingRef.current = event.target.value; setSelectedIncomingId(event.target.value); }}>
+                    {impacts.map((impact) => <option key={impact.incomingId} value={impact.incomingId}>{impact.incomingId}</option>)}
+                  </select>
+                  {detailState === "LOADING" && <p>영향 상세를 불러오는 중입니다.</p>}
+                  {detailState === "ERROR" && <p role="alert">영향 상세를 확인할 수 없습니다. {detailError}</p>}
+                  {detailState === "READY" && selectedImpact && <ImpactPanel key={selectedImpact.incomingId} model={selectedImpact} />}
+                  {demoEnabled && selectedImpact?.dataMode === "SYNTHETIC_DEMO" &&
+                    <button type="button" disabled={actionState !== "IDLE"} onClick={() => void draftDemo()}>
+                      {actionState === "DRAFTING" ? "제안 생성 중..." : "합성 예시 재계획 제안 생성"}
+                    </button>}
+                </>
               )}
             </section>
 
@@ -381,7 +487,7 @@ export default function SchedulePage() {
                   </div>
                 </div>
               ) : (
-                replans.map((replan) => (
+                replans.filter((replan) => selectedIncomingId === null || replan.sourceIncomingId === undefined || replan.sourceIncomingId === selectedIncomingId).map((replan) => (
                   <ReplanReview
                     key={replan.proposalId}
                     model={replan}

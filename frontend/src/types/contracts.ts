@@ -264,6 +264,9 @@ export interface TaskProposal {
 
 // Day 10 — 운영 일정 화면용 Source 검증 수준
 export type ScheduleSourceClassification =
+  | "LIVE_READ"
+  | "FILE_IMPORT"
+  | "UNKNOWN"
   | "SANITIZED_REAL"
   | "FIXTURE"
   | "CONTRACT_ONLY"
@@ -412,6 +415,7 @@ export interface ScheduleDelayImpactItem {
   reason: string | null;
 
   evidence_ids?: string[];
+  source_id?: string | null;
 }
 
 // Day 10 — 입고 지연 영향 Projection
@@ -440,6 +444,13 @@ export interface ScheduleDelayImpact {
 
   request_id: string;
   trace_id: string;
+  data_mode?: "SYNTHETIC_DEMO";
+  status?: "CONTRACT_ONLY" | "CALCULATED" | "BLOCKED";
+  actual_delay_confirmed?: boolean;
+  delay_hours?: number | null;
+  source_id?: string | null;
+  critical_path?: string[];
+  reason?: string;
 }
 
 // Day 10 — 재계획 검토 상태
@@ -496,4 +507,5 @@ export interface ScheduleReplanProposal {
   trace_id: string;
 
   external_execution_allowed: false;
+  source_incoming_id?: string;
 }

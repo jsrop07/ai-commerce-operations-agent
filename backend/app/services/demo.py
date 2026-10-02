@@ -2,11 +2,27 @@
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from hashlib import sha256
+from zoneinfo import ZoneInfo
+
+from fastapi.encoders import jsonable_encoder
 
 from backend.app.core.config import Environment
+from backend.app.services.delay_impact import (
+    FreshnessStatus,
+    IncomingDateChange,
+    IncomingDateEvidence,
+    LaunchImpactCandidate,
+    ReservationImpactCandidate,
+    ScheduledTask,
+    SourceClassification,
+    SourceQuality,
+    calculate_delay_impact,
+)
 from backend.app.services.reservation_projection import build_reservation_risk_projection
 from backend.app.services.reservation_service import (
     ReservationIdentification,
@@ -21,6 +37,77 @@ from backend.app.services.reservation_tasks import register_reservation_risk_pro
 from contracts.events import CanonicalCommerceEvent
 
 FIXED_TIME = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
+SCHEDULE_C08_SNAPSHOT_ID = "c08-r08-synthetic-v1"
+
+
+def prepare_synthetic_schedule_c08(app_state, *, tenant_id: str) -> tuple[int, int, str, str]:
+    """Register the fixed C08 calculation in memory after an explicit Demo call."""
+    settings = app_state.settings
+    if settings.environment != Environment.DEMO or tenant_id != settings.tenant_id:
+        raise ValueError("SYNTHETIC_SCHEDULE_DEMO_ONLY")
+
+    seoul = ZoneInfo("Asia/Seoul")
+    before = datetime(2026, 10, 10, 10, 0, tzinfo=seoul)
+    as_of = datetime(2026, 10, 1, 9, 0, tzinfo=seoul)
+    impact = calculate_delay_impact(
+        change=IncomingDateChange(
+            incoming_id="incoming-demo-001",
+            before_expected_at=before,
+            after_expected_at=before + timedelta(hours=72),
+            evidence=IncomingDateEvidence(
+                source_id="fixture:incoming-delay-3d",
+                source_classification=SourceClassification.FIXTURE,
+                as_of=as_of,
+                freshness=FreshnessStatus.FRESH,
+                quality=SourceQuality.TENTATIVE,
+                evidence_ids=("ev-fixture-incoming-001",),
+            ),
+        ),
+        tasks=(
+            ScheduledTask("task-inspection", datetime(2026, 10, 10, 18, 0, tzinfo=seoul), True,
+                          incoming_id="incoming-demo-001"),
+            ScheduledTask("task-product-page", datetime(2026, 10, 11, 18, 0, tzinfo=seoul), True,
+                          lag_hours=8, incoming_id="incoming-demo-001"),
+            ScheduledTask("task-unrelated", datetime(2026, 10, 12, 18, 0, tzinfo=seoul), False),
+            ScheduledTask("task-other-incoming", before, True,
+                          incoming_id="incoming-demo-002"),
+        ),
+        reservations=(ReservationImpactCandidate("reservation-001", "incoming-demo-001"),),
+        launch_events=(
+            LaunchImpactCandidate("launch-001", datetime(2026, 10, 15, 10, 0, tzinfo=seoul),
+                                  True, "incoming-demo-001"),
+            LaunchImpactCandidate("launch-other-incoming", before, True,
+                                  "incoming-demo-002"),
+        ),
+    )
+    impact_data = jsonable_encoder(impact)
+    canonical = json.dumps(
+        {"snapshot_id": SCHEDULE_C08_SNAPSHOT_ID, "data_mode": "SYNTHETIC_DEMO",
+         "impact": impact_data},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    )
+    snapshot_sha256 = sha256(canonical.encode("utf-8")).hexdigest()
+    projection = {
+        **impact_data,
+        "tenant_id": tenant_id,
+        "data_mode": "SYNTHETIC_DEMO",
+        "snapshot_id": SCHEDULE_C08_SNAPSHOT_ID,
+        "snapshot_sha256": snapshot_sha256,
+    }
+
+    # Reuse the existing Demo preparation lock for atomic in-memory registration.
+    with app_state.reservation_demo_prepare_lock:
+        matches = [
+            item for item in app_state.schedule_delay_impact_projections
+            if (item.get("incoming_id") if isinstance(item, dict)
+                else getattr(item, "incoming_id", None)) == impact.incoming_id
+        ]
+        if matches:
+            if len(matches) != 1 or matches[0] != projection:
+                raise ValueError("SYNTHETIC_SCHEDULE_IDENTITY_CONFLICT")
+            return 0, 1, SCHEDULE_C08_SNAPSHOT_ID, snapshot_sha256
+        app_state.schedule_delay_impact_projections.append(projection)
+        return 1, 1, SCHEDULE_C08_SNAPSHOT_ID, snapshot_sha256
 
 
 def _event(number: int, event_type: str, payload: dict[str, object]) -> dict[str, object]:

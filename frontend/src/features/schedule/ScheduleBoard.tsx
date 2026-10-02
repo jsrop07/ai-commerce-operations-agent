@@ -275,6 +275,12 @@ export default function ScheduleBoard({
                         dependency.sourceIsConfirmed
                       }
                     />
+                    <div className="tertiary">
+                      from {dependency.predecessorId} → to {dependency.successorId}
+                      {" · "}relation/type 확인 필요
+                      {" · "}source {dependency.sourceLabel}
+                      {" · "}as_of {dependency.asOf ?? "확인 필요"}
+                    </div>
                   </li>
                 ),
               )}

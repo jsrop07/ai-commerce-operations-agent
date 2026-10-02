@@ -77,15 +77,12 @@ export default function ReplanReview({
           role="note"
           className="muted"
         >
-          이 화면의 승인은 내부 일정
-          검토 상태만 의미합니다.
-          Cafe24, eCount, POS 또는 외부
-          일정 시스템에 자동 반영되지
-          않습니다.
+          제안 상태입니다. 현재 일정에 반영되지 않았습니다.
+          Cafe24, eCount, POS 또는 외부 일정 시스템에 자동 반영되지 않습니다.
         </div>
 
         <ScheduleValues
-          title="기존 일정"
+          title="현재 일정"
           values={model.before}
         />
 
@@ -98,6 +95,7 @@ export default function ReplanReview({
 
         <section>
           <h4>제안 근거</h4>
+          <p>승인·실행 불가: R10 review/resume 계약 전이며 외부 실행은 허용되지 않습니다.</p>
 
           <p>
             이유: {model.reason}
@@ -142,15 +140,6 @@ export default function ReplanReview({
             </p>
           )}
 
-          <p className="tertiary">
-            request_id:{" "}
-            {model.requestId}
-          </p>
-
-          <p className="tertiary">
-            trace_id:{" "}
-            {model.traceId}
-          </p>
         </section>
       </div>
     </section>

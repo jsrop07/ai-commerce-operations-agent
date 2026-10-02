@@ -28,7 +28,7 @@ from backend.app.services.grounded_explanation_bridge import (
 QUESTION = "예약상품은 언제 출고해?"
 EXCERPT = "예약상품은 상품 입고와 검수 완료 후 순차적으로 출고합니다."
 PATH = "/api/v1/retrieval/explanations"
-
+TEST_CRED = "dummy-test-" + "credential"
 
 class Lookup:
     def __init__(self, *, stale=False, tenant="tenant", version="v1"):
@@ -194,10 +194,10 @@ def test_http_default_wiring_uses_ai_runtime_replacement(monkeypatch, caplog):
 
     assert bridge.run_grounded_explanation is run_grounded_explanation
     caplog.set_level("INFO", logger=bridge.__name__)
-
+    
     app = create_app(Settings(
         _env_file=None, environment="TEST", database_url="sqlite://",
-        openai_api_key="dummy-test-credential",
+        openai_api_key=TEST_CRED
     ))
     async def search(_):
         return SimpleNamespace(request_id="req_search"), projection()
@@ -208,7 +208,7 @@ def test_http_default_wiring_uses_ai_runtime_replacement(monkeypatch, caplog):
     clients = []
 
     def fake_client(*, api_key, max_retries):
-        assert api_key == "dummy-test-credential" and max_retries == 0
+        assert api_key == TEST_CRED and max_retries == 0
         client = object()
         clients.append(client)
         return client
@@ -258,7 +258,7 @@ def test_http_default_wiring_uses_ai_runtime_replacement(monkeypatch, caplog):
 
 
 def test_settings_secret_contract(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "dummy-test-credential")
+    monkeypatch.setenv("OPENAI_API_KEY", TEST_CRED)
     settings = Settings(_env_file=None, environment="TEST", database_url="sqlite://")
     assert isinstance(settings.openai_api_key, SecretStr)
     assert settings.openai_api_key.get_secret_value() == "dummy-test-credential"

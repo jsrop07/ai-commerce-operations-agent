@@ -27,6 +27,7 @@ export interface DelayImpactItemViewModel {
   reasonLabel: string;
 
   evidenceIds: string[];
+  sourceId?: string | null;
 }
 
 export interface DelayImpactViewModel {
@@ -68,6 +69,9 @@ export interface DelayImpactViewModel {
 
   requestId: string;
   traceId: string;
+  dataMode?: "SYNTHETIC_DEMO";
+  status?: ScheduleDelayImpact["status"];
+  actualDelayConfirmed?: boolean;
 }
 
 function formatNullableDateTime(
@@ -128,6 +132,12 @@ function formatSource(
   source: ScheduleSourceClassification,
 ): string {
   switch (source) {
+    case "LIVE_READ":
+      return "실시간 조회 자료";
+    case "FILE_IMPORT":
+      return "파일 입력 자료";
+    case "UNKNOWN":
+      return "Source 확인 필요";
     case "SANITIZED_REAL":
       return "실제 기반 비식별 자료";
 
@@ -189,6 +199,7 @@ function toImpactItemViewModel(
 
     evidenceIds:
       item.evidence_ids ?? [],
+    sourceId: item.source_id,
   };
 }
 
@@ -293,5 +304,8 @@ export function buildDelayImpactViewModel(
 
     traceId:
       impact.trace_id,
+    dataMode: impact.data_mode,
+    status: impact.status,
+    actualDelayConfirmed: impact.actual_delay_confirmed,
   };
 }

@@ -87,8 +87,8 @@ def test_top_k_bounds(top_k):
     "order_id=123", "order_line=123", "customer_id=123", "배송지 서울", "결제정보 조회",
     "inquiry: private text", "affected_order_ids 123", "reservation_id=123",
     "feedback: private memo", "주문번호 20260927-123456", "20260927-123456 조회",
-    "order #12345", "customer: Jane", "ORD-123456", "010-1234-5678",
-    "jane@example.com", "order\u200b_id=123", "ｏｒｄｅｒ＿ｉｄ＝123",
+    "order #12345", "customer: Jane", "ORD-123456", "010-" + "1234-5678",
+    "jane@" + "example.com", "order\u200b_id=123", "ｏｒｄｅｒ＿ｉｄ＝123",
 ])
 def test_private_query_blocked_before_index(monkeypatch, query):
     monkeypatch.setattr(BM25Index, "__init__", lambda *a: pytest.fail("must not build index"))

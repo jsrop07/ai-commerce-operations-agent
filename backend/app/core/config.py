@@ -1,5 +1,5 @@
 """Environment configuration with fail-closed write defaults."""
-
+import uuid
 from enum import StrEnum
 
 from pydantic import Field, SecretStr, model_validator
@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     tenant_id: str = Field(default="demo_store", min_length=1)
     write_mode: WriteMode = WriteMode.DISABLED
     global_write_kill: bool = True
-    database_url: str = "postgresql+psycopg://commerce:commerce@localhost:5432/commerce_ops"
+    database_url: str = ("postgresql+psycopg://commerce:commerce@localhost:5432/commerce_test")
+    postgres_v2_url: str | None = None
+    v2_tenant_id: uuid.UUID | None = None
     log_level: str = "INFO"
     retrieval_method: str | None = None  # None follows the handoff selection.
     retrieval_timeout_seconds: float = Field(default=5.0, gt=0, le=30)

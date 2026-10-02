@@ -23,6 +23,7 @@ export interface ReplanValueViewModel {
 
 export interface ReplanReviewViewModel {
   proposalId: string;
+  sourceIncomingId?: string | null;
 
   status:
     ScheduleReplanProposal["status"];
@@ -104,6 +105,12 @@ function sourceLabel(
     ScheduleReplanProposal["source_classification"],
 ): string {
   switch (source) {
+    case "LIVE_READ":
+      return "실시간 조회 자료";
+    case "FILE_IMPORT":
+      return "파일 입력 자료";
+    case "UNKNOWN":
+      return "Source 확인 필요";
     case "SANITIZED_REAL":
       return "실제 기반 비식별 자료";
 
@@ -172,6 +179,7 @@ export function buildReplanReviewViewModel(
   return {
     proposalId:
       proposal.proposal_id,
+    sourceIncomingId: proposal.source_incoming_id ?? proposal.incoming_id,
 
     status:
       proposal.status,
@@ -217,7 +225,7 @@ export function buildReplanReviewViewModel(
 
     conflictLabel:
       proposal.conflict ??
-      "확인된 충돌 없음",
+      "충돌 여부 확인 필요",
 
     asOf:
       proposal.as_of,

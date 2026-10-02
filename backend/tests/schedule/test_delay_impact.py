@@ -49,12 +49,14 @@ def sample_tasks() -> tuple[ScheduledTask, ...]:
             deadline=datetime(2026, 10, 10, 18, 0, tzinfo=SEOUL),
             depends_on_incoming=True,
             lag_hours=0,
+            incoming_id="incoming-demo-001",
         ),
         ScheduledTask(
             task_id="task-product-page",
             deadline=datetime(2026, 10, 11, 18, 0, tzinfo=SEOUL),
             depends_on_incoming=True,
             lag_hours=8,
+            incoming_id="incoming-demo-001",
         ),
         ScheduledTask(
             task_id="task-unrelated",
@@ -81,6 +83,7 @@ def test_fixture_three_day_delay_calculates_impact_but_not_actual() -> None:
                     2026, 10, 15, 10, 0, tzinfo=SEOUL
                 ),
                 depends_on_incoming=True,
+                incoming_id="incoming-demo-001",
             ),
         ),
     )
@@ -97,6 +100,41 @@ def test_fixture_three_day_delay_calculates_impact_but_not_actual() -> None:
     assert result.impacted_launch_event_ids == ("launch-001",)
 
     assert "task-unrelated" not in result.impacted_task_ids
+
+
+def test_same_sku_other_incoming_and_unidentified_candidates_are_excluded() -> None:
+    result = calculate_delay_impact(
+        change=fixture_change(),
+        tasks=sample_tasks() + (
+            ScheduledTask(
+                task_id="task-other-incoming",
+                deadline=BEFORE,
+                depends_on_incoming=True,
+                incoming_id="incoming-demo-002",
+            ),
+            ScheduledTask(
+                task_id="task-legacy-unidentified",
+                deadline=BEFORE,
+                depends_on_incoming=True,
+            ),
+        ),
+        reservations=(
+            ReservationImpactCandidate("reservation-001", "incoming-demo-001"),
+            ReservationImpactCandidate("reservation-other-incoming", "incoming-demo-002"),
+        ),
+        launch_events=(
+            LaunchImpactCandidate("launch-001", BEFORE, True, "incoming-demo-001"),
+            LaunchImpactCandidate("launch-other-incoming", BEFORE, True, "incoming-demo-002"),
+            LaunchImpactCandidate("launch-legacy-unidentified", BEFORE, True),
+        ),
+    )
+
+    assert result.impacted_task_ids == ("task-inspection", "task-product-page")
+    assert result.impacted_reservation_ids == ("reservation-001",)
+    assert result.impacted_launch_event_ids == ("launch-001",)
+    assert {item.target_id for item in result.impact_path} == {
+        "task-inspection", "task-product-page", "reservation-001", "launch-001"
+    }
 
 
 def test_impact_path_preserves_source_and_before_after() -> None:
@@ -218,6 +256,29 @@ def test_null_expected_at_is_not_replaced_with_fake_date(
     assert result.status == ImpactStatus.BLOCKED
     assert result.delay_hours is None
     assert result.actual_delay_confirmed is False
+    assert result.impact_path == ()
+
+
+@pytest.mark.parametrize("after", [BEFORE, BEFORE - timedelta(hours=1)])
+def test_nonpositive_delay_has_no_impact_path(after: datetime) -> None:
+    fixture = fixture_change()
+    result = calculate_delay_impact(
+        change=IncomingDateChange(
+            incoming_id=fixture.incoming_id,
+            before_expected_at=BEFORE,
+            after_expected_at=after,
+            evidence=fixture.evidence,
+        ),
+        tasks=sample_tasks(),
+        reservations=(ReservationImpactCandidate("reservation-001", "incoming-demo-001"),),
+        launch_events=(LaunchImpactCandidate("launch-001", BEFORE, True, "incoming-demo-001"),),
+    )
+
+    assert result.actual_delay_confirmed is False
+    assert result.impacted_task_ids == ()
+    assert result.impacted_reservation_ids == ()
+    assert result.impacted_launch_event_ids == ()
+    assert result.impact_path == ()
 
 
 def test_fixture_is_never_promoted_to_sanitized_real() -> None:
