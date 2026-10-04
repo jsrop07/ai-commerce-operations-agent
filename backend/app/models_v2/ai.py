@@ -102,10 +102,12 @@ class ConversationV2(
             "id",
             name="uq_ai_conversations_tenant_id_id",
         ),
+        Index("ix_ai_conversations_owner_recent", "tenant_id", "owner_actor_id", "updated_at"),
         {"schema": "ai"},
     )
 
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    owner_actor_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     conversation_status: Mapped[str] = mapped_column(
         String(32),
         nullable=False,
@@ -152,6 +154,8 @@ class MessageV2(
 
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    intent: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    analysis_kind: Mapped[str | None] = mapped_column(String(64), nullable=True)
     response_status: Mapped[str] = mapped_column(
         String(32),
         nullable=False,
@@ -224,6 +228,8 @@ class MessageContextV2(
     )
 
     page_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    target_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     product_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),

@@ -43,6 +43,7 @@ from backend.app.services.offline_sale import OfflineSalePipeline
 from backend.app.services.reservation_tasks import ReservationTaskService
 from backend.app.services.retrieval_runtime import RetrievalRuntime
 from backend.app.api.catalog_v2 import (router as catalog_v2_router,)
+from backend.app.api.conversations_v2 import router as conversations_v2_router
 
 def create_app(
     settings: Settings | None = None,
@@ -62,6 +63,8 @@ def create_app(
         allow_origins=[
             "http://localhost:5173",
             "http://127.0.0.1:5173",
+            "http://localhost:55174",
+            "http://127.0.0.1:55174",
         ],
         allow_credentials=False,
         allow_methods=[
@@ -157,6 +160,7 @@ def create_app(
     application.include_router(schedule_router)
     application.include_router(workflows_router)
     application.include_router(catalog_v2_router)
+    application.include_router(conversations_v2_router)
     return application
 
 

@@ -1,6 +1,14 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 import EnvironmentBanner, { type EnvironmentVariant } from "../components/EnvironmentBanner";
+import {
+  CommonAiDrawerHost,
+} from "./CommonAiDrawerContext";
 import { resolveRoute, routes } from "./routes";
+
+
 
 function currentPath() {
   return window.location.pathname;
@@ -39,6 +47,7 @@ export default function App({ environment }: { environment?: EnvironmentVariant 
   };
 
   return (
+    <CommonAiDrawerHost>
     <div className="app">
       <EnvironmentBanner variant={activeEnvironment} />
       <div className="app-frame">
@@ -83,5 +92,6 @@ export default function App({ environment }: { environment?: EnvironmentVariant 
         </section>
       </div>
     </div>
+    </CommonAiDrawerHost>
   );
 }

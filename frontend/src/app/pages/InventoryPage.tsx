@@ -21,6 +21,8 @@ import type {
   TaskSummary,
 } from "../../types/contracts";
 import { getDay08Inventory } from "../../api/day08";
+import CatalogBrowser from "../../features/catalog/CatalogBrowser";
+export { CatalogPagination } from "../../features/catalog/CatalogBrowser";
 import QualityStatus from "../../features/integrations/QualityStatus";
 
 interface ProductCatalogData {
@@ -69,7 +71,7 @@ function displayRiskLevel(
   return value ?? "미제공";
 }
 
-export default function InventoryPage() {
+function InventorySnapshotSection() {
   const [inventory, setInventory] =
     useState<ApiEnvelope<InventorySnapshot[]> | null>(null);
   const [catalog, setCatalog] =
@@ -152,8 +154,7 @@ export default function InventoryPage() {
   if (inventoryError) {
     return (
       <div
-        className="page"
-        data-testid="route-inventory"
+        className="inventory-snapshot-content"
       >
         <SystemState
           state="denied"
@@ -166,8 +167,7 @@ export default function InventoryPage() {
   if (!inventory || !catalog || !tasks) {
     return (
       <div
-        className="page"
-        data-testid="route-inventory"
+        className="inventory-snapshot-content"
       >
         <SystemState state="loading" />
       </div>
@@ -265,8 +265,7 @@ export default function InventoryPage() {
   if (data.length === 0) {
     return (
       <div
-        className="page"
-        data-testid="route-inventory"
+        className="inventory-snapshot-content"
       >
         <SystemState
           state="empty"
@@ -279,12 +278,9 @@ export default function InventoryPage() {
 
   return (
     <div
-      className="page"
-      data-testid="route-inventory"
+      className="inventory-snapshot-content"
     >
       <div className="toolbar">
-        <strong>상품·재고</strong>
-
         <span className="right tertiary">
           조회 기준 시각{" "}
           <time dateTime={inventory.as_of}>
@@ -467,6 +463,19 @@ export default function InventoryPage() {
         taskProposals={inventoryTaskProposals}
         onClose={closeInventoryDetail}
       />
+    </div>
+  );
+}
+
+export default function InventoryPage() {
+  return (
+    <div className="page" data-testid="route-inventory">
+      <h1>상품·재고</h1>
+      <CatalogBrowser />
+      <section aria-label="재고 Snapshot" data-testid="inventory-snapshot-section">
+        <h2>재고 Snapshot</h2>
+        <InventorySnapshotSection />
+      </section>
     </div>
   );
 }

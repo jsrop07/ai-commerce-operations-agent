@@ -14,7 +14,16 @@ import {
   vi,
 } from "vitest";
 import InventoryPage from "../src/app/pages/InventoryPage";
-import { mockHandlers } from "../src/mocks/handlers";
+import { mockApiGet, mockHandlers } from "../src/mocks/handlers";
+
+vi.mock("../src/api/day08", () => ({
+  getDay08Inventory: () => mockApiGet("/api/v1/inventory"),
+}));
+vi.mock("../src/api/catalog", () => ({
+  getCatalogSummary: () => Promise.reject(new Error("Catalog outside this test")),
+  getCatalogProducts: () => Promise.reject(new Error("Catalog outside this test")),
+  getCatalogCategories: () => Promise.resolve({ data: [] }),
+}));
 
 afterEach(() => {
   vi.restoreAllMocks();

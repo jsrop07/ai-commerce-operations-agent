@@ -5,5 +5,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./tests/setup.ts",
     css: true,
+    env: {
+      VITE_USE_REAL_BACKEND: "false",
+    },
   },
 });

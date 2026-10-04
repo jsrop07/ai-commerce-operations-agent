@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/app/App";
 import { routes } from "../src/app/routes";
@@ -542,7 +542,7 @@ describe("InsightsPage actual backend", () => {
     setupRetrieval(undefined, 200, undefined, 200, { ...actualSummaryData, r07: undefined });
     render(<InsightsPage />);
     const actual = await screen.findByTestId("actual-scale-retrieval-summary");
-    expect(await within(actual).findByRole("status")).toHaveTextContent("R07 평가 결과 미수신");
+    await waitFor(() => expect(within(actual).getByRole("status")).toHaveTextContent("R07 평가 결과 미수신"));
     expect(screen.queryByTestId("r07-reranker")).not.toBeInTheDocument();
     expect(screen.queryByTestId("r07-compression")).not.toBeInTheDocument();
   });
@@ -567,10 +567,11 @@ describe("InsightsPage actual backend", () => {
       "actual-scale-retrieval-summary",
     );
 
-    expect(actual).toHaveTextContent(
-      "PRODUCT 한정 actual-scale retrieval 평가",
-    );
-
+    await waitFor(() => {
+      expect(actual).toHaveTextContent(
+        "PRODUCT 한정 actual-scale retrieval 평가",
+      );
+    });
     expect(actual).toHaveTextContent(
       "PRIVATE_ACTUAL_EVAL",
     );
@@ -697,13 +698,9 @@ const actual = await screen.findByTestId(
   "actual-scale-retrieval-summary",
 );
 
-const unavailable = await within(actual).findByRole(
-  "status",
-);
-
-expect(unavailable).toHaveTextContent(
+await waitFor(() => expect(within(actual).getByRole("status")).toHaveTextContent(
   "현재 환경에서는 실제 규모 평가 요약을 사용할 수 없습니다.",
-);
+));
 
   expect(actual).not.toHaveTextContent(
     "문서 2167",
