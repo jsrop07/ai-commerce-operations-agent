@@ -11,9 +11,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.api.catalog_v2 import _require_catalog_tenant, _require_v2_runtime
 from backend.app.core.config import Environment
+from backend.app.services.c09_view_context import ViewContextInput
 from backend.app.services.conversation_v2 import (
+    AnalysisKind,
     C09ContractError,
+    Intent,
+    MessageResponseStatus,
     TargetInput,
+    analyze_turn,
     append_turn,
     create_conversation,
     read_conversation,
@@ -28,6 +33,7 @@ router = APIRouter(prefix="/api/v1/conversations", tags=["conversations-v2"])
 class ContextInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    scope: Literal["ENTITY"] = "ENTITY"
     targetType: Literal["PRODUCT", "INCOMING", "TASK"]
     targetId: str = Field(min_length=1, max_length=255)
     targetLabel: str = Field(min_length=1, max_length=255)
@@ -40,19 +46,27 @@ class ContextInput(BaseModel):
 
 class CreateConversationInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    context: ContextInput
+    context: ContextInput | ViewContextInput
 
 
 class AppendTurnInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    context: ContextInput
-    intent: Literal["INSPECT_TARGET", "FOLLOW_RELATED_TARGET"]
+    context: ContextInput | ViewContextInput
+    intent: Intent
+    analysis_kind: AnalysisKind | None = None
+    request_revision: int | None = Field(default=None, ge=1)
 
 
 class ContextView(BaseModel):
     context_revision: int
-    target_type: str
-    target_id: str
+    scope: Literal["ENTITY", "VIEW"] = "ENTITY"
+    page: str | None = None
+    filters: dict | None = None
+    search: str | None = None
+    date_range: dict | None = None
+    sort: dict | None = None
+    target_type: str | None
+    target_id: str | None
     target_label: str | None
     source: str | None
     source_as_of: datetime | None
@@ -62,11 +76,13 @@ class ContextView(BaseModel):
 class MessageView(BaseModel):
     message_id: str
     message_order: int
-    role: str
+    role: Literal["USER", "ASSISTANT"]
     content: str
-    response_status: str
-    intent: str | None
-    analysis_kind: str | None
+    response_status: MessageResponseStatus
+    intent: Intent | None
+    analysis_kind: AnalysisKind | None
+    request_message_id: str | None = None
+    evidence_ids: list[str]
     context: ContextView
 
 
@@ -86,7 +102,7 @@ class ConversationView(BaseModel):
 
 
 def _runtime(request: Request):
-    # Auth middleware has not yet been installed. Client headers/body never establish ownership.
+    # Only server middleware may establish ownership through request scope.
     actor_id = request.scope.get("c09_trusted_actor_id")
     if not isinstance(actor_id, str) or not actor_id:
         raise HTTPException(status_code=403, detail="C09_TRUSTED_ACTOR_REQUIRED")
@@ -117,6 +133,10 @@ def _envelope(tenant_id: UUID, data):
     )
 
 
+def _canonical_context(context: ContextInput | ViewContextInput):
+    return context.canonical() if isinstance(context, ContextInput) else context
+
+
 @router.post("", response_model=ApiEnvelope[ConversationView], status_code=201)
 def new_conversation(request: Request, payload: CreateConversationInput):
     session_factory, tenant_id, actor_id = _runtime(request)
@@ -124,7 +144,8 @@ def new_conversation(request: Request, payload: CreateConversationInput):
         _require_catalog_tenant(session, tenant_id)
         try:
             row = create_conversation(
-                session, tenant_id=tenant_id, actor_id=actor_id, target=payload.context.canonical()
+                session, tenant_id=tenant_id, actor_id=actor_id,
+                target=_canonical_context(payload.context)
             )
             data = read_conversation(
                 session, tenant_id=tenant_id, actor_id=actor_id, conversation_id=row.id
@@ -140,14 +161,31 @@ def append_message(request: Request, conversation_id: UUID, payload: AppendTurnI
     with session_factory() as session:
         _require_catalog_tenant(session, tenant_id)
         try:
-            append_turn(
-                session,
-                tenant_id=tenant_id,
-                actor_id=actor_id,
-                conversation_id=conversation_id,
-                target=payload.context.canonical(),
-                intent=payload.intent,
-            )
+            if payload.analysis_kind is None and payload.request_revision is None:
+                append_turn(
+                    session,
+                    tenant_id=tenant_id,
+                    actor_id=actor_id,
+                    conversation_id=conversation_id,
+                    target=_canonical_context(payload.context),
+                    intent=payload.intent,
+                )
+            elif (
+                payload.analysis_kind not in (None, "NONE")
+                and payload.request_revision is not None
+            ):
+                analyze_turn(
+                    session,
+                    tenant_id=tenant_id,
+                    actor_id=actor_id,
+                    conversation_id=conversation_id,
+                    target=_canonical_context(payload.context),
+                    intent=payload.intent,
+                    analysis_kind=payload.analysis_kind,
+                    request_revision=payload.request_revision,
+                )
+            else:
+                raise C09ContractError("HOLD", "INCOMPLETE_ANALYSIS_REQUEST")
             data = read_conversation(
                 session, tenant_id=tenant_id, actor_id=actor_id, conversation_id=conversation_id
             )

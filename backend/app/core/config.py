@@ -5,6 +5,8 @@ from enum import StrEnum
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from backend.app.core.c09_actor import valid_c09_actor_id
+
 
 class Environment(StrEnum):
     LOCAL = "LOCAL"
@@ -31,6 +33,7 @@ class Settings(BaseSettings):
     database_url: str = ("postgresql+psycopg://commerce:commerce@localhost:5432/commerce_test")
     postgres_v2_url: str | None = None
     v2_tenant_id: uuid.UUID | None = None
+    c09_dev_actor_id: str | None = None
     log_level: str = "INFO"
     retrieval_method: str | None = None  # None follows the handoff selection.
     retrieval_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
@@ -47,6 +50,8 @@ class Settings(BaseSettings):
     
     @model_validator(mode="after")
     def enforce_production_read_only(self) -> "Settings":
+        if self.c09_dev_actor_id is not None and not valid_c09_actor_id(self.c09_dev_actor_id):
+            raise ValueError("c09_dev_actor_id has invalid C09 actor format")
         if self.environment == Environment.PRODUCTION_READ:
             if self.write_mode != WriteMode.DISABLED or not self.global_write_kill:
                 raise ValueError("PRODUCTION_READ requires disabled writes and global kill enabled")

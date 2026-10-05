@@ -1,7 +1,6 @@
 import type { ApiEnvelope } from "../types/contracts";
+import { backendRequest } from "./backendHttp";
 
-const useRealBackend = import.meta.env.VITE_USE_REAL_BACKEND === "true";
-const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL ?? "";
 
 export interface CatalogSummary {
   product_count: number;
@@ -213,14 +212,7 @@ export function parseCatalogProducts(value: unknown): ApiEnvelope<CatalogProduct
 }
 
 async function realApiGet(path: string, signal?: AbortSignal): Promise<unknown> {
-  if (!useRealBackend) throw new Error("Catalog requires real backend mode");
-  const response = await fetch(`${backendBaseUrl}${path}`, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    signal,
-  });
-  if (!response.ok) throw new Error(`Backend GET failed: ${response.status}`);
-  return response.json() as Promise<unknown>;
+  return backendRequest(path, "GET", undefined, signal);
 }
 
 export async function getCatalogSummary(signal?: AbortSignal): Promise<ApiEnvelope<CatalogSummary>> {

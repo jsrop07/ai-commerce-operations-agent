@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import ReservationList from "../../features/reservations/ReservationList";
+import { useOptionalCommonAiDrawer } from "../CommonAiDrawerContext";
 
 import {
   getDay09Reservations,
@@ -24,6 +25,7 @@ const orders = [
 ];
 
 export default function OrdersPage() {
+  const aiDrawer = useOptionalCommonAiDrawer();
   const useRealBackend =
     import.meta.env.VITE_USE_REAL_BACKEND === "true";
 
@@ -77,7 +79,12 @@ export default function OrdersPage() {
 }, [useRealBackend]);
   return (
     <div className="page" data-testid="route-orders">
-      <div className="toolbar"><strong>전체 주문 247건</strong><SourceBadge>Cafe24 189건</SourceBadge><SourceBadge>Toss POS 58건</SourceBadge><RiskBadge level="critical" /><span className="right tertiary">합성 주문 · 조회 전용</span></div>
+      <div className="toolbar"><strong>전체 주문 247건</strong><SourceBadge>Cafe24 189건</SourceBadge><SourceBadge>Toss POS 58건</SourceBadge><RiskBadge level="critical" />
+        {aiDrawer && <button type="button" aria-label="주문 & 매출 화면 운영 AI 열기"
+          onClick={() => aiDrawer.openAiDrawer({ scope: "VIEW", page: "ORDERS_SALES", filters: {} })}>
+          주문 & 매출 운영 AI
+        </button>}
+        <span className="right tertiary">합성 주문 · 조회 전용</span></div>
       <div className="split">
         <section className="card"><table className="dense-table"><thead><tr><th>주문번호</th><th>소스</th><th>고객</th><th>상품</th><th>수량</th><th>금액</th><th>상태</th><th>배송 예정</th><th>위험</th></tr></thead>
           <tbody>{orders.map((row) => <tr key={row[0]} className={row[8] ? "risk-row" : ""}><td className="mono">{row[0]}</td><td><SourceBadge>{row[1]}</SourceBadge></td><td>{row[2]}</td><td>{row[3]}</td><td className="number">{row[4]}</td><td className="number">{row[5]}</td><td><StatusBadge>{row[6]}</StatusBadge></td><td>{row[7]}</td><td>{row[8] && <span className="badge critical">⚑ {row[8]}</span>}</td></tr>)}</tbody>

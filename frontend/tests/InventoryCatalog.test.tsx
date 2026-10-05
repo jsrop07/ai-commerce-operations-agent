@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import InventoryPage, { CatalogPagination } from "../src/app/pages/InventoryPage";
+import { CommonAiDrawerHost } from "../src/app/CommonAiDrawerContext";
 import { getCatalogCategories, getCatalogProducts, getCatalogSummary } from "../src/api/catalog";
 import { getDay08Inventory } from "../src/api/day08";
 import { mockApiGet } from "../src/mocks/handlers";
@@ -63,6 +64,48 @@ const catalog = () => screen.getByTestId("catalog-section");
 const inventory = () => screen.getByTestId("inventory-snapshot-section");
 
 describe("InventoryPage C13 Catalog Browser", () => {
+  it("opens the AI drawer with Cafe24 product_no and does not analyze on open", async () => {
+    vi.mocked(getCatalogProducts).mockResolvedValue(envelope({
+      ...productsPage(), items: [{ ...baseProduct, cafe24_product_no: 245,
+        product_name: "IMPERIAL KNIGHTS: KNIGHT QUESTORIS" }],
+    }));
+    render(<CommonAiDrawerHost><InventoryPage /></CommonAiDrawerHost>);
+    const open = await within(catalog()).findByRole("button", {
+      name: "IMPERIAL KNIGHTS: KNIGHT QUESTORIS 운영 AI 열기",
+    });
+    fireEvent.click(open);
+    const drawer = screen.getByRole("dialog", { name: "운영 AI" });
+    expect(within(drawer).getByText("245")).toBeInTheDocument();
+    expect(within(drawer).getByText("아직 분석을 실행하지 않았습니다.")).toBeInTheDocument();
+    expect(within(drawer).getByText("상품정보 · 실제 Catalog")).toBeInTheDocument();
+  });
+
+  it("opens a VIEW scope from structured catalog filters", async () => {
+    render(<CommonAiDrawerHost><InventoryPage /></CommonAiDrawerHost>);
+    await within(catalog()).findByRole("button", { name: "상품·재고 화면 운영 AI 열기" });
+    fireEvent.change(within(catalog()).getByRole("combobox", { name: "판매 필터" }), {
+      target: { value: "T" },
+    });
+    fireEvent.change(within(catalog()).getByRole("combobox", { name: "품절 필터" }), {
+      target: { value: "false" },
+    });
+    fireEvent.click(within(catalog()).getByRole("button", { name: "상품·재고 화면 운영 AI 열기" }));
+    const drawer = screen.getByRole("dialog", { name: "운영 AI" });
+    expect(within(drawer).getByText("PRODUCT_INVENTORY", { selector: "dd" })).toBeInTheDocument();
+    expect(within(drawer).getByText(/selling: true/)).toBeInTheDocument();
+    expect(within(drawer).getByText(/sold_out: false/)).toBeInTheDocument();
+    expect(within(drawer).getByText("아직 분석을 실행하지 않았습니다.")).toBeInTheDocument();
+  });
+
+  it("does not send a phone-like catalog search into VIEW context", async () => {
+    render(<CommonAiDrawerHost><InventoryPage /></CommonAiDrawerHost>);
+    const search = within(catalog()).getByRole("textbox", { name: "Catalog 검색어" });
+    fireEvent.change(search, { target: { value: "010-1234-5678" } });
+    fireEvent.submit(search.closest("form")!);
+    const viewButton = within(catalog()).getByRole("button", { name: "상품·재고 화면 운영 AI 열기" });
+    expect(viewButton).toBeDisabled();
+    expect(screen.queryByRole("dialog", { name: "운영 AI" })).not.toBeInTheDocument();
+  });
   it("keeps Catalog master separate, shows real category names, and hides operational", async () => {
     render(<InventoryPage />);
     expect(await within(catalog()).findByText(/상품 2167건 · 카테고리 123건/)).toBeInTheDocument();

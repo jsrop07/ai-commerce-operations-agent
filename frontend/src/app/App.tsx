@@ -47,7 +47,7 @@ export default function App({ environment }: { environment?: EnvironmentVariant 
   };
 
   return (
-    <CommonAiDrawerHost>
+    <CommonAiDrawerHost key={pathname}>
     <div className="app">
       <EnvironmentBanner variant={activeEnvironment} />
       <div className="app-frame">

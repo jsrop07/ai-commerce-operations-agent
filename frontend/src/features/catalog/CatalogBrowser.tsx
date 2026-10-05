@@ -19,6 +19,7 @@ import {
 import {
   useOptionalCommonAiDrawer,
 } from "../../app/CommonAiDrawerContext";
+import type { ViewContext } from "../../api/conversations";
 const pageSize = 50;
 
 export function CatalogPagination({
@@ -188,6 +189,26 @@ export default function CatalogBrowser() {
     (urlState.category_3 === null || !!selectedLeaf);
   const categoryNo = selectedLeaf?.cafe24_category_no ?? selectedMiddle?.cafe24_category_no ??
     selectedRoot?.cafe24_category_no;
+  const viewSearch = urlState.q.trim();
+  const safeViewSearch = viewSearch.length <= 80 &&
+    /^[A-Za-z0-9가-힣 &()_.-]*$/.test(viewSearch) &&
+    !/(?:order[_ -]?id|order[_ -]?item[_ -]?id|order[_ -]?line[_ -]?id|customer[_ -]?id|inquiry|payment|shipping|고객\s*(?:이름|성명|전화|주소|메일)|문의\s*원문)/i.test(viewSearch) &&
+    !/(?:^|[^\d])01[016789][-. ]?\d{3,4}[-. ]?\d{4}(?:$|[^\d])/.test(viewSearch) &&
+    !/\b\d{8}-\d{6,}\b/.test(viewSearch);
+
+  function openInventoryView() {
+    if (!aiDrawer || !safeViewSearch) return;
+    const filters: ViewContext["filters"] = {};
+    if (urlState.selling_status) filters.selling = urlState.selling_status === "T";
+    if (urlState.sold_out) filters.sold_out = urlState.sold_out === "true";
+    if (selectedRoot) filters.major_category = selectedRoot.category_name;
+    aiDrawer.openAiDrawer({
+      scope: "VIEW", page: "PRODUCT_INVENTORY", filters,
+      search: viewSearch || null,
+      date_range: null,
+      sort: { by: urlState.sort_by, direction: urlState.sort_dir },
+    });
+  }
 
   useEffect(() => {
     if (!hierarchyReady) return;
@@ -268,6 +289,8 @@ export default function CatalogBrowser() {
   return (
     <section aria-labelledby="catalog-section-title" data-testid="catalog-section" className="catalog-section">
       <h2 id="catalog-section-title">상품 Catalog</h2>
+      {aiDrawer && <button type="button" onClick={openInventoryView}
+        disabled={!safeViewSearch} aria-label="상품·재고 화면 운영 AI 열기">상품·재고 화면 운영 AI</button>}
       <p className="muted">상품/카테고리 master입니다. 실제 재고 수량은 아래 재고 Snapshot에서 별도로 확인합니다.</p>
       {summaryError ? <SystemState state="denied" title="상품 Catalog를 불러오지 못했습니다" /> :
         !summary ? <SystemState state="loading" /> : (

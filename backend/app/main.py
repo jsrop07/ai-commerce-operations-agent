@@ -2,7 +2,7 @@
 
 from threading import Lock
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
@@ -13,6 +13,10 @@ from backend.app.api.cafe24_bootstrap import (
 )
 from backend.app.api.cafe24_oauth import router as cafe24_oauth_router
 from backend.app.api.cafe24_smoke import router as cafe24_smoke_router
+from backend.app.api.catalog_v2 import (
+    router as catalog_v2_router,
+)
+from backend.app.api.conversations_v2 import router as conversations_v2_router
 from backend.app.api.demo import router as demo_router
 from backend.app.api.inventory import router as inventory_router
 from backend.app.api.mappings import router as mappings_router
@@ -25,12 +29,11 @@ from backend.app.api.schedule import router as schedule_router
 from backend.app.api.workflows import (
     router as workflows_router,
 )
-from backend.app.core.config import Settings, get_settings
+from backend.app.core.config import Environment, Settings, get_settings
 from backend.app.core.observability import (
     RedactCafe24OAuthQueryMiddleware,
     configure_logging,
 )
-
 from backend.app.db.session import build_engine
 from backend.app.db.session_v2 import (
     build_v2_engine,
@@ -42,8 +45,7 @@ from backend.app.services.ingestion.mapping_queue import MappingReviewQueue
 from backend.app.services.offline_sale import OfflineSalePipeline
 from backend.app.services.reservation_tasks import ReservationTaskService
 from backend.app.services.retrieval_runtime import RetrievalRuntime
-from backend.app.api.catalog_v2 import (router as catalog_v2_router,)
-from backend.app.api.conversations_v2 import router as conversations_v2_router
+
 
 def create_app(
     settings: Settings | None = None,
@@ -55,6 +57,12 @@ def create_app(
     resolved = settings or get_settings()
     configure_logging(resolved.log_level)
     application = FastAPI( title="AI Commerce Operations Agent", version="0.1.0",)
+    if resolved.environment in {Environment.LOCAL, Environment.TEST} and resolved.c09_dev_actor_id:
+        @application.middleware("http")
+        async def c09_development_actor(request: Request, call_next):
+            request.scope["c09_trusted_actor_id"] = resolved.c09_dev_actor_id
+            return await call_next(request)
+
     application.add_middleware(RedactCafe24OAuthQueryMiddleware,)
     # 로컬 Frontend Actual Browser E2E용 CORS.
     # Production Write 허용과는 무관하며 HTTP GET 접근만 허용한다.

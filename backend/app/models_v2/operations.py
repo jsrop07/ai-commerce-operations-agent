@@ -52,12 +52,37 @@ class OrderV2(UUIDIdentityMixin, TenantV2Mixin, TimestampV2Mixin, BaseV2):
             "tenant_id",
             "source_order_at",
         ),
+        CheckConstraint(
+            "paid IN ('T', 'F')",
+            name="ck_operations_orders_paid",
+        ),
+        CheckConstraint(
+            "shipping_status IN ('T', 'F', 'M')",
+            name="ck_operations_orders_shipping_status",
+        ),
+        CheckConstraint(
+            "canceled IN ('T', 'F', 'M')",
+            name="ck_operations_orders_canceled",
+        ),
         {"schema": "operations"},
     )
 
     external_order_id: Mapped[str] = mapped_column(String(255), nullable=False)
     source_system: Mapped[str] = mapped_column(String(32), nullable=False)
+    paid: Mapped[str] = mapped_column(
+        String(1),
+        nullable=False,
+    )
 
+    shipping_status: Mapped[str] = mapped_column(
+        String(1),
+        nullable=False,
+    )
+
+    canceled: Mapped[str] = mapped_column(
+        String(1),
+        nullable=False,
+    )
     total_order_amount: Mapped[Decimal | None] = mapped_column(
         Numeric(14, 2), nullable=True
     )

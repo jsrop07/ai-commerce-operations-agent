@@ -7,9 +7,10 @@ import {
 import CommonAiDrawer, {
   type AiPanelContext,
 } from "../components/CommonAiDrawer";
+import { contextIdentity } from "../api/conversations";
 
 type AiDrawerState =
-  | { status: "CLOSED" }
+  | { status: "CLOSED"; context: AiPanelContext | null }
   | {
       status: "IDLE_CONTEXT";
       context: AiPanelContext;
@@ -45,6 +46,7 @@ export function CommonAiDrawerHost({
   const [state, setState] =
     useState<AiDrawerState>({
       status: "CLOSED",
+      context: null,
     });
 
   const openAiDrawer = (
@@ -57,9 +59,7 @@ export function CommonAiDrawerHost({
   };
 
   const closeAiDrawer = () => {
-    setState({
-      status: "CLOSED",
-    });
+    setState((current) => ({ status: "CLOSED", context: current.context }));
   };
 
   return (
@@ -72,12 +72,9 @@ export function CommonAiDrawerHost({
       {children}
 
       <CommonAiDrawer
+        key={state.context ? contextIdentity(state.context) : "closed"}
         open={state.status === "IDLE_CONTEXT"}
-        context={
-          state.status === "IDLE_CONTEXT"
-            ? state.context
-            : null
-        }
+        context={state.context}
         onClose={closeAiDrawer}
       />
     </AiDrawerActionsContext.Provider>
