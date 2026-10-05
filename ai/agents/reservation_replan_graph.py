@@ -3,6 +3,13 @@ from __future__ import annotations
 import json
 from typing import Any, Literal, TypedDict
 
+from copy import deepcopy
+
+from ai.services.reservation_replan_assist import (
+    ReservationReplanAssistContractError,
+    run_reservation_replan_ai_assist,
+)
+
 from langgraph.graph import END, START, StateGraph
 
 AgentStatus = Literal[
@@ -47,9 +54,14 @@ class AgentState(TypedDict, total=False):
     # Day11 실행 증거용 내부 필드
     transition_history: list[dict[str, str]]
     provider_write_count: int
+    review_result: dict[str, Any]
+    reviewed_proposal: dict[str, Any]
 
 
 TASK_TYPE = "reservation_replan_review"
+
+# R10 runtime callable. Tests may monkeypatch only this symbol.
+_R10_AI_ASSIST_RUNNER = run_reservation_replan_ai_assist
 
 
 def _append_transition(
@@ -361,27 +373,124 @@ def assist_context(state: AgentState) -> dict[str, Any]:
         )
     )
 
-    # Day11 현재 실제 Base model runtime은 아직 없음.
-    model_result = {
-        "status": "OPEN",
-        "used": False,
-        "model_id": None,
-        "adapter_id": None,
-        "reason": "BASE_MODEL_RUNTIME_NOT_AVAILABLE",
-    }
+    if not requires_ai_assist:
+        model_result = {
+            "status": "OPEN",
+            "used": False,
+            "model_id": None,
+            "adapter_id": None,
+            "reason": "BASE_MODEL_RUNTIME_NOT_AVAILABLE",
+        }
 
-    retrieval_result = {
-        "status": "PRE_RESOLVED_EVIDENCE",
-        "used": True,
-        "evidence_ids": evidence_ids,
-        "reason": (
-            "DAY11_GRAPH_CONSUMES_EXISTING_"
-            "VERIFIED_EVIDENCE"
-        ),
-    }
+        retrieval_result = {
+            "status": "PRE_RESOLVED_EVIDENCE",
+            "used": True,
+            "evidence_ids": evidence_ids,
+            "reason": (
+                "DAY11_GRAPH_CONSUMES_EXISTING_"
+                "VERIFIED_EVIDENCE"
+            ),
+        }
 
-    if requires_ai_assist:
-        reason = "AI_ASSIST_REQUIRED_BUT_RUNTIME_OPEN"
+        reason = (
+            "RULE_AND_EVIDENCE_SUFFICIENT_"
+            "AI_ASSIST_OPTIONAL_OPEN"
+        )
+
+        return {
+            "current_node": "assist_context",
+            "status": "RUNNING",
+            "reason": reason,
+            "retrieval_result": retrieval_result,
+            "model_result": model_result,
+            "next_allowed_nodes": ["build_proposal"],
+            "transition_history": _append_transition(
+                state,
+                node="assist_context",
+                reason=reason,
+            ),
+            "provider_write_count": 0,
+        }
+
+    retrieval_result = state.get(
+        "retrieval_result"
+    ) or {}
+    citations = retrieval_result.get("citations")
+
+    if not isinstance(citations, list) or not citations:
+        reason = "AI_ASSIST_EVIDENCE_PAYLOAD_REQUIRED"
+        return {
+            "current_node": "assist_context",
+            "status": "BLOCKED",
+            "reason": reason,
+            "retrieval_result": retrieval_result,
+            "model_result": {
+                "status": "NOT_RUN",
+                "used": False,
+                "runtime_kind": "REAL_MODEL",
+                "reason": reason,
+            },
+            "next_allowed_nodes": [],
+            "transition_history": _append_transition(
+                state,
+                node="assist_context",
+                reason=reason,
+            ),
+            "provider_write_count": 0,
+        }
+
+    try:
+        model_result = _R10_AI_ASSIST_RUNNER(
+            state
+        )
+    except ReservationReplanAssistContractError:
+        reason = "AI_ASSIST_INPUT_CONTRACT_FAILED"
+        return {
+            "current_node": "assist_context",
+            "status": "BLOCKED",
+            "reason": reason,
+            "retrieval_result": retrieval_result,
+            "model_result": {
+                "status": "HOLD",
+                "used": False,
+                "runtime_kind": "REAL_MODEL",
+                "reason": reason,
+            },
+            "next_allowed_nodes": [],
+            "transition_history": _append_transition(
+                state,
+                node="assist_context",
+                reason=reason,
+            ),
+            "provider_write_count": 0,
+        }
+    except Exception:
+        reason = "AI_ASSIST_RUNTIME_FAILURE"
+        return {
+            "current_node": "assist_context",
+            "status": "BLOCKED",
+            "reason": reason,
+            "retrieval_result": retrieval_result,
+            "model_result": {
+                "status": "HOLD",
+                "used": False,
+                "runtime_kind": "REAL_MODEL",
+                "reason": reason,
+            },
+            "next_allowed_nodes": [],
+            "transition_history": _append_transition(
+                state,
+                node="assist_context",
+                reason=reason,
+            ),
+            "provider_write_count": 0,
+        }
+
+    if (
+        model_result.get("status") != "ANSWER"
+        or model_result.get("used") is not True
+    ):
+        reason = "AI_ASSIST_NOT_VALIDATED"
         return {
             "current_node": "assist_context",
             "status": "BLOCKED",
@@ -397,11 +506,7 @@ def assist_context(state: AgentState) -> dict[str, Any]:
             "provider_write_count": 0,
         }
 
-    reason = (
-        "RULE_AND_EVIDENCE_SUFFICIENT_"
-        "AI_ASSIST_OPTIONAL_OPEN"
-    )
-
+    reason = "AI_ASSIST_COMPLETED"
     return {
         "current_node": "assist_context",
         "status": "RUNNING",
@@ -416,7 +521,6 @@ def assist_context(state: AgentState) -> dict[str, Any]:
         ),
         "provider_write_count": 0,
     }
-
 
 def build_proposal(state: AgentState) -> dict[str, Any]:
     rule_results = state.get("rule_results") or {}
@@ -473,6 +577,151 @@ def wait_for_human(state: AgentState) -> dict[str, Any]:
         ),
         "provider_write_count": 0,
     }
+
+
+def resume_reservation_replan_after_review(
+    persisted_state: AgentState,
+    *,
+    decision: str,
+    review_override: dict[str, Any] | None = None,
+    reviewed_proposal: dict[str, Any] | None = None,
+    reason: str | None = None,
+) -> AgentState:
+    state = AgentState(**deepcopy(dict(persisted_state)))
+
+    if (
+        state.get("status") != "WAITING"
+        or state.get("current_node") != "wait_for_human"
+        or "resume_after_human"
+        not in state.get("next_allowed_nodes", [])
+    ):
+        raise ValueError(
+            "persisted_state is not resumable WAITING state"
+        )
+
+    if state.get("provider_write_count", 0) != 0:
+        raise ValueError(
+            "provider_write_count must remain zero"
+        )
+
+    normalized = decision.strip().upper()
+    if normalized not in {"APPROVE", "EDIT", "REJECT"}:
+        raise ValueError(
+            f"unsupported review decision: {decision}"
+        )
+
+    original_actions = deepcopy(
+        state.get("proposed_actions", [])
+    )
+    history = list(
+        state.get("transition_history", [])
+    )
+
+    review_result = {
+        "decision": normalized,
+        "reason": reason,
+        "review_override": deepcopy(
+            review_override
+        ),
+        "reviewed_proposal": deepcopy(
+            reviewed_proposal
+        ),
+    }
+
+    history.append(
+        {
+            "node": "resume_after_human",
+            "reason": f"HUMAN_REVIEW_{normalized}",
+        }
+    )
+
+    if normalized == "APPROVE":
+        state.update(
+            {
+                "current_node": "resume_after_human",
+                "status": "COMPLETED",
+                "reason": "HUMAN_REVIEW_APPROVED",
+                "approval_state": "APPROVED",
+                "proposed_actions": original_actions,
+                "review_result": review_result,
+                "reviewed_proposal": deepcopy(
+                    reviewed_proposal or {}
+                ),
+                "next_allowed_nodes": [],
+                "transition_history": history,
+                "provider_write_count": 0,
+            }
+        )
+        return state
+
+    if normalized == "REJECT":
+        state.update(
+            {
+                "current_node": "resume_after_human",
+                "status": "BLOCKED",
+                "reason": "HUMAN_REVIEW_REJECTED",
+                "approval_state": "REJECTED",
+                "proposed_actions": original_actions,
+                "review_result": review_result,
+                "reviewed_proposal": deepcopy(
+                    reviewed_proposal or {}
+                ),
+                "next_allowed_nodes": [],
+                "transition_history": history,
+                "provider_write_count": 0,
+            }
+        )
+        return state
+
+    if not isinstance(review_override, dict):
+        raise ValueError(
+            "EDIT requires review_override"
+        )
+
+    proposed_delay_days = review_override.get(
+        "proposed_delay_days"
+    )
+    if (
+        isinstance(proposed_delay_days, bool)
+        or not isinstance(proposed_delay_days, int)
+        or proposed_delay_days < 0
+    ):
+        raise ValueError(
+            "EDIT proposed_delay_days must be "
+            "a non-negative integer"
+        )
+
+    if not isinstance(reviewed_proposal, dict):
+        raise ValueError(
+            "EDIT requires reviewed_proposal"
+        )
+
+    history.append(
+        {
+            "node": "wait_for_human",
+            "reason": "HUMAN_REVIEW_EDIT_REQUIRES_REVIEW",
+        }
+    )
+
+    state.update(
+        {
+            "current_node": "wait_for_human",
+            "status": "WAITING",
+            "reason": "HUMAN_REVIEW_EDIT_REQUIRES_REVIEW",
+            "approval_state": "PENDING",
+            "proposed_actions": original_actions,
+            "review_result": review_result,
+            "reviewed_proposal": deepcopy(
+                reviewed_proposal
+            ),
+            "next_allowed_nodes": [
+                "resume_after_human"
+            ],
+            "transition_history": history,
+            "provider_write_count": 0,
+        }
+    )
+    return state
 
 
 def _route_after_validate(
