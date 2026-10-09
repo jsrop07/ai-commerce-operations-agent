@@ -197,7 +197,10 @@ describe("C09 conversation drawer", () => {
     expect(await screen.findByText("확인된 관계 없음")).toBeInTheDocument();
     expect(appendAnalysis).not.toHaveBeenCalled();
     const turns = screen.getByRole("region", { name: "대화 History" }).querySelectorAll("ol > li");
-    expect(Array.from(turns, (turn) => turn.querySelector("strong")?.textContent)).toEqual(["요청 · HOLD", "분석 · NO_EDGE"]);
+    expect(Array.from(turns, (turn) => turn.querySelector("strong")?.textContent)).toEqual([
+      "요청 · HOLD · DETERMINISTIC · revision 1",
+      "분석 · NO_EDGE · DETERMINISTIC · revision 1",
+    ]);
   });
 
   it.each(["ANSWER", "HOLD", "NO_EDGE"] as const)(
@@ -429,7 +432,7 @@ describe("C09 conversation drawer", () => {
     const history = screen.getByRole("region", { name: "대화 History" });
     const turns = Array.from(history.querySelectorAll("ol > li"));
     expect(turns.map((item) => item.querySelector("strong")?.textContent))
-      .toEqual(["요청 · HOLD", "분석 · ANSWER"]);
+      .toEqual(["요청 · HOLD · DETERMINISTIC · revision 1", "분석 · ANSWER · DETERMINISTIC · revision 1"]);
     expect(within(history).getAllByText("선택 대상 확인 요청")).toHaveLength(1);
     expect(turns[1]).toHaveTextContent("product-demand:SYNTHETIC_DEMO:245:2026-10-04");
     expect(screen.queryByText(/재고 부족 확정|품절 예상 확정|재고 위험 수치/)).not.toBeInTheDocument();

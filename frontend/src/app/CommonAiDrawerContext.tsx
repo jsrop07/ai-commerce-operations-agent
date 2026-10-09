@@ -1,5 +1,6 @@
 import {
   createContext,
+  useEffect,
   useContext,
   useState,
   type ReactNode,
@@ -8,17 +9,77 @@ import CommonAiDrawer, {
   type AiPanelContext,
 } from "../components/CommonAiDrawer";
 import { contextIdentity } from "../api/conversations";
+import {
+  bootstrapDemoSession,
+  getDemoSessionStatus,
+} from "../api/demoSession";
+import { BackendHttpError } from "../api/backendHttp";
+
+export type SessionState = "ready" | "loading" | "needs-new" | "error";
+let pendingBootstrap: ReturnType<typeof bootstrapDemoSession> | null = null;
+function bootstrapOnce() {
+  if (!pendingBootstrap) {
+    pendingBootstrap = getDemoSessionStatus()
+      .catch((error: unknown) => {
+        if (
+          error instanceof BackendHttpError &&
+          (error.status === 401 || error.status === 404)
+        ) {
+          return bootstrapDemoSession();
+        }
+
+        throw error;
+      })
+      .finally(() => {
+        pendingBootstrap = null;
+      });
+  }
+
+  return pendingBootstrap;
+}
 
 type AiDrawerState =
   | { status: "CLOSED"; context: AiPanelContext | null }
   | {
       status: "IDLE_CONTEXT";
-      context: AiPanelContext;
+      context: AiPanelContext | null;
     };
 
+    const AI_DRAWER_STORAGE_KEY = "commerce-ai-drawer-state";
+
+function readStoredDrawerState(): AiDrawerState {
+  try {
+    const raw = sessionStorage.getItem(AI_DRAWER_STORAGE_KEY);
+    if (!raw) {
+      return { status: "CLOSED", context: null };
+    }
+
+    const value: unknown = JSON.parse(raw);
+
+    if (
+      typeof value !== "object" ||
+      value === null ||
+      !("status" in value) ||
+      !("context" in value) ||
+      (value.status !== "CLOSED" && value.status !== "IDLE_CONTEXT")
+    ) {
+      return { status: "CLOSED", context: null };
+    }
+
+    return {
+      status: value.status,
+      context: value.context as AiPanelContext | null,
+    };
+  } catch {
+    return { status: "CLOSED", context: null };
+  }
+}
+
 export type AiDrawerActions = {
-  openAiDrawer: (context: AiPanelContext) => void;
+  openAiDrawer: (context: AiPanelContext | null) => void;
   closeAiDrawer: () => void;
+  toggleAiDrawer: () => void;
+  isAiDrawerOpen: boolean;
 };
 
 const AiDrawerActionsContext =
@@ -40,42 +101,90 @@ export function useOptionalCommonAiDrawer(): AiDrawerActions | null {
 
 export function CommonAiDrawerHost({
   children,
+  sessionRequired = false,
 }: {
   children: ReactNode;
+  sessionRequired?: boolean;
 }) {
-  const [state, setState] =
-    useState<AiDrawerState>({
-      status: "CLOSED",
-      context: null,
-    });
+  const [sessionState, setSessionState] = useState<SessionState>(sessionRequired ? "loading" : "ready");
+  const [sessionGeneration, setSessionGeneration] = useState(0);
+  useEffect(() => {
+    if (!sessionRequired) return;
+    let active = true;
+    void bootstrapOnce().then((session) => {
+      if (!active) return;
+      setSessionState("ready");
+      const remaining = Date.parse(session.expiresAt) - Date.now();
+      const timer = window.setTimeout(() => setSessionState("needs-new"), Math.max(0, Math.min(remaining, 2_147_483_647)));
+      // A new visit gets a new host; timeout cleanup is handled below.
+      expiryTimer = timer;
+    }).catch(() => { if (active) setSessionState("error"); });
+    let expiryTimer: number | undefined;
+    return () => { active = false; if (expiryTimer !== undefined) window.clearTimeout(expiryTimer); };
+  }, [sessionRequired, sessionGeneration]);
 
-  const openAiDrawer = (
-    context: AiPanelContext,
-  ) => {
-    setState({
+  function startNewSession() {
+    try {
+      sessionStorage.removeItem("commerce-ai-active-conversation");
+    } catch {
+      // 저장소를 사용할 수 없는 환경은 무시
+    }
+    setState({ status: "CLOSED", context: null });
+    setSessionState("loading");
+    setSessionGeneration((value) => value + 1);
+  }
+
+  const [state, setState] =
+    useState<AiDrawerState>(readStoredDrawerState);
+
+    useEffect(() => {
+  try {
+    sessionStorage.setItem(
+      AI_DRAWER_STORAGE_KEY,
+      JSON.stringify(state),
+    );
+  } catch {
+    // 브라우저 저장소를 사용할 수 없어도 패널은 계속 동작
+  }
+}, [state]);
+
+  const openAiDrawer = (context: AiPanelContext | null) =>
+    setState((current) => ({
       status: "IDLE_CONTEXT",
-      context,
-    });
-  };
+      context: context ?? current.context,
+    }));
 
   const closeAiDrawer = () => {
     setState((current) => ({ status: "CLOSED", context: current.context }));
   };
 
+  const toggleAiDrawer = () => {
+    setState((current) => ({
+      status:
+        current.status === "CLOSED" ? "IDLE_CONTEXT" : "CLOSED",
+      context: current.context,
+    }));
+  };
   return (
     <AiDrawerActionsContext.Provider
       value={{
         openAiDrawer,
         closeAiDrawer,
+        toggleAiDrawer,
+        isAiDrawerOpen: state.status === "IDLE_CONTEXT",
       }}
     >
       {children}
 
       <CommonAiDrawer
-        key={state.context ? contextIdentity(state.context) : "closed"}
+        key={`${sessionGeneration}:${state.context ? contextIdentity(state.context) : "search"}`}
         open={state.status === "IDLE_CONTEXT"}
         context={state.context}
         onClose={closeAiDrawer}
+        sessionState={sessionState}
+        onStartNewSession={startNewSession}
+        onSessionExpired={() => setSessionState("needs-new")}
+        publicMode={sessionRequired}
       />
     </AiDrawerActionsContext.Provider>
   );

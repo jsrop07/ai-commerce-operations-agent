@@ -95,6 +95,8 @@ def get_workflow_state(
     thread_id: str,
 ) -> AgentStateResponse:
     """현재 tenant의 Agent workflow checkpoint를 조회한다."""
+    if request.app.state.settings.environment == Environment.DEMO:
+        raise HTTPException(status_code=403, detail="C09_ENVIRONMENT_FORBIDDEN")
 
     tenant_id = (
         request.app.state.settings.tenant_id

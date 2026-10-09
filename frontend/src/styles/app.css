@@ -176,8 +176,50 @@ button, a { -webkit-tap-highlight-color: transparent; }
   padding: var(--space-5);
 }
 
-.common-ai-backdrop { position: fixed; inset: 0; z-index: 110; border: 0; background: rgba(17, 24, 39, .24); }
-.common-ai-drawer { position: fixed; top: 0; right: 0; z-index: 120; width: min(480px, 92vw); height: 100vh; overflow-y: auto; background: var(--color-surface); border-left: 1px solid var(--color-border); box-shadow: var(--shadow-drawer); }
+/* 공통 운영 AI - 비모달 플로팅 채팅창 */
+.common-ai-drawer {
+  position: fixed;
+  right: 24px;
+  bottom: 20px;
+  z-index: 120;
+
+  width: min(420px, calc(100vw - 32px));
+  height: min(650px, calc(100dvh - 112px));
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-drawer);
+}
+
+/* 채팅창 상단 */
+.common-ai-header {
+  flex-shrink: 0;
+}
+
+/* 채팅 내용 스크롤 */
+.common-ai-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 작은 화면 대응 */
+@media (max-width: 600px) {
+  .common-ai-drawer {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+    height: min(650px, calc(100dvh - 100px));
+    border-radius: 16px;
+  }
+}
 .common-ai-header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: var(--space-5); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
 .common-ai-header h2 { margin: 0; }
 .common-ai-header button { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); font-size: 20px; cursor: pointer; }
@@ -199,6 +241,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .common-ai-recent { display: grid; gap: var(--space-2); padding-left: var(--space-5); }
 .common-ai-recent button { width: 100%; text-align: left; overflow-wrap: anywhere; }
 .common-ai-recent small { display: block; }
+.floating-ai-launcher { position: fixed; right: var(--space-5); bottom: var(--space-5); z-index: 100; padding: var(--space-3) var(--space-5); border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); box-shadow: var(--shadow-drawer); cursor: pointer; }
+.floating-ai-launcher:focus-visible { outline: 2px solid var(--color-ai); outline-offset: 2px; }
 
 .evidence-section {
   display: grid;
@@ -1060,3 +1104,1081 @@ button, a { -webkit-tap-highlight-color: transparent; }
     overflow-x: auto;
   }
 }
+/* Dashboard KPI - Light Command Center */
+
+.dashboard-kpi-strip {
+  --kpi-surface: #ffffff;
+  --kpi-outline: #e9edf3;
+  --kpi-muted: #8290a3;
+
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  padding: 20px 24px;
+  width: 100%;
+  box-sizing: border-box;
+  background: #f5f7fa;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dashboard-kpi-strip .kpi {
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--kpi-outline);
+  border-radius: 12px;
+  background: var(--kpi-surface);
+  box-shadow: 0 2px 8px rgba(20, 34, 60, 0.035);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.dashboard-kpi-strip .kpi:hover {
+  border-color: #d1d9e5;
+  box-shadow: 0 5px 16px rgba(20, 34, 60, 0.07);
+}
+
+/* 기존 KPI 구분선 스타일 무효화 */
+.dashboard-kpi-strip .kpi + .kpi {
+  border-left: 1px solid var(--kpi-outline);
+}
+
+.dashboard-kpi-strip .kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.dashboard-kpi-strip .kpi-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  background: var(--kpi-icon-bg);
+  color: var(--kpi-icon-color);
+}
+
+.dashboard-kpi-strip .kpi-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 100px;
+  padding: 4px 8px;
+  background: var(--kpi-icon-bg);
+  color: var(--kpi-icon-color);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dashboard-kpi-strip .kpi-value {
+  margin: 0 0 5px;
+  color: var(--color-text);
+  font-size: 26px;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-kpi-strip .kpi-label {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.dashboard-kpi-strip .kpi .muted {
+  display: block;
+  margin-top: 5px;
+  color: var(--kpi-muted);
+  font-size: 11px;
+}
+
+/* 카드별 의미 색상 */
+.kpi-product {
+  --kpi-icon-bg: #eef2ff;
+  --kpi-icon-color: #5865cf;
+}
+
+/* Dashboard KPI — Olive / Warm Ivory */
+.commerce-app .dashboard-kpi-strip {
+  --kpi-surface: #fffcf8;
+  --kpi-outline: #e1dbd1;
+  --kpi-muted: #868176;
+
+  background: #f4f1ec;
+  border-bottom-color: #ded8cf;
+}
+
+.commerce-app .dashboard-kpi-strip .kpi {
+  box-shadow: 0 3px 12px rgba(71, 65, 49, 0.035);
+}
+
+.commerce-app .kpi-product {
+  --kpi-icon-bg: #edf1e8;
+  --kpi-icon-color: #66765a;
+}
+
+.commerce-app .kpi-order {
+  --kpi-icon-bg: #ebf0f3;
+  --kpi-icon-color: #547a91;
+}
+
+.commerce-app .kpi-risk {
+  --kpi-icon-bg: #f7ebe6;
+  --kpi-icon-color: #b86956;
+}
+
+.commerce-app .kpi-reservation {
+  --kpi-icon-bg: #f5ede0;
+  --kpi-icon-color: #a4834f;
+}
+
+.commerce-app .kpi-task {
+  --kpi-icon-bg: #f0ecf4;
+  --kpi-icon-color: #827199;
+}
+
+.commerce-app .dashboard-operations-panel {
+  background: #fffcf8;
+  border-color: #e1dbd1;
+  box-shadow: 0 3px 12px rgba(71, 65, 49, 0.035);
+}
+
+.kpi-order {
+  --kpi-icon-bg: #eaf7f0;
+  --kpi-icon-color: #299768;
+}
+
+.kpi-risk {
+  --kpi-icon-bg: #fff0ef;
+  --kpi-icon-color: #d95b55;
+}
+
+.kpi-reservation {
+  --kpi-icon-bg: #fff5e5;
+  --kpi-icon-color: #bd8432;
+}
+
+.kpi-task {
+  --kpi-icon-bg: #f4edff;
+  --kpi-icon-color: #9063c4;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-kpi-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px;
+    gap: 10px;
+  }
+}
+
+/* 실제 Backend Dashboard: 사용하지 않는 오른쪽 300px 열 제거 */
+.dashboard-console-grid.dashboard-console-grid--full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Dashboard - Command Center 운영 영역 */
+
+.dashboard-operations-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+  padding: 20px 24px;
+  align-items: start;
+}
+
+.dashboard-operations-panel {
+  min-width: 0;
+  padding: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(20, 34, 60, 0.035);
+}
+
+@media (max-width: 1100px) {
+  .dashboard-operations-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-operations-grid {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .dashboard-operations-panel {
+    padding: 14px;
+  }
+}
+
+.catalog-table-wrap .dense-table {
+  width: 100%;
+  table-layout: auto;
+}
+
+.catalog-table-wrap .dense-table th,
+.catalog-table-wrap .dense-table td {
+  padding: 9px 10px;
+  vertical-align: middle;
+}
+
+.catalog-table-wrap .dense-table .catalog-ai-column {
+  width: 78px;
+  white-space: nowrap;
+}
+
+.catalog-table-wrap .dense-table .catalog-ai-column button {
+  white-space: nowrap;
+  padding: 5px 9px;
+}
+
+.catalog-table-wrap .dense-table th:first-child,
+.catalog-table-wrap .dense-table td:first-child {
+  width: 90px;
+  white-space: nowrap;
+}
+
+.catalog-table-wrap .dense-table th:nth-child(3),
+.catalog-table-wrap .dense-table td:nth-child(3) {
+  min-width: 180px;
+}
+
+.commerce-topbar {
+  position: relative;
+  z-index: 110;
+  width: 100%;
+}
+
+/* 공통 운영 AI 도킹 레이아웃 */
+@media (min-width: 1101px) {
+  body:has(.common-ai-drawer) .app-frame {
+    padding-right: 0;
+  }
+
+  body:has(.common-ai-drawer) .commerce-main {
+    margin-right: 440px;
+  }
+
+  body:has(.common-ai-drawer.is-expanded) .commerce-main {
+    margin-right: 720px;
+  }
+
+  .commerce-main {
+    min-width: 0;
+    transition: margin-right 180ms ease;
+  }
+}
+
+/* 상품·재고 페이지 탭 */
+.inventory-page-heading {
+  margin-bottom: 22px;
+}
+
+.inventory-page-heading h1 {
+  margin: 0 0 6px;
+}
+
+.inventory-page-heading p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.inventory-page-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 22px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #e9eef5;
+}
+
+.inventory-page-tabs button {
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.inventory-page-tabs button:hover {
+  color: #1e293b;
+}
+
+.inventory-page-tabs button[aria-selected="true"] {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+}
+
+.inventory-page-tabs button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.inventory-tab-panel {
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .inventory-page-tabs {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .inventory-page-tabs button {
+    flex: 1;
+    padding: 10px 12px;
+  }
+}
+
+/* 선택하지 않은 상품·재고 탭은 완전히 숨김 */
+.inventory-tab-panel[hidden] {
+  display: none !important;
+}
+
+/* =========================================
+   Commerce Studio — Olive + Warm Ivory
+   App Shell
+   ========================================= */
+
+.commerce-app {
+  --commerce-olive: #454a3b;
+  --commerce-olive-hover: #575e49;
+  --commerce-bg: #f4f1ec;
+  --commerce-surface: #fffcf8;
+  --commerce-border: #ded8cf;
+  --commerce-text: #30332e;
+  --commerce-muted: #78776f;
+  --commerce-accent: #a58b68;
+
+  background: var(--commerce-bg);
+}
+
+/* 공통 업무 색상 */
+.commerce-app {
+  --color-bg: #f4f1ec;
+  --color-surface: #fffcf8;
+  --color-surface-2: #f2eee7;
+  --color-text: #30332e;
+  --color-text-secondary: #66675f;
+  --color-text-tertiary: #85847c;
+  --color-border: #ded8cf;
+  --color-border-strong: #c8bdaf;
+
+  --color-primary: #626c51;
+  --color-primary-soft: #ecefe6;
+}
+
+/* 전체 프레임 */
+.commerce-frame {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.commerce-workspace {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 올리브 그린 상단 네비게이션 */
+.commerce-topbar {
+  min-height: 70px;
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+
+  padding: 0 30px;
+  background: var(--commerce-olive);
+  border-bottom: 1px solid #6a6b58;
+}
+
+.commerce-topbar-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.commerce-topbar-brand strong {
+  color: #fffdf8;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+.commerce-topbar-brand span {
+  color: #d3d2c7;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+/* 네비게이션 목록 */
+.commerce-topnav {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.commerce-nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  position: relative;
+  flex: 0 0 auto;
+
+  min-height: 70px;
+  padding: 0 13px;
+
+  text-decoration: none;
+  white-space: nowrap;
+  color: #e0dfd5;
+
+  font-size: 12px;
+  font-weight: 500;
+
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.commerce-nav-link:hover {
+  background: var(--commerce-olive-hover);
+  color: #ffffff;
+}
+
+.commerce-nav-link.active {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.commerce-nav-link.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: #d6bc92;
+}
+
+.commerce-nav-link:focus-visible {
+  outline: 2px solid #f1d7a9;
+  outline-offset: -4px;
+}
+
+.commerce-nav-link .nav-badge {
+  margin-left: 0;
+  background: #b7524e;
+}
+
+/* 네비게이션 아래의 작은 상태 표시줄 */
+.commerce-statusbar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  min-height: 36px;
+  padding: 6px 30px;
+
+  background: #faf8f4;
+  border-bottom: 1px solid var(--commerce-border);
+}
+
+.commerce-statusbar > strong {
+  font-size: 11px;
+  color: #63665c;
+}
+
+.commerce-statusbar .provider-row {
+  margin-left: 0;
+}
+
+.commerce-environment-label {
+  margin-left: auto;
+  font-size: 10px;
+  color: #929087;
+}
+
+/* 본문 영역 */
+.commerce-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--commerce-bg);
+}
+
+.commerce-main .page {
+  padding: 26px 30px;
+}
+
+.commerce-main .page.flush {
+  padding: 0;
+}
+
+/* 기존 업무 카드와 테이블의 바탕 통일 */
+.commerce-main .card {
+  background: var(--commerce-surface);
+  border-color: var(--commerce-border);
+  border-radius: 13px;
+}
+
+.commerce-main .dense-table th {
+  background: #f2eee7;
+  color: #626359;
+}
+
+.commerce-main .dense-table td {
+  border-bottom-color: #e8e3dc;
+}
+
+.commerce-main .catalog-page-buttons button.active {
+  background: #a58b68;
+  border-color: #a58b68;
+  color: #ffffff;
+}
+
+/* 상품·재고 탭의 선택 색상 */
+.commerce-main .inventory-page-tabs {
+  background: #eae5db;
+  border-color: #ddd5c9;
+}
+
+.commerce-main .inventory-page-tabs button {
+  color: #777367;
+}
+
+.commerce-main
+.inventory-page-tabs button[aria-selected="true"] {
+  background: #fffcf8;
+  color: #62523c;
+  box-shadow: 0 1px 4px rgba(73, 61, 44, 0.09);
+}
+
+/* AI 패널과 본문이 나란히 있어도 중앙 축소 가능 */
+.commerce-frame .workspace,
+.commerce-frame .main {
+  min-width: 0;
+}
+
+/* 좁아지면 상단 메뉴만 가로 스크롤 */
+@media (max-width: 1450px) {
+  .commerce-topbar {
+    padding: 0 18px;
+    gap: 14px;
+  }
+
+  .commerce-nav-link {
+    padding: 0 10px;
+  }
+}
+
+/* 상품 요약을 한 줄로 압축 */
+.catalog-summary-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+
+  padding: 4px 0;
+  color: #68665e;
+  font-size: 12px;
+}
+
+.catalog-summary-source {
+  margin-left: auto;
+  color: #898275;
+  font-size: 11px;
+}
+
+/* 상품 검색 영역과 요약 사이 간격 축소 */
+.commerce-main .catalog-toolbar {
+  margin: 8px 0 12px;
+}
+
+.commerce-main .catalog-controls {
+  width: 100%;
+  margin-left: 0;
+  justify-content: flex-start;
+}
+
+/* 상품 목록 — 컴팩트 검색 및 필터 */
+
+.commerce-main .inventory-page-heading {
+  margin-bottom: 12px;
+}
+
+.commerce-main .inventory-page-heading h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.3;
+}
+
+.commerce-main .inventory-page-tabs {
+  margin-bottom: 12px;
+}
+
+.commerce-main .catalog-summary-inline {
+  padding: 2px 0;
+  margin-bottom: 6px;
+}
+
+.commerce-main .catalog-toolbar-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.commerce-main .catalog-primary-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.commerce-main .catalog-primary-controls .catalog-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.commerce-main .catalog-primary-controls .catalog-search input {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding: 11px 13px;
+  background: #fffcf8;
+  border: 1px solid #d9d0c3;
+  border-radius: 9px;
+  color: #30332e;
+}
+
+.commerce-main .catalog-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid #d2c6b5;
+  border-radius: 9px;
+  background: #fffcf8;
+  color: #62523c;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.commerce-main .catalog-filter-toggle:hover,
+.commerce-main .catalog-filter-toggle[aria-expanded="true"] {
+  background: #eae4d9;
+}
+
+.commerce-main .catalog-advanced-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 12px;
+  background: #f0ebe3;
+  border: 1px solid #ded6ca;
+  border-radius: 10px;
+  justify-content: flex-start;
+}
+
+.commerce-main .catalog-advanced-filters[hidden] {
+  display: none !important;
+}
+
+/* 재고 현황 — 컴팩트 필터 */
+
+.commerce-main .inventory-filter-area {
+  margin-bottom: 10px;
+}
+
+.commerce-main .inventory-filter-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.commerce-main .inventory-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #d2c6b5;
+  border-radius: 9px;
+  background: #fffcf8;
+  color: #62523c;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.commerce-main .inventory-filter-toggle:hover,
+.commerce-main .inventory-filter-toggle[aria-expanded="true"] {
+  background: #eae4d9;
+}
+
+.commerce-main .inventory-query-time {
+  color: #898275;
+  font-size: 11px;
+}
+
+.commerce-main .inventory-filter-panel {
+  margin-top: 10px;
+  padding: 12px;
+  background: #f0ebe3;
+  border: 1px solid #ded6ca;
+  border-radius: 10px;
+}
+
+.commerce-main .inventory-filter-panel[hidden] {
+  display: none !important;
+}
+
+.commerce-main .inventory-filter-panel .inventory-filters {
+  margin-bottom: 0;
+}
+
+/* 재고 현황 — 통합 주의 안내 */
+
+.commerce-main .inventory-safety-notice {
+  margin-bottom: 12px;
+  border: 1px solid #e2cb9e;
+  border-radius: 10px;
+  background: #fff8ea;
+  color: #805f33;
+}
+
+.commerce-main .inventory-safety-notice > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 11px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.commerce-main
+.inventory-safety-notice > summary::-webkit-details-marker {
+  display: none;
+}
+
+.commerce-main .inventory-safety-notice-heading {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.commerce-main .inventory-safety-notice-summary {
+  font-size: 11px;
+}
+
+.commerce-main .inventory-safety-notice-action {
+  margin-left: auto;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.commerce-main .inventory-safety-notice-detail {
+  padding: 0 14px 12px;
+  border-top: 1px solid #ead8b4;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.commerce-main .inventory-safety-notice-detail p {
+  margin: 9px 0 0;
+}
+
+.commerce-main .inventory-safety-notice:focus-within {
+  border-color: #af9164;
+}
+
+.commerce-main .inventory-safety-notice summary:focus-visible {
+  outline: 2px solid #917650;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* 재고 상세 Drawer — 상단 네비게이션 아래 표시 */
+@media (min-width: 1101px) {
+  .inventory-detail-panel {
+    top: 70px;
+    right: 0;
+    height: calc(100dvh - 70px);
+    z-index: 105;
+
+    background: #fffcf8;
+    border-left: 1px solid #d9d0c3;
+    box-shadow: -8px 0 28px rgba(65, 57, 44, 0.08);
+  }
+
+  /* 운영 AI가 열린 경우 AI 왼쪽에 배치 */
+  body:has(.common-ai-drawer) .inventory-detail-panel {
+    right: 440px;
+    width: min(440px, calc(100vw - 440px));
+  }
+
+  /* 운영 AI 확대 상태도 대응 */
+  body:has(.common-ai-drawer.is-expanded) .inventory-detail-panel {
+    right: 720px;
+    width: min(440px, calc(100vw - 720px));
+  }
+}
+
+/* 재고 상세 패널 — Warm Ivory */
+.inventory-detail-panel {
+  color: #34372f;
+}
+
+.inventory-detail-panel .card {
+  background: #fffcf8;
+  border-color: #ded8cf;
+  border-radius: 12px;
+}
+
+.inventory-detail-panel .card-header {
+  background: #f1ece4;
+  color: #46483e;
+  border-bottom-color: #ded8cf;
+}
+
+.inventory-detail-panel .card-body {
+  color: #41433a;
+}
+
+.inventory-detail-panel .muted,
+.inventory-detail-panel .tertiary {
+  color: #79766e;
+}
+
+.inventory-detail-panel .inventory-task-proposal {
+  background: #f7f2e9;
+  border-color: #ded8cf;
+}
+
+.inventory-detail-panel button:focus-visible {
+  outline-color: #8a7656;
+}
+
+/* 재고 상세 — 수량 요약 및 접이식 상세 */
+.inventory-detail-panel .inventory-detail-body {
+  gap: 12px;
+}
+
+.inventory-detail-quantity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.inventory-detail-quantity-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid #e1dbd1;
+  border-radius: 11px;
+  background: #f2eee7;
+}
+
+.inventory-detail-quantity-card > span {
+  color: #79766e;
+  font-size: 12px;
+}
+
+.inventory-detail-quantity-card > strong {
+  color: #34392f;
+  font-size: 26px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-detail-status {
+  display: grid;
+  gap: 11px;
+  padding: 16px;
+  border: 1px solid #e1dbd1;
+  border-radius: 11px;
+  background: #fffcf8;
+}
+
+.inventory-detail-status h3 {
+  margin: 0 0 3px;
+  color: #454a3b;
+  font-size: 13px;
+}
+
+.inventory-detail-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.inventory-detail-status-row > span:first-child {
+  flex-shrink: 0;
+  color: #79766e;
+}
+
+.inventory-detail-status-row > :last-child {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.inventory-detail-disclosure {
+  overflow: hidden;
+  border: 1px solid #e1dbd1;
+  border-radius: 11px;
+  background: #fffcf8;
+}
+
+.inventory-detail-disclosure > summary {
+  padding: 14px 16px;
+  color: #454a3b;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.inventory-detail-disclosure[open] > summary {
+  border-bottom: 1px solid #e9e3da;
+  background: #f4f0e9;
+}
+
+.inventory-detail-disclosure-body {
+  display: grid;
+  gap: 12px;
+  padding: 15px 16px;
+}
+
+.inventory-detail-disclosure-body p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* 판매가 팝오버 — 버튼 왼쪽 기준으로 오른쪽에 펼침 */
+.commerce-main .catalog-price-popover {
+  left: 0;
+  right: auto;
+
+  width: 250px;
+  max-width: calc(100vw - 32px);
+
+  z-index: 30;
+
+  background: #fffcf8;
+  border: 1px solid #d9d0c3;
+  border-radius: 12px;
+
+  box-shadow: 0 10px 30px rgba(64, 56, 43, 0.12);
+}
+
+
+/* 필터 내부 판매가 범위 */
+.commerce-main .catalog-price-inline {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.commerce-main .catalog-price-inline-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.commerce-main .catalog-price-inline-form label {
+  display: grid;
+  gap: 5px;
+  flex: 1 1 150px;
+  font-size: 11px;
+  color: #696354;
+}
+
+.commerce-main .catalog-price-inline-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #d9d0c3;
+  border-radius: 8px;
+  background: #fffcf8;
+  color: #30332e;
+}
+
+.commerce-main .catalog-price-inline-form .catalog-price-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.commerce-main .catalog-price-inline-form p[role="alert"] {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 11px;
+  color: #a53f36;
+}
+
+.commerce-main .catalog-active-price {
+  font-size: 11px;
+  color: #685436;
+  background: #ece5d8;
+  padding: 7px 10px;
+  border-radius: 8px;
+}
+
+

@@ -1,10 +1,26 @@
 """commerce_ops V2 model registry."""
 
+from backend.app.models_v2.ai import (
+    AgentRunV2,
+    ConversationV2,
+    DemoSessionV2,
+    MessageContextV2,
+    MessageV2,
+    RagChunkV2,
+)
 from backend.app.models_v2.catalog import (
     CategoryV2,
     ProductCategoryV2,
     ProductV2,
     ProductVariantV2,
+)
+from backend.app.models_v2.integrations import (
+    ExternalAccountV2,
+    IncomingEventV2,
+    ProcessedActionV2,
+    ProductExternalMappingV2,
+    SyncStatusV2,
+    VariantExternalMappingV2,
 )
 from backend.app.models_v2.operations import (
     IncomingShipmentV2,
@@ -20,22 +36,6 @@ from backend.app.models_v2.operations import (
     TaskIncomingDependencyV2,
     TaskReviewV2,
     TaskV2,
-)
-
-from backend.app.models_v2.integrations import (
-    ExternalAccountV2,
-    IncomingEventV2,
-    ProcessedActionV2,
-    ProductExternalMappingV2,
-    SyncStatusV2,
-    VariantExternalMappingV2,
-)
-from backend.app.models_v2.ai import (
-    AgentRunV2,
-    ConversationV2,
-    MessageContextV2,
-    MessageV2,
-    RagChunkV2,
 )
 from backend.app.models_v2.tenant import TenantV2
 
@@ -66,6 +66,7 @@ __all__ = [
     "ProcessedActionV2",
     "RagChunkV2",
     "ConversationV2",
+    "DemoSessionV2",
     "MessageV2",
     "MessageContextV2",
     "AgentRunV2",

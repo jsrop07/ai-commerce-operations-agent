@@ -11,6 +11,10 @@ import type {
   ApiEnvelope,
   DashboardData,
   InsightSummary,
+  InventorySnapshot,
+  ReservationRiskItem,
+  ReservationShortageTask,
+  ScheduleTask,
 } from "../../types/contracts";
 import EvidenceDrawer from "../../components/EvidenceDrawer";
 import SystemState from "../../components/SystemStates";
@@ -19,7 +23,7 @@ import { urgentQueueFixtures } from "../../mocks/fixtures/urgentQueue";
 import TodayTasks from "../../components/TodayTasks";
 import { getDay10Tasks } from "../../api/day10";
 import { getDay09Reservations } from "../../api/day09";
-import type { ReservationShortageTask, ReservationRiskItem } from "../../types/contracts";
+
 import {
   getDay04Insights,
   toUrgentQueueItems,
@@ -28,20 +32,52 @@ import {
 } from "../../api/day04";
 import { providerFailureFixture } from "../../mocks/fixtures/degradedDashboard";
 import type { UrgentQueueInsight } from "../../components/UrgentQueue";
+import { getCatalogSummary } from "../../api/catalog";
+import { getDay08Inventory } from "../../api/day08";
+import {
+  getRecentOrderSummary,
+  type RecentOrderSummary,
+} from "../../api/orders";
+
 export default function DashboardPage() {
   const degraded =
     new URLSearchParams(window.location.search).get("degraded") === "true";
   const [dashboard, setDashboard] =
     useState<ApiEnvelope<DashboardData> | null>(null);
-  
+  const [productCount, setProductCount] = useState<number | null>(null);
+  const [productCountError, setProductCountError] = useState(false);
+  const [recentOrders, setRecentOrders] =
+    useState<RecentOrderSummary | null>(null);
+
+  const [recentOrdersLoaded, setRecentOrdersLoaded] =
+    useState(false);
+
+  const [recentOrdersUnavailable, setRecentOrdersUnavailable] =
+    useState(false);
+  const [inventoryItems, setInventoryItems] =
+    useState<InventorySnapshot[]>([]);
+
+  const [inventoryLoaded, setInventoryLoaded] = useState(false);
+
+  const [inventoryUnavailable, setInventoryUnavailable] = useState(false);
+
   const [urgentItems, setUrgentItems] =
     useState<ApiEnvelope<UrgentQueueInsight>[]>(
-      urgentQueueFixtures,
+      useRealBackend ? [] : urgentQueueFixtures,
     );
   const [insightsUnavailable, setInsightsUnavailable] = useState(false);
+  const [insightsLoaded, setInsightsLoaded] = useState(false);
   const [shortageTasks, setShortageTasks] = useState<ReservationShortageTask[]>([]);
+  const [allTasks, setAllTasks] =
+  useState<(ScheduleTask | ReservationShortageTask)[]>([]);
   const [reservations, setReservations] = useState<ReservationRiskItem[]>([]);
   const [tasksUnavailable, setTasksUnavailable] = useState(false);
+  const [tasksLoaded, setTasksLoaded] = useState(false);
+  const [taskProjectionEmpty, setTaskProjectionEmpty] = useState(false);
+
+  const [reservationsLoaded, setReservationsLoaded] = useState(false);
+  const [reservationsUnavailable, setReservationsUnavailable] = useState(false);
+  const [reservationRiskEmpty, setReservationRiskEmpty] = useState(false);
 
   const [selectedInsight, setSelectedInsight] =
     useState<InsightSummary | null>(null);
@@ -51,36 +87,138 @@ export default function DashboardPage() {
     useState(false);
   const mountedRef = useRef(true);
   const evidenceRequestRef = useRef(0);
-
   useEffect(() => {
     let active = true;
     mountedRef.current = true;
     const controller = new AbortController();
 
-    mockApiGet<ApiEnvelope<DashboardData>>(
-      "/api/v1/dashboard",
-    ).then((response) => {
-      if (active) {
-        setDashboard(response);
-      }
-    });
+    if (useRealBackend) {
+      getCatalogSummary(controller.signal)
+        .then((response) => {
+          if (!active || controller.signal.aborted) return;
+
+          setProductCount(response.data.product_count);
+          setProductCountError(false);
+        })
+        .catch(() => {
+          if (!active || controller.signal.aborted) return;
+
+          setProductCount(null);
+          setProductCountError(true);
+        });
+    }
 
     if (useRealBackend) {
-      Promise.all([getDay10Tasks(controller.signal), getDay09Reservations(controller.signal)])
-        .then(([taskResponse, reservationResponse]) => {
-          if (!active) return;
-          setShortageTasks(taskResponse.data.filter((task): task is ReservationShortageTask => "reservation_id" in task));
-          setReservations(reservationResponse.data);
-          setTasksUnavailable(false);
+      getDay08Inventory(controller.signal)
+        .then((response) => {
+          if (!active || controller.signal.aborted) return;
+
+          setInventoryItems(response.data);
+          setInventoryLoaded(true);
+          setInventoryUnavailable(false);
         })
-        .catch(() => { if (active && !controller.signal.aborted) { setShortageTasks([]); setReservations([]); setTasksUnavailable(true); } });
+        .catch(() => {
+          if (!active || controller.signal.aborted) return;
+
+          setInventoryItems([]);
+          setInventoryLoaded(false);
+          setInventoryUnavailable(true);
+        });
+    }
+    if (useRealBackend) {
+      getRecentOrderSummary(controller.signal)
+        .then((response) => {
+          if (!active || controller.signal.aborted) return;
+
+          setRecentOrders(response.data);
+          setRecentOrdersLoaded(true);
+          setRecentOrdersUnavailable(false);
+        })
+        .catch(() => {
+          if (!active || controller.signal.aborted) return;
+
+          setRecentOrders(null);
+          setRecentOrdersLoaded(false);
+          setRecentOrdersUnavailable(true);
+        });
+    }
+    if (!useRealBackend) {
+      mockApiGet<ApiEnvelope<DashboardData>>(
+        "/api/v1/dashboard",
+      ).then((response) => {
+        if (active) setDashboard(response);
+      });
+    }
+
+    if (useRealBackend) {
+      // Task 조회: 다른 API의 성공·실패와 독립적으로 처리
+      getDay10Tasks(controller.signal)
+        .then((response) => {
+          if (!active || controller.signal.aborted) return;
+
+          setAllTasks(response.data);
+          setTaskProjectionEmpty(
+            response.data.length === 0 &&
+              response.warnings.some((warning) =>
+                warning.startsWith("TASKS_EMPTY")
+              )
+          );
+          setShortageTasks(
+            response.data.filter(
+              (task): task is ReservationShortageTask =>
+                "reservation_id" in task
+            )
+          );
+
+          setTasksUnavailable(false);
+          setTasksLoaded(true);
+        })
+        .catch(() => {
+          if (!active || controller.signal.aborted) return;
+
+          setAllTasks([]);
+          setShortageTasks([]);
+
+          setTasksUnavailable(true);
+          setTasksLoaded(false);
+          setTaskProjectionEmpty(false);
+        });
+
+      // Reservation 조회: Task 조회와 독립적으로 처리
+      getDay09Reservations(controller.signal)
+        .then((response) => {
+          if (!active || controller.signal.aborted) return;
+
+          setReservations(response.data);
+
+          setReservationRiskEmpty(
+            response.data.length === 0 &&
+            response.warnings.some((warning) =>
+              warning.startsWith("RESERVATION_RISK_EMPTY")
+            )
+          );
+
+          setReservationsUnavailable(false);
+          setReservationsLoaded(true);
+        })
+        .catch(() => {
+          if (!active || controller.signal.aborted) return;
+
+          setReservations([]);
+
+          setReservationsUnavailable(true);
+          setReservationsLoaded(false);
+
+          setReservationRiskEmpty(false);
+        });
       setUrgentItems([]);
       getDay04Insights(controller.signal)
         .then((response) => {
-          if (active) {
-            setUrgentItems(toUrgentQueueItems(response));
-            setInsightsUnavailable(false);
-          }
+          if (!active || controller.signal.aborted) return;
+
+          setUrgentItems(toUrgentQueueItems(response));
+          setInsightsUnavailable(false);
+          setInsightsLoaded(true);
         })
         .catch((error: unknown) => {
           if (
@@ -89,6 +227,7 @@ export default function DashboardPage() {
           ) {
             setUrgentItems([]);
             setInsightsUnavailable(true);
+            setInsightsLoaded(false);
           }
         });
     }
@@ -133,6 +272,297 @@ export default function DashboardPage() {
     setSelectedInsight(null);
     setEvidenceMissing(false);
     setSelectedC04Key(insight.c04_lookup);
+  }
+
+  // 사람이 검토하거나 별도 조치해야 하는 업무만 집계
+  const reviewTaskCount = allTasks.filter(
+    (task) =>
+      task.status === "PROPOSED" ||
+      task.status === "BLOCKED"
+  ).length;
+
+  // 품질과 최신성이 확인된 재고 중 위험도가 높은 항목
+  const confirmedInventoryRiskCount = inventoryItems.filter(
+    (item) =>
+      item.freshness === "FRESH" &&
+      item.confirmed_for_total === true &&
+      (item.quality_status === "USABLE" ||
+        item.quality_status === "CONFIRMED") &&
+      (item.risk_level === "HIGH" ||
+        item.risk_level === "PROHIBITED")
+  ).length;
+
+  // 최신성·품질·위험 판정이 충분하지 않은 재고
+  const unverifiedInventoryCount = inventoryItems.filter(
+    (item) =>
+      item.freshness !== "FRESH" ||
+      item.confirmed_for_total !== true ||
+      (item.quality_status !== "USABLE" &&
+        item.quality_status !== "CONFIRMED") ||
+      item.risk_level == null ||
+      item.risk_level === "UNKNOWN"
+  ).length;
+
+  // Dashboard에서 현재 확인이 필요한 일반 업무만 표시
+  const scheduleTasks = allTasks.filter(
+    (task): task is ScheduleTask =>
+      !("reservation_id" in task) &&
+      (task.status === "PROPOSED" ||
+        task.status === "BLOCKED")
+  );
+  
+  // 부족 수량과 데이터 품질이 모두 확인된 예약만 집계
+  const confirmedShortageCount = reservations.filter(
+    (reservation) =>
+      reservation.shortage_state === "KNOWN" &&
+      reservation.quality_status === "CONFIRMED" &&
+      typeof reservation.shortage === "number" &&
+      Number.isFinite(reservation.shortage) &&
+      reservation.shortage > 0
+  ).length;
+
+  // 부족 여부 또는 품질을 확정할 수 없는 예약
+  const unverifiedReservationCount = reservations.filter(
+    (reservation) =>
+      reservation.shortage_state !== "KNOWN" ||
+      reservation.quality_status !== "CONFIRMED" ||
+      typeof reservation.shortage !== "number" ||
+      !Number.isFinite(reservation.shortage)
+  ).length;
+
+  if (useRealBackend) {
+    
+    return <div className="page flush" data-testid="route-dashboard">
+      <section
+        className="dashboard-kpi-strip"
+        aria-label="핵심 운영 지표"
+      >
+        <article className="kpi kpi-product">
+          <div className="kpi-top">
+            <span className="kpi-icon" aria-hidden="true">▦</span>
+            <span className="kpi-status">Catalog</span>
+          </div>
+          <div className="kpi-value">
+            {productCountError
+              ? "확인 불가"
+              : productCount === null
+                ? "조회 중"
+                : `${productCount.toLocaleString("ko-KR")}개`}
+          </div>
+          <div className="kpi-label">총 상품</div>
+        </article>
+
+        {[
+          {
+            label: "최근 주문",
+            description: recentOrdersUnavailable
+              ? "주문 정보 조회 실패"
+              : !recentOrdersLoaded
+                ? "최근 주문 조회 중"
+                : recentOrders?.status === "NO_DATA"
+                  ? "주문 데이터 없음"
+                  : recentOrders?.status === "AVAILABLE"
+                    ? `기준일 ${recentOrders.reference_date.replace(
+                        /-/g,
+                        ".",
+                      )} · KST`
+                    : "주문 정보 확인 불가",
+            icon: "↗",
+            type: "order",
+            status: recentOrdersUnavailable
+              ? "조회 실패"
+              : !recentOrdersLoaded
+                ? "조회 중"
+                : recentOrders?.status === "NO_DATA"
+                  ? "데이터 없음"
+                  : "합성 데이터",
+            value: recentOrdersUnavailable
+              ? "확인 불가"
+              : !recentOrdersLoaded
+                ? "조회 중"
+                : recentOrders?.status === "AVAILABLE"
+                  ? `${recentOrders.order_count.toLocaleString("ko-KR")}건`
+                  : "—",
+          },
+          {
+            label: "재고 위험",
+            description: inventoryUnavailable
+              ? "재고 정보 조회 실패"
+              : !inventoryLoaded
+                ? "재고 정보 조회 중"
+                : inventoryItems.length === 0
+                  ? "조회된 재고 Snapshot 없음"
+                  : unverifiedInventoryCount > 0
+                    ? `판정 불가 ${unverifiedInventoryCount}건 별도`
+                    : "확정된 고위험 재고",
+            icon: "!",
+            type: "risk",
+            status: inventoryUnavailable
+              ? "조회 실패"
+              : !inventoryLoaded
+                ? "조회 중"
+                : inventoryItems.length === 0
+                  ? "데이터 없음"
+                  : unverifiedInventoryCount > 0
+                    ? "일부 미확인"
+                    : "조회 완료",
+            value: inventoryUnavailable
+              ? "확인 불가"
+              : !inventoryLoaded
+                ? "조회 중"
+                : inventoryItems.length === 0
+                  ? "—"
+                  : unverifiedInventoryCount === inventoryItems.length
+                    ? "—"
+                    : `${confirmedInventoryRiskCount}건`,
+          },
+          {
+            label: "예약 부족",
+            description: reservationsUnavailable
+              ? "예약 정보 조회 실패"
+              : !reservationsLoaded
+                ? "예약 정보 조회 중"
+                : reservationRiskEmpty
+                  ? "사용 가능한 예약 위험 데이터 없음"
+                  : unverifiedReservationCount > 0
+                    ? `판정 불가 ${unverifiedReservationCount}건 별도`
+                    : "확정된 부족 예약",
+            icon: "◷",
+            type: "reservation",
+            status: reservationsUnavailable
+              ? "조회 실패"
+              : !reservationsLoaded
+                ? "조회 중"
+                : reservationRiskEmpty
+                  ? "데이터 없음"
+                  : unverifiedReservationCount > 0
+                    ? "일부 미확인"
+                    : "조회 완료",
+            value: reservationsUnavailable
+              ? "확인 불가"
+              : !reservationsLoaded
+                ? "조회 중"
+                : reservationRiskEmpty
+                  ? "—"
+                  : `${confirmedShortageCount}건`,
+          },
+          {
+            label: "확인 업무",
+            description: tasksUnavailable
+              ? "업무 조회 실패"
+              : !tasksLoaded
+                ? "업무 데이터 조회 중"
+                : taskProjectionEmpty
+                  ? "사용 가능한 업무 데이터 없음"
+                  : "검토 및 조치 대상",
+            icon: "✓",
+            type: "task",
+            status: tasksUnavailable
+              ? "조회 실패"
+              : !tasksLoaded
+                ? "조회 중"
+                : taskProjectionEmpty
+                  ? "데이터 없음"
+                  : "조회 완료",
+            value: tasksUnavailable
+              ? "확인 불가"
+              : !tasksLoaded
+                ? "조회 중"
+                : taskProjectionEmpty
+                  ? "—"
+                  : `${reviewTaskCount}건`,
+          },
+        ].map((item) => (
+          <article
+            className={`kpi kpi-${item.type}`}
+            key={item.label}
+          >
+            <div className="kpi-top">
+              <span className="kpi-icon" aria-hidden="true">
+                {item.icon}
+              </span>
+              <span className="kpi-status">{item.status}</span>
+            </div>
+
+            <div className="kpi-value">
+              {"value" in item ? item.value : "—"}
+            </div>
+            <div className="kpi-label">{item.label}</div>
+            <small className="muted">{item.description}</small>
+          </article>
+        ))}
+      </section>
+      <div className="dashboard-operations-grid">
+      <section className="dashboard-operations-panel" aria-label="운영 위험 모니터링">
+        <UrgentQueue
+          items={urgentItems}
+          onSelect={openEvidence}
+          onSelectActual={openActualEvidence}
+          dataStatus={
+            insightsUnavailable
+              ? "UNAVAILABLE"
+              : !insightsLoaded
+                ? "LOADING"
+                : urgentItems.length === 0
+                  ? "NO_DATA"
+                  : "READY"
+          }
+        />
+
+        {insightsUnavailable && (
+          <p role="alert">운영 발견 목록을 확인할 수 없습니다.</p>
+        )}
+
+        {evidenceMissing && (
+          <SystemState state="empty" title="판단 근거를 찾을 수 없습니다" />
+        )}
+      </section>
+
+      <section className="dashboard-operations-panel" aria-label="오늘 할 일">
+        <TodayTasks
+          tasks={scheduleTasks}
+          shortageTasks={shortageTasks}
+          reservations={reservations}
+          compact
+          emptyMessage={
+            tasksUnavailable || reservationsUnavailable
+              ? "업무 데이터를 확인할 수 없습니다"
+              : !tasksLoaded || !reservationsLoaded
+                ? "업무 데이터 조회 중"
+                : taskProjectionEmpty && reservationRiskEmpty
+                  ? "사용 가능한 업무 데이터가 없습니다"
+                  : undefined
+          }
+          emptyDescription={
+            tasksUnavailable || reservationsUnavailable
+              ? "Backend 조회에 실패했습니다."
+              : !tasksLoaded || !reservationsLoaded
+                ? "업무 및 예약 데이터를 불러오고 있습니다."
+                : taskProjectionEmpty && reservationRiskEmpty
+                  ? "Backend에서 현재 사용할 수 있는 Task 및 예약 위험 Projection을 제공하지 않습니다."
+                  : undefined
+          }
+          countUnavailable={
+              tasksUnavailable ||
+              reservationsUnavailable ||
+              !tasksLoaded ||
+              !reservationsLoaded ||
+              (taskProjectionEmpty && reservationRiskEmpty)
+            }
+        />
+
+        {tasksUnavailable && (
+          <p role="alert">업무 데이터를 불러오지 못했습니다.</p>
+        )}
+
+        {reservationsUnavailable && (
+          <p role="alert">예약 데이터를 불러오지 못했습니다.</p>
+        )}
+      </section>
+    </div>
+      <EvidenceDrawer open={selectedC04Key !== undefined} insight={null} c04Key={selectedC04Key}
+        onClose={() => { setSelectedC04Key(undefined); setEvidenceMissing(false); }} />
+    </div>;
   }
 
   if (!dashboard) {

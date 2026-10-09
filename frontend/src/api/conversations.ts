@@ -170,6 +170,28 @@ export async function appendAnalysis(
     { context, intent, analysis_kind: analysisKind, request_revision: requestRevision }, signal,
   ));
 }
+
+export async function appendNaturalQuestion(
+  conversationId: string,
+  context: EntityContext,
+  requestRevision: number,
+  question: string,
+  signal?: AbortSignal,
+) {
+  return parseConversationResponse(
+    await backendRequest(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}/questions`,
+      "POST",
+      {
+        context,
+        question,
+        request_revision: requestRevision,
+      },
+      signal,
+    ),
+  );
+}
+
 export async function getConversation(conversationId: string, signal?: AbortSignal) {
   return parseConversationResponse(await backendRequest(
     `/api/v1/conversations/${encodeURIComponent(conversationId)}`, "GET", undefined, signal,
@@ -181,6 +203,22 @@ export async function getConversations(signal?: AbortSignal) {
 export async function reopenConversation(conversationId: string, signal?: AbortSignal) {
   return parseConversationResponse(await backendRequest(
     `/api/v1/conversations/${encodeURIComponent(conversationId)}/reopen`, "POST", {}, signal,
+  ));
+}
+
+export async function createProductSearchConversation(query: string, signal?: AbortSignal) {
+  return parseConversationResponse(await backendRequest(
+    "/api/v1/conversations/product-search", "POST", { query }, signal,
+  ));
+}
+
+export async function appendProductSearch(
+  conversationId: string, query: string, requestRevision: number,
+  signal?: AbortSignal,
+) {
+  return parseConversationResponse(await backendRequest(
+    `/api/v1/conversations/${encodeURIComponent(conversationId)}/product-search/messages`,
+    "POST", { query, intent: "INSPECT_TARGET", request_revision: requestRevision }, signal,
   ));
 }
 

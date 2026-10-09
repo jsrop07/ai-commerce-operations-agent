@@ -1,16 +1,34 @@
-"""C09 PRE conversation storage boundary; no model or retrieval execution."""
+"""C09 conversation storage and provider-free analysis dispatch boundary."""
 
 from __future__ import annotations
 
 import re
+import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Protocol
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
+
+from backend.app.core.config import Settings
+from backend.app.services.c24_grounded_operations import (
+    run_product_grounded_explanation,
+    run_reservation_grounded_explanation,
+)
+from backend.app.services.demo_provider_quota import (
+    DemoQuotaDenied,
+)
+from ai.services.grounded_explanation_output import (
+    ExplanationStatus,
+)
+from ai.services.grounded_explanation_provider import (
+    GroundedProviderError,
+    GroundedProviderTimeout,
+)
 
 from ai.evaluation.r09_conversation_contract import (
     AiAnswerContract,
@@ -26,11 +44,18 @@ from backend.app.services.c09_order_aggregate import (
     safe_product_demand_aggregate,
 )
 from backend.app.services.c09_view_context import VIEW_SNAPSHOT_KEY, ViewContextInput
+from backend.app.services.c18_product_evidence import retrieve_frozen_product_evidence
 from backend.app.services.product_demand_projection import (
     project_product_demand,
 )
+from backend.app.services.retrieval_runtime import RetrievalFailure, validate_query
 from backend.app.worker.privacy.text_redaction import EMAIL_PATTERN, ORDER_ID_PATTERN, PHONE_PATTERN
-
+from backend.app.services.reservation_projection import (
+    ReservationRiskProjection,
+)
+from backend.app.services.c17_graph_runtime import (
+    analyze_product_graph,
+)
 TargetType = Literal["PRODUCT", "INCOMING", "TASK"]
 Intent = Literal["INSPECT_TARGET", "FOLLOW_RELATED_TARGET"]
 AnalysisKind = Literal["NONE", "DETERMINISTIC", "HYBRID", "RELATION_DOCUMENT"]
@@ -76,11 +101,25 @@ class ResolvedTarget:
     view_snapshot: dict | None = None
 
 
+@dataclass(frozen=True)
+class AnalysisRuntimeResult:
+    answer: AiAnswerContract
+    retrieval_evidence: tuple[dict, ...] = ()
+
+
 class C09ContractError(Exception):
     def __init__(self, status: ContractErrorStatus, code: str):
         super().__init__(code)
         self.status = status
         self.code = code
+
+
+class ProductSearchService(Protocol):
+    """Injected, provider-free Product candidate resolver; no conversation writes."""
+
+    def resolve_product_ids(
+        self, *, session: Session, tenant_id: UUID, query: str,
+    ) -> Sequence[UUID]: ...
 
 
 _SOURCE_BY_TYPE = {
@@ -89,6 +128,12 @@ _SOURCE_BY_TYPE = {
     "TASK": "OPERATIONS_TASK",
 }
 _PRODUCT_NUMBER = re.compile(r"^[0-9]{1,18}$")
+_PRODUCT_CODE = re.compile(r"^[A-Za-z0-9_.-]{1,120}$")
+_PRODUCT_SEARCH_SENSITIVE = re.compile(
+    r"\b(?:customer|order|payment|address|inquiry|recipient|shipping)\b|"
+    r"고객|주문|결제|주소|문의|배송",
+    re.IGNORECASE,
+)
 _FORBIDDEN_HINT = re.compile(
     r"(?:고객\s*(?:이름|성명|전화|주소|메일)|문의\s*원문|배송\s*(?:주소|번호)|"
     r"결제\s*(?:번호|정보)|customer[_ -]?id|order[_ -]?id|inquiry[_ -]?(?:body|text))",
@@ -144,6 +189,37 @@ def validate_pre_storage(actor_id: str, target: ContextInput, intent: Intent) ->
         except (ValueError, AttributeError) as exc:
             raise C09ContractError("HOLD", "INVALID_TARGET_ID") from exc
 
+def classify_operational_question(question: str) -> tuple[AnalysisKind, str]:
+    """상품 운영 질문을 기존 분석 경로 또는 안전한 HOLD로 분류한다."""
+    if not isinstance(question, str):
+        raise C09ContractError("HOLD", "INVALID_QUESTION")
+
+    text = unicodedata.normalize("NFKC", question).strip()
+
+    if (
+        not text
+        or len(text) > 500
+        or any(unicodedata.category(ch).startswith("C") for ch in text)
+        or EMAIL_PATTERN.search(text)
+        or PHONE_PATTERN.search(text)
+        or ORDER_ID_PATTERN.search(text)
+        or _FORBIDDEN_HINT.search(text)
+    ):
+        raise C09ContractError("HOLD", "FORBIDDEN_QUESTION_INPUT")
+
+    if any(word in text for word in ("재고", "품절", "가용수량", "가용 수량")):
+        return "DETERMINISTIC", "INVENTORY_UNAVAILABLE"
+
+    if any(word in text for word in ("주문", "판매량", "판매 추세", "수요", "매출")):
+        return "DETERMINISTIC", "DEMAND"
+
+    if any(word in text for word in ("관계", "연결된", "연관", "영향", "의존")):
+        return "RELATION_DOCUMENT", "RELATION"
+
+    if any(word in text for word in ("상품 설명", "제품 설명", "상품 정보", "제품 정보", "특징", "소개")):
+        return "HYBRID", "PRODUCT_INFO"
+
+    return "DETERMINISTIC", "UNSUPPORTED"
 
 def resolve_target(session: Session, *, tenant_id: UUID, target: ContextInput) -> ResolvedTarget:
     """Resolve external PRODUCT number or scoped UUID to a same-tenant V2 FK."""
@@ -259,13 +335,14 @@ def _append(
     order: int,
     revision: int,
     analysis_kind: AnalysisKind = "NONE",
+    question: str | None = None,
 ) -> MessageV2:
     message = MessageV2(
         tenant_id=conversation.tenant_id,
         conversation_id=conversation.id,
         message_order=order,
         role="USER",
-        content="선택 대상 확인 요청",
+        content=question if question is not None else "선택 대상 확인 요청",
         intent=intent,
         analysis_kind=analysis_kind,
         response_status="HOLD",
@@ -330,6 +407,77 @@ def _owned(
     if row is None:
         raise C09ContractError("MISSING", "CONVERSATION_NOT_FOUND")
     return row
+
+
+def resolve_product_search_target(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    query: str,
+    search_service: ProductSearchService | None,
+) -> TargetInput:
+    """Resolve validated text to one same-tenant Product before C09 context freeze."""
+    normalized = unicodedata.normalize("NFKC", query).strip()
+    if (
+        not normalized or len(normalized) > 200
+        or any(unicodedata.category(char).startswith("C") for char in normalized)
+        or _PRODUCT_SEARCH_SENSITIVE.search(normalized)
+    ):
+        raise C09ContractError("HOLD", "PRODUCT_SEARCH_INPUT_FORBIDDEN")
+    try:
+        validate_query(normalized)
+    except RetrievalFailure as exc:
+        raise C09ContractError("HOLD", "PRODUCT_SEARCH_INPUT_FORBIDDEN") from exc
+
+    product = None
+    if normalized.lower().startswith("product_id:"):
+        try:
+            product_id = UUID(normalized.split(":", 1)[1])
+        except ValueError as exc:
+            raise C09ContractError("HOLD", "PRODUCT_SEARCH_INVALID_ID") from exc
+        product = session.scalar(select(ProductV2).where(
+            ProductV2.tenant_id == tenant_id, ProductV2.id == product_id,
+        ))
+    else:
+        code = (
+            normalized.split(":", 1)[1]
+            if normalized.lower().startswith("product_code:") else normalized
+        )
+        if _PRODUCT_CODE.fullmatch(code):
+            matches = session.scalars(select(ProductV2).where(
+                ProductV2.tenant_id == tenant_id, ProductV2.product_code == code,
+            ).limit(2)).all()
+            if len(matches) > 1:
+                raise C09ContractError("CONFLICT", "PRODUCT_SEARCH_AMBIGUOUS")
+            product = matches[0] if matches else None
+        if product is None and normalized.lower().startswith("product_code:"):
+            raise C09ContractError("MISSING", "PRODUCT_SEARCH_NOT_FOUND")
+        if product is None:
+            if search_service is None:
+                raise C09ContractError("HOLD", "PRODUCT_SEARCH_UNAVAILABLE")
+            try:
+                candidates = search_service.resolve_product_ids(
+                    session=session, tenant_id=tenant_id, query=normalized,
+                )
+            except Exception as exc:
+                raise C09ContractError("HOLD", "PRODUCT_SEARCH_UNAVAILABLE") from exc
+            if not isinstance(candidates, Sequence) or isinstance(candidates, (str, bytes)):
+                raise C09ContractError("HOLD", "PRODUCT_SEARCH_INVALID_RESULT")
+            if len(candidates) > 1:
+                raise C09ContractError("CONFLICT", "PRODUCT_SEARCH_AMBIGUOUS")
+            if not candidates:
+                raise C09ContractError("MISSING", "PRODUCT_SEARCH_NOT_FOUND")
+            if not isinstance(candidates[0], UUID):
+                raise C09ContractError("HOLD", "PRODUCT_SEARCH_INVALID_RESULT")
+            product = session.scalar(select(ProductV2).where(
+                ProductV2.tenant_id == tenant_id, ProductV2.id == candidates[0],
+            ))
+    if product is None:
+        raise C09ContractError("MISSING", "PRODUCT_SEARCH_NOT_FOUND")
+    return TargetInput(
+        "PRODUCT", str(product.cafe24_product_no), product.product_name,
+        "CAFE24_CATALOG", product.source_as_of,
+    )
 
 
 def append_turn(
@@ -536,11 +684,7 @@ def _safe_analysis(
 ) -> AiAnswerContract:
     """Run only currently supported safe operational analysis."""
 
-    if analysis_kind not in {
-        "DETERMINISTIC",
-        "HYBRID",
-        "RELATION_DOCUMENT",
-    }:
+    if analysis_kind != "DETERMINISTIC":
         raise C09ContractError(
             "HOLD",
             "UNSUPPORTED_ANALYSIS_KIND",
@@ -620,6 +764,383 @@ def _safe_analysis(
     return answer
 
 
+def dispatch_analysis_request(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    request_message: MessageV2,
+    frozen_target: ResolvedTarget,
+    session_factory: sessionmaker | None = None,
+    demo_session_id: UUID | None = None,
+    settings: Settings | None = None,
+    reservation_projection: (
+        ReservationRiskProjection | None
+    ) = None,
+    neo4j_driver=None,
+) -> AnalysisRuntimeResult:
+    """Route a persisted C09 request without changing its frozen context."""
+    if request_message.content != "선택 대상 확인 요청":
+        _, question_type = classify_operational_question(
+            request_message.content
+        )
+
+        if question_type in {"INVENTORY_UNAVAILABLE", "UNSUPPORTED"}:
+            if question_type == "INVENTORY_UNAVAILABLE":
+                conclusion = (
+                    "현재 상품은 확인했지만 실제 재고 Snapshot이 "
+                    "연결되지 않아 정확한 재고 수량과 부족 여부를 "
+                    "판단할 수 없습니다."
+                )
+                next_check = "검증된 SKU/variant 재고 근거를 연결한 뒤 확인하세요."
+            else:
+                conclusion = (
+                    "현재 질문은 지원되는 운영 분석 범위에 "
+                    "해당하지 않아 판단을 보류합니다."
+                )
+                next_check = (
+                    "상품 주문량·주문 추세·상품 설명·상품 관계를 "
+                    "질문할 수 있습니다."
+                )
+
+            answer = AiAnswerContract(
+                conclusion=conclusion,
+                key_facts=(
+                    f"확인 상품: {frozen_target.target_label}",
+                    f"질문: {request_message.content}",
+                ),
+                evidence_ids=(),
+                next_checks=(next_check,),
+                status=ConversationStatus.HOLD,
+            )
+            validate_answer_contract(answer)
+            return AnalysisRuntimeResult(answer)
+    if request_message.analysis_kind == "DETERMINISTIC":
+        return AnalysisRuntimeResult(_safe_analysis(
+            session, tenant_id=tenant_id, target=frozen_target,
+            analysis_kind="DETERMINISTIC",
+        ))
+    if request_message.analysis_kind == "HYBRID":
+        evidence = None
+
+        if (
+            frozen_target.target_type == "PRODUCT"
+            and frozen_target.product_id is not None
+        ):
+            evidence = retrieve_frozen_product_evidence(
+                session,
+                tenant_id=tenant_id,
+                product_id=frozen_target.product_id,
+            )
+
+        if (
+            evidence is not None
+            and reservation_projection is not None
+            and session_factory is not None
+            and demo_session_id is not None
+            and settings is not None
+        ):
+            try:
+                grounded = (
+                    run_reservation_grounded_explanation(
+                        factory=session_factory,
+                        settings=settings,
+                        tenant_id=tenant_id,
+                        demo_session_id=(
+                            demo_session_id
+                        ),
+                        request_id=(
+                            "reservation-analysis-"
+                            f"{request_message.id}"
+                        ),
+                        question=(
+                            request_message.content
+                        ),
+                        projection=(
+                            reservation_projection
+                        ),
+                    )
+                )
+
+            except (
+                DemoQuotaDenied,
+                GroundedProviderError,
+                GroundedProviderTimeout,
+                ValueError,
+            ):
+                answer = AiAnswerContract(
+                    conclusion=(
+                        "예약 부족 근거는 확인했지만 "
+                        "AI 설명을 안전하게 완료하지 "
+                        "못했습니다."
+                    ),
+                    key_facts=(),
+                    evidence_ids=(
+                        evidence.evidence_id,
+                    ),
+                    next_checks=(
+                        "예약 위험과 입고 상태를 "
+                        "다시 확인하세요.",
+                    ),
+                    status=ConversationStatus.HOLD,
+                )
+                validate_answer_contract(
+                    answer
+                )
+                return AnalysisRuntimeResult(
+                    answer,
+                    (evidence.metadata(),),
+                )
+
+            output = grounded.output
+
+            answer = AiAnswerContract(
+                conclusion=output.conclusion,
+                key_facts=(
+                    output.used_facts
+                ),
+                evidence_ids=tuple(
+                    item.source_id
+                    for item
+                    in output.citations
+                ),
+                next_checks=(
+                    (output.next_check,)
+                    if output.next_check
+                    else ()
+                ),
+                status=(
+                    ConversationStatus.ANSWER
+                    if output.status
+                    == ExplanationStatus.ANSWER
+                    else ConversationStatus.HOLD
+                ),
+            )
+
+            validate_answer_contract(
+                answer
+            )
+
+            return AnalysisRuntimeResult(
+                answer,
+                (evidence.metadata(),),
+            )
+        if evidence is not None:
+            # TEST/비-provider 호출 경로는 기존 deterministic 결과를 유지한다.
+            if (
+                session_factory is None
+                or demo_session_id is None
+                or settings is None
+            ):
+                answer = AiAnswerContract(
+                    conclusion=(
+                        "저장된 Product 근거에서 요청한 "
+                        "상품을 확인했습니다."
+                    ),
+                    key_facts=(
+                        f"상품명: {evidence.product_name}",
+                        f"상품 코드: {evidence.product_code}",
+                        "확인 범위: 상품 master 정보",
+                    ),
+                    evidence_ids=(evidence.evidence_id,),
+                    next_checks=(
+                        "주문·재고 판단은 별도 권위 자료를 확인하세요.",
+                    ),
+                    status=ConversationStatus.ANSWER,
+                )
+                validate_answer_contract(answer)
+
+                return AnalysisRuntimeResult(
+                    answer,
+                    (evidence.metadata(),),
+                )
+
+            metadata = evidence.metadata()
+
+            try:
+                grounded = run_product_grounded_explanation(
+                    factory=session_factory,
+                    settings=settings,
+                    tenant_id=tenant_id,
+                    demo_session_id=demo_session_id,
+                    request_id=(
+                        f"product-analysis-{request_message.id}"
+                    ),
+                    question=request_message.content,
+                    data_mode=(
+                        str(
+                            metadata.get("data_mode")
+                            or frozen_target.data_mode
+                            or "SYNTHETIC_DEMO"
+                        )
+                    ),
+                    evidence_id=evidence.evidence_id,
+                    evidence_version=str(
+                        metadata.get("content_hash")
+                        or "C16_PRODUCT"
+                    ),
+                    evidence_excerpt=(
+                        f"상품명: {evidence.product_name}\n"
+                        f"상품 코드: {evidence.product_code}\n"
+                        "범위: 상품 master 정보"
+                    ),
+                )
+
+            except (
+                DemoQuotaDenied,
+                GroundedProviderError,
+                GroundedProviderTimeout,
+                ValueError,
+            ):
+                answer = AiAnswerContract(
+                    conclusion=(
+                        "검증된 Product 근거는 확인했지만 "
+                        "AI 설명을 안전하게 완료하지 못했습니다."
+                    ),
+                    key_facts=(
+                        f"상품명: {evidence.product_name}",
+                        f"상품 코드: {evidence.product_code}",
+                    ),
+                    evidence_ids=(evidence.evidence_id,),
+                    next_checks=(
+                        "잠시 후 다시 분석하거나 Product 근거를 확인하세요.",
+                    ),
+                    status=ConversationStatus.HOLD,
+                )
+
+                validate_answer_contract(answer)
+
+                return AnalysisRuntimeResult(
+                    answer,
+                    (metadata,),
+                )
+
+            output = grounded.output
+
+            if output.status == ExplanationStatus.HOLD:
+                answer = AiAnswerContract(
+                    conclusion=output.conclusion,
+                    key_facts=(),
+                    evidence_ids=(evidence.evidence_id,),
+                    next_checks=(
+                        (output.next_check,)
+                        if output.next_check
+                        else ()
+                    ),
+                    status=ConversationStatus.HOLD,
+                )
+            else:
+                answer = AiAnswerContract(
+                    conclusion=output.conclusion,
+                    key_facts=output.used_facts,
+                    evidence_ids=(evidence.evidence_id,),
+                    next_checks=(
+                        (output.next_check,)
+                        if output.next_check
+                        else ()
+                    ),
+                    status=ConversationStatus.ANSWER,
+                )
+
+            validate_answer_contract(answer)
+
+            return AnalysisRuntimeResult(
+                answer,
+                (metadata,),
+            )
+        answer = AiAnswerContract(
+            conclusion="현재 대상에 연결된 검증 가능한 Product 근거가 없어 분석을 보류합니다.",
+            key_facts=("분석 방식: HYBRID",), evidence_ids=(),
+            next_checks=("현재 Product와 C16 근거의 연결 상태를 확인하세요.",),
+            status=ConversationStatus.HOLD,
+        )
+        validate_answer_contract(answer)
+        return AnalysisRuntimeResult(answer)
+    if request_message.analysis_kind not in {"HYBRID", "RELATION_DOCUMENT"}:
+        raise C09ContractError("HOLD", "UNSUPPORTED_ANALYSIS_KIND")
+    if (
+        request_message.analysis_kind
+        == "RELATION_DOCUMENT"
+    ):
+        if (
+            frozen_target.target_type
+            != "PRODUCT"
+            or frozen_target.product_id is None
+            or neo4j_driver is None
+        ):
+            answer = AiAnswerContract(
+                conclusion=(
+                    "Graph 관계 분석에 필요한 "
+                    "검증된 대상 또는 runtime이 "
+                    "준비되지 않았습니다."
+                ),
+                key_facts=(
+                    "분석 방식: RELATION_DOCUMENT",
+                ),
+                evidence_ids=(),
+                next_checks=(
+                    "Graph 연결 상태를 확인하세요.",
+                ),
+                status=ConversationStatus.HOLD,
+            )
+
+            validate_answer_contract(answer)
+            return AnalysisRuntimeResult(
+                answer
+            )
+
+        graph_result = analyze_product_graph(
+            neo4j_driver,
+            tenant_id=tenant_id,
+            product_id=frozen_target.product_id,
+        )
+
+        status = {
+            "ANSWER": ConversationStatus.ANSWER,
+            "NO_EDGE": ConversationStatus.NO_EDGE,
+            "HOLD": ConversationStatus.HOLD,
+        }[graph_result.status]
+
+        answer = AiAnswerContract(
+            conclusion=graph_result.conclusion,
+            key_facts=graph_result.key_facts,
+            evidence_ids=tuple(
+                item.evidence_id
+                for item in graph_result.evidence
+            ),
+            next_checks=(),
+            status=status,
+        )
+
+        validate_answer_contract(answer)
+
+        return AnalysisRuntimeResult(
+            answer,
+            tuple(
+                {
+                    "evidence_id": item.evidence_id,
+                    "hop_count": item.hop_count,
+                    "path": list(item.path),
+                    "relation_types": list(
+                        item.relation_types
+                    ),
+                    "projection_version": (
+                        item.projection_version
+                    ),
+                }
+                for item in graph_result.evidence
+            ),
+        )
+    answer = AiAnswerContract(
+        conclusion="요청한 분석 방식은 현재 연결되지 않아 결과를 보류합니다.",
+        key_facts=(f"분석 방식: {request_message.analysis_kind}",),
+        evidence_ids=(),
+        next_checks=("검증된 분석 경로가 연결된 뒤 다시 요청하세요.",),
+        status=ConversationStatus.HOLD,
+    )
+    validate_answer_contract(answer)
+    return AnalysisRuntimeResult(answer)
+
+
 def _answer_content(answer: AiAnswerContract) -> str:
     evidence = "; ".join(answer.evidence_ids) if answer.evidence_ids else "확인된 운영 근거 없음"
     return "\n".join(
@@ -642,9 +1163,18 @@ def begin_analysis_request(
     intent: Intent,
     analysis_kind: AnalysisKind,
     request_revision: int,
+    question: str | None = None,
 ) -> MessageV2:
     """Fix the owned request identity and immutable context before analysis starts."""
     validate_pre_storage(actor_id, target, intent)
+
+    if question is not None:
+        expected_kind, _ = classify_operational_question(question)
+        if not isinstance(target, TargetInput) or target.target_type != "PRODUCT":
+            raise C09ContractError("HOLD", "QUESTION_CONTEXT_UNSUPPORTED")
+        if analysis_kind != expected_kind:
+            raise C09ContractError("HOLD", "QUESTION_ANALYSIS_MISMATCH")
+
     if analysis_kind not in {"DETERMINISTIC", "HYBRID", "RELATION_DOCUMENT"}:
         raise C09ContractError("HOLD", "UNSUPPORTED_ANALYSIS_KIND")
     row = _owned(session, tenant_id, actor_id, conversation_id, lock=True)
@@ -693,6 +1223,7 @@ def begin_analysis_request(
             order=last_order + 1,
             revision=revision,
             analysis_kind=analysis_kind,
+            question=question,
         )
         row.updated_at = func.now()
         session.commit()
@@ -709,6 +1240,13 @@ def complete_analysis_request(
     actor_id: str,
     conversation_id: UUID,
     request_message_id: UUID,
+    session_factory: sessionmaker | None = None,
+    demo_session_id: UUID | None = None,
+    settings: Settings | None = None,
+    reservation_projection: (
+        ReservationRiskProjection | None
+    ) = None,
+    neo4j_driver=None,
 ) -> ConversationV2:
     """Append a result to its original revision, even when the UI moved on."""
     row = _owned(session, tenant_id, actor_id, conversation_id, lock=True)
@@ -775,12 +1313,18 @@ def complete_analysis_request(
         request_context.product_id,
         context_meta.get(VIEW_SNAPSHOT_KEY),
     )
-    answer = _safe_analysis(
+    runtime_result = dispatch_analysis_request(
         session,
         tenant_id=tenant_id,
-        target=resolved,
-        analysis_kind=request_message.analysis_kind,
+        request_message=request_message,
+        frozen_target=resolved,
+        session_factory=session_factory,
+        demo_session_id=demo_session_id,
+        settings=settings,
+        reservation_projection=reservation_projection,
+        neo4j_driver=neo4j_driver,
     )
+    answer = runtime_result.answer
     last_order = session.scalar(
         select(func.max(MessageV2.message_order)).where(
             MessageV2.tenant_id == tenant_id, MessageV2.conversation_id == conversation_id
@@ -815,6 +1359,17 @@ def complete_analysis_request(
                 source_versions={
                     **context_meta,
                     "c09_analysis_request_id": str(request_message_id),
+                    **(
+                        {
+                            (
+                                "c17_relation_evidence"
+                                if request_message.analysis_kind == "RELATION_DOCUMENT"
+                                else "c18_retrieval"
+                            ): list(runtime_result.retrieval_evidence)
+                        }
+                        if runtime_result.retrieval_evidence
+                        else {}
+                    ),
                 },
                 evidence_ids=list(answer.evidence_ids),
             )
@@ -837,15 +1392,76 @@ def analyze_turn(
     intent: Intent,
     analysis_kind: AnalysisKind,
     request_revision: int,
+    session_factory: sessionmaker | None = None,
+    demo_session_id: UUID | None = None,
+    settings: Settings | None = None,
+    reservation_projection: (
+        ReservationRiskProjection | None
+    ) = None,
+    neo4j_driver=None,
+    question: str | None = None,
 ) -> ConversationV2:
     request = begin_analysis_request(
         session, tenant_id=tenant_id, actor_id=actor_id, conversation_id=conversation_id,
         target=target, intent=intent, analysis_kind=analysis_kind,
-        request_revision=request_revision,
+        request_revision=request_revision, question=question,
     )
     return complete_analysis_request(
-        session, tenant_id=tenant_id, actor_id=actor_id, conversation_id=conversation_id,
+        session,
+        tenant_id=tenant_id,
+        actor_id=actor_id,
+        conversation_id=conversation_id,
         request_message_id=request.id,
+        session_factory=session_factory,
+        demo_session_id=demo_session_id,
+        settings=settings,
+        reservation_projection=reservation_projection,
+        neo4j_driver=neo4j_driver,
+    )
+
+
+def analyze_product_search_turn(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    actor_id: str,
+    conversation_id: UUID,
+    query: str,
+    intent: Intent,
+    request_revision: int,
+    search_service: ProductSearchService | None,
+) -> ConversationV2:
+    """Authorize, resolve Product, then reuse the C09 frozen analysis path."""
+    _owned(session, tenant_id, actor_id, conversation_id)
+    target = resolve_product_search_target(
+        session, tenant_id=tenant_id, query=query, search_service=search_service,
+    )
+    return analyze_turn(
+        session, tenant_id=tenant_id, actor_id=actor_id,
+        conversation_id=conversation_id, target=target, intent=intent,
+        analysis_kind="HYBRID", request_revision=request_revision,
+    )
+
+
+def create_product_search_conversation(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    actor_id: str,
+    query: str,
+    search_service: ProductSearchService | None,
+) -> ConversationV2:
+    """Resolve search text before creating a C09 conversation for an unrelated Product."""
+    if not valid_c09_actor_id(actor_id):
+        raise C09ContractError("HOLD", "TRUSTED_ACTOR_REQUIRED")
+    target = resolve_product_search_target(
+        session, tenant_id=tenant_id, query=query, search_service=search_service,
+    )
+    row = create_conversation(session, tenant_id=tenant_id, actor_id=actor_id, target=target)
+    return analyze_turn(
+        session, tenant_id=tenant_id, actor_id=actor_id,
+        conversation_id=row.id, target=target, intent="INSPECT_TARGET",
+        analysis_kind="HYBRID", request_revision=1,
     )
 
 

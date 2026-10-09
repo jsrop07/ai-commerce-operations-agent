@@ -47,6 +47,8 @@ def test_builds_allowlisted_payload() -> None:
         aggregate=_aggregate(),
         evidence=_evidence(),
         provider_call_allowed=True,
+        secured_qty=1,
+        shortage_qty=2,
     ).to_dict()
 
     assert payload["sku_id"] == "DEMO-SKU-001"
@@ -83,6 +85,7 @@ def test_hold_cannot_build_provider_payload() -> None:
             aggregate=_aggregate(),
             evidence=_evidence(),
             provider_call_allowed=False,
+            shortage_qty=2,
         )
 
 
@@ -96,4 +99,5 @@ def test_evidence_is_required() -> None:
             aggregate=_aggregate(),
             evidence=(),
             provider_call_allowed=True,
+            shortage_qty=2,
         )

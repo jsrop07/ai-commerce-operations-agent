@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import String, cast, func, or_, select
@@ -42,6 +43,7 @@ class CatalogV2Product:
     selling_status: str
     sold_out: bool
     operational: bool
+    source_as_of: datetime | None
     category_nos: tuple[int, ...]
     categories: tuple[CatalogV2Category, ...]
 
@@ -297,6 +299,7 @@ def list_catalog_products(
             selling_status=product.selling_status,
             sold_out=product.sold_out,
             operational=product.operational,
+            source_as_of=product.source_as_of,
             category_nos=tuple(category.cafe24_category_no for category in categories_by_product.get(product.id, [])),
             categories=tuple(categories_by_product.get(product.id, [])),
         )

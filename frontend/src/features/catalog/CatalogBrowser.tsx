@@ -19,7 +19,6 @@ import {
 import {
   useOptionalCommonAiDrawer,
 } from "../../app/CommonAiDrawerContext";
-import type { ViewContext } from "../../api/conversations";
 const pageSize = 50;
 
 export function CatalogPagination({
@@ -55,6 +54,7 @@ export function CatalogPagination({
 export default function CatalogBrowser() {
   const [urlState, setUrlState] = useState(() => readCatalogUrl(window.location.search));
   const [searchDraft, setSearchDraft] = useState(urlState.q);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
   const [priceMinDraft, setPriceMinDraft] = useState(urlState.price_min?.toString() ?? "");
   const [priceMaxDraft, setPriceMaxDraft] = useState(urlState.price_max?.toString() ?? "");
@@ -196,20 +196,6 @@ export default function CatalogBrowser() {
     !/(?:^|[^\d])01[016789][-. ]?\d{3,4}[-. ]?\d{4}(?:$|[^\d])/.test(viewSearch) &&
     !/\b\d{8}-\d{6,}\b/.test(viewSearch);
 
-  function openInventoryView() {
-    if (!aiDrawer || !safeViewSearch) return;
-    const filters: ViewContext["filters"] = {};
-    if (urlState.selling_status) filters.selling = urlState.selling_status === "T";
-    if (urlState.sold_out) filters.sold_out = urlState.sold_out === "true";
-    if (selectedRoot) filters.major_category = selectedRoot.category_name;
-    aiDrawer.openAiDrawer({
-      scope: "VIEW", page: "PRODUCT_INVENTORY", filters,
-      search: viewSearch || null,
-      date_range: null,
-      sort: { by: urlState.sort_by, direction: urlState.sort_dir },
-    });
-  }
-
   useEffect(() => {
     if (!hierarchyReady) return;
     let active = true;
@@ -288,50 +274,108 @@ export default function CatalogBrowser() {
 
   return (
     <section aria-labelledby="catalog-section-title" data-testid="catalog-section" className="catalog-section">
-      <h2 id="catalog-section-title">상품 Catalog</h2>
-      {aiDrawer && <button type="button" onClick={openInventoryView}
-        disabled={!safeViewSearch} aria-label="상품·재고 화면 운영 AI 열기">상품·재고 화면 운영 AI</button>}
-      <p className="muted">상품/카테고리 master입니다. 실제 재고 수량은 아래 재고 Snapshot에서 별도로 확인합니다.</p>
-      {summaryError ? <SystemState state="denied" title="상품 Catalog를 불러오지 못했습니다" /> :
-        !summary ? <SystemState state="loading" /> : (
-          <div className="card card-body">
-            <strong>Catalog 요약</strong>
-            <p>상품 {summary.product_count}건 · 카테고리 {summary.category_count}건 · 상품·카테고리 관계 {summary.product_category_count}건</p>
-            <p className="muted">원본 기준시각 {summary.source_as_of === null ? "미확인" :
-              <time dateTime={summary.source_as_of}>{new Date(summary.source_as_of).toLocaleString("ko-KR")}</time>}</p>
-          </div>
-        )}
+    <h2 id="catalog-section-title" className="common-ai-sr-only">
+      상품 목록
+    </h2>
 
-      <div className="catalog-toolbar">
-        <h3>상품 목록</h3>
-        <div className="catalog-controls">
+    {summaryError ? (
+      <SystemState
+        state="denied"
+        title="상품 정보를 불러오지 못했습니다"
+      />
+    ) : !summary ? (
+      <SystemState state="loading" />
+    ) : (
+      <div className="catalog-summary-inline">
+        <span>상품 {summary.product_count}건</span>
+        <span>카테고리 {summary.category_count}건</span>
+        <span>상품·카테고리 관계 {summary.product_category_count}건</span>
+        <span className="catalog-summary-source">
+          원본 기준시각{" "}
+          {summary.source_as_of === null ? (
+            "미확인"
+          ) : (
+            <time dateTime={summary.source_as_of}>
+              {new Date(summary.source_as_of).toLocaleString("ko-KR")}
+            </time>
+          )}
+        </span>
+      </div>
+    )}
+      <div className="catalog-toolbar catalog-toolbar-compact">
+        <div className="catalog-primary-controls">
           <form onSubmit={submitSearch} className="catalog-search">
             <input aria-label="Catalog 검색어" placeholder="상품 번호 · 코드 · 판매가 · 카테고리 검색"
               value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} />
           </form>
-          <div className="catalog-price-control" ref={priceRef}>
-            <button type="button" aria-expanded={priceOpen} aria-controls="catalog-price-range"
-              onClick={() => {
-                if (!priceOpen) {
-                  setPriceMinDraft(urlState.price_min?.toString() ?? "");
-                  setPriceMaxDraft(urlState.price_max?.toString() ?? "");
-                  setPriceError("");
-                }
-                setPriceOpen(!priceOpen);
-              }}>판매가</button>
-            {priceOpen && <form id="catalog-price-range" className="catalog-price-popover" onSubmit={applyPrice}
-              role="group" aria-label="판매가 범위">
-              <strong>판매가 범위</strong>
-              <label>최소 가격<input type="text" inputMode="decimal" value={priceMinDraft}
-                aria-invalid={!!priceError} onChange={(event) => { setPriceMinDraft(event.target.value); setPriceError(""); }} /></label>
-              <label>최대 가격<input type="text" inputMode="decimal" value={priceMaxDraft}
-                aria-invalid={!!priceError} onChange={(event) => { setPriceMaxDraft(event.target.value); setPriceError(""); }} /></label>
-              {priceError && <p role="alert">{priceError}</p>}
+          <button
+            type="button"
+            className="catalog-filter-toggle"
+            aria-expanded={filtersOpen}
+            aria-controls="catalog-advanced-filters"
+            onClick={() => {
+              setFiltersOpen((value) => !value);
+              setPriceOpen(false);
+            }}
+          >
+            필터
+            <span aria-hidden="true">
+              {filtersOpen ? "⌃" : "⌄"}
+            </span>
+          </button>
+            </div>
+
+            <div
+              id="catalog-advanced-filters"
+              className="catalog-controls catalog-advanced-filters"
+              hidden={!filtersOpen}
+            >
+          <div className="catalog-price-inline">
+            <form
+              className="catalog-price-inline-form"
+              onSubmit={applyPrice}
+              role="group"
+              aria-label="판매가 범위"
+            >
+              <label>
+                최소 가격
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={priceMinDraft}
+                  aria-invalid={!!priceError}
+                  placeholder="0"
+                  onChange={(event) => {
+                    setPriceMinDraft(event.target.value);
+                    setPriceError("");
+                  }}
+                />
+              </label>
+
+              <label>
+                최대 가격
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={priceMaxDraft}
+                  aria-invalid={!!priceError}
+                  placeholder="제한 없음"
+                  onChange={(event) => {
+                    setPriceMaxDraft(event.target.value);
+                    setPriceError("");
+                  }}
+                />
+              </label>
+
               <div className="catalog-price-actions">
-                <button type="button" onClick={clearPrice}>초기화</button>
+                <button type="button" onClick={clearPrice}>
+                  초기화
+                </button>
                 <button type="submit">적용</button>
               </div>
-            </form>}
+
+              {priceError && <p role="alert">{priceError}</p>}
+            </form>
           </div>
           <select aria-label="진열 필터" value={urlState.display_status}
             onChange={(event) => changeUrl({ display_status: event.target.value as CatalogUrlState["display_status"], page: 1 })}>
@@ -377,44 +421,50 @@ export default function CatalogBrowser() {
                 <thead><tr>
                   <th aria-sort={urlState.sort_by === "cafe24_product_no" ?
                     urlState.sort_dir === "desc" ? "descending" : "ascending" : "none"}>
-                    <button type="button" className="catalog-sort" onClick={() => changeSort("cafe24_product_no")}>카페24 상품 번호{sortArrow("cafe24_product_no")}</button>
+                    <button
+                      type="button"
+                      className="catalog-sort"
+                      onClick={() => changeSort("cafe24_product_no")}
+                    >
+                      상품 번호{sortArrow("cafe24_product_no")}
+                    </button>
                   </th>
+                  {aiDrawer && <th className="catalog-ai-column">운영 AI</th>}
                   <th>상품명</th><th>상품 코드</th><th>사용자 상품 코드</th>
                   <th aria-sort={urlState.sort_by === "sale_price" ?
                     urlState.sort_dir === "desc" ? "descending" : "ascending" : "none"}>
                     <button type="button" className="catalog-sort" onClick={() => changeSort("sale_price")}>판매가{sortArrow("sale_price")}</button>
                   </th>
-                  <th>진열 상태</th><th>판매 상태</th><th>품절</th><th>카테고리</th>{aiDrawer && <th>AI</th>}
+                  <th>진열 상태</th><th>판매 상태</th><th>품절</th><th>카테고리</th>
                 </tr></thead>
                 <tbody>{productsPage.items.map((product) => <tr key={product.id}>
-                  <td>{product.cafe24_product_no}</td><td>{product.product_name}</td>
+                  <td>{product.cafe24_product_no}</td>
+                  {aiDrawer && (
+                    <td className="catalog-ai-column">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          aiDrawer.openAiDrawer({
+                            targetType: "PRODUCT",
+                            targetId: String(product.cafe24_product_no),
+                            targetLabel: product.product_name,
+                            source: "CAFE24_CATALOG",
+                            asOf: product.source_as_of,
+                          })
+                        }
+                        aria-label={`${product.product_name} 운영 AI 열기`}
+                      >
+                        운영 AI
+                      </button>
+                    </td>
+                  )}
+                  <td>{product.product_name}</td>
                   <td>{product.product_code}</td><td>{product.custom_product_code ?? "미확인"}</td>
                   <td>{product.sale_price === null ? "미확인" : product.sale_price.toLocaleString("ko-KR")}</td>
                   <td>{product.display_status === "T" ? "진열" : "미진열"}</td>
                   <td>{product.selling_status === "T" ? "판매중" : "판매중지"}</td>
                   <td>{product.sold_out ? "품절" : "품절 아님"}</td>
                   <td>{product.categories.length ? product.categories.map((item) => item.category_name).join(" · ") : "미확인"}</td>
-                  {aiDrawer && (
-                    <td>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            aiDrawer.openAiDrawer({
-                              targetType: "PRODUCT",
-                              targetId: String(
-                                product.cafe24_product_no,
-                              ),
-                              targetLabel: product.product_name,
-                              source: "CAFE24_CATALOG",
-                              asOf: summary?.source_as_of ?? null,
-                            })
-                          }
-                          aria-label={`${product.product_name} 운영 AI 열기`}
-                        >
-                          운영 AI
-                        </button>
-                      </td>
-                    )}
                 </tr>)}</tbody>
               </table>
             </div>

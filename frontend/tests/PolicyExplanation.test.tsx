@@ -20,6 +20,18 @@ describe("reservation policy explanation (component mock)", () => {
   beforeEach(() => request.mockReset());
   afterEach(() => vi.unstubAllGlobals());
 
+  it("keeps C24 quota and disabled-model warnings distinct from general HOLD", async () => {
+    expect(explanationWarning("C24_QUOTA_EXCEEDED")).toContain("사용 한도");
+    expect(explanationWarning("C24_QUOTA_UNCONFIGURED")).toContain("모델 호출이 현재 중지");
+    request.mockResolvedValue(envelope({ ...answer, status: "HOLD", model_used: false,
+      used_facts: [], used_numeric_facts: [], citations: [], c04_lookup: [],
+      warnings: ["C24_QUOTA_EXCEEDED"] }));
+    render(view());
+    fireEvent.click(screen.getByRole("button", { name: "정책 설명 보기" }));
+    expect(await screen.findByText(/AI 모델 호출 상태를 확인/)).toBeInTheDocument();
+    expect(screen.queryByText("현재 근거만으로 설명할 수 없습니다.")).not.toBeInTheDocument();
+  });
+
   it("ANSWER presents facts, numeric fact, citation, next check and demo marker without request_id", async () => {
     request.mockResolvedValue(envelope(answer));
     render(view());

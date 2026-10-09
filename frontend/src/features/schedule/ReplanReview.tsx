@@ -95,7 +95,9 @@ export default function ReplanReview({
 
         <section>
           <h4>제안 근거</h4>
-          <p>승인·실행 불가: R10 review/resume 계약 전이며 외부 실행은 허용되지 않습니다.</p>
+          <p>{import.meta.env.VITE_USE_REAL_BACKEND === "true" ?
+            "Public Demo에서는 R10 workflow review API가 닫혀 있습니다. 제안 조회만 가능합니다." :
+            "승인·실행 불가: R10 review/resume 계약 전이며 외부 실행은 허용되지 않습니다."}</p>
 
           <p>
             이유: {model.reason}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from hashlib import sha256
 from typing import get_args, get_type_hints
 from uuid import UUID
 
@@ -10,18 +11,20 @@ import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from ai.evaluation.r09_conversation_contract import ConversationStatus
-from backend.app.api.conversations_v2 import MessageView, router
+from backend.app.api.conversations_v2 import AppendTurnInput, MessageView, router
 from backend.app.core.config import Environment, Settings
 from backend.app.db.base_v2 import BaseV2
 from backend.app.main import create_app
-from backend.app.models_v2.ai import AgentRunV2, ConversationV2, MessageContextV2, MessageV2
+from backend.app.models_v2.ai import (
+    AgentRunV2, ConversationV2, MessageContextV2, MessageV2, RagChunkV2,
+)
 from backend.app.models_v2.catalog import CategoryV2, ProductV2, ProductVariantV2
 from backend.app.models_v2.operations import (
     IncomingShipmentV2,
@@ -93,9 +96,12 @@ def c09_db():
             MessageV2,
             MessageContextV2,
             AgentRunV2,
+            RagChunkV2,
         )
     ]
     BaseV2.metadata.create_all(engine, tables=tables)
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE rag_chunks ADD COLUMN embedding TEXT"))
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory() as session:
         tenant = TenantV2(name="commerce_ops_local", environment="LOCAL", status="ACTIVE")
@@ -205,6 +211,142 @@ def test_c09_message_type_contract():
     assert MessageView.model_fields["response_status"].annotation is MessageResponseStatus
     assert MessageView.model_fields["analysis_kind"].annotation == AnalysisKind | None
     assert MessageView.model_fields["evidence_ids"].annotation == list[str]
+    assert set(AppendTurnInput.model_fields) == {
+        "context", "intent", "analysis_kind", "request_revision",
+    }
+
+
+class ProductSearchStub:
+    def __init__(self, ids):
+        self.ids = ids
+        self.calls = []
+
+    def resolve_product_ids(self, *, session, tenant_id, query):
+        self.calls.append((tenant_id, query))
+        return self.ids
+
+
+def _product_search_payload(query, revision=1):
+    return {"query": query, "intent": "INSPECT_TARGET", "request_revision": revision}
+
+
+def test_product_search_resolves_before_context_freeze_without_saving_query(c09_db, monkeypatch):
+    factory, ids = c09_db
+    client = _configured_app(c09_db, Environment.TEST, "actor.one")
+    search = ProductSearchStub([ids["a"]])
+    client.app.state.product_search_service = search
+    monkeypatch.setattr("openai.OpenAI", lambda *a, **kw: pytest.fail("provider called"))
+    created = client.post("/api/v1/conversations", json={"context": _CONTEXT})
+    cid = created.json()["data"]["conversation_id"]
+    query = "가벼운 보드게임 추천"
+    response = client.post(
+        f"/api/v1/conversations/{cid}/product-search/messages",
+        json=_product_search_payload(query),
+    )
+    assert response.status_code == 200, response.text
+    assert search.calls == [(ids["tenant"], query)]
+    messages = response.json()["data"]["messages"]
+    assert messages[-2]["context"]["target_id"] == "101"
+    assert messages[-2]["analysis_kind"] == "HYBRID"
+    assert messages[-1]["response_status"] == "HOLD"  # no C16 chunk in this fixture
+    with factory() as session:
+        stored = session.scalars(select(MessageV2).where(
+            MessageV2.conversation_id == UUID(cid),
+        )).all()
+        contexts = session.scalars(select(MessageContextV2).join(
+            MessageV2, MessageV2.id == MessageContextV2.message_id,
+        ).where(MessageV2.conversation_id == UUID(cid))).all()
+    assert all(query not in row.content for row in stored)
+    assert all(query not in str(row.source_versions) for row in contexts)
+    frozen = next(row for row in contexts if row.message_id == UUID(messages[-2]["message_id"]))
+    assert frozen.product_id == ids["a"]
+
+
+def test_product_search_exact_code_and_id_work_without_search_service(c09_db):
+    _, ids = c09_db
+    client = _configured_app(c09_db, Environment.TEST, "actor.one")
+    cid = client.post("/api/v1/conversations", json={"context": _CONTEXT}).json()[
+        "data"
+    ]["conversation_id"]
+    path = f"/api/v1/conversations/{cid}/product-search/messages"
+    assert client.post(path, json=_product_search_payload("product_code:C09_A")).status_code == 200
+    assert client.post(path, json=_product_search_payload(f"product_id:{ids['a']}")).status_code == 200
+    assert client.post(path, json=_product_search_payload("가벼운 보드게임")).json()["detail"] == {
+        "status": "HOLD", "code": "PRODUCT_SEARCH_UNAVAILABLE",
+    }
+
+
+def test_product_search_can_open_new_conversation_after_resolution(c09_db):
+    factory, ids = c09_db
+    client = _configured_app(c09_db, Environment.TEST, "actor.one")
+    search = ProductSearchStub([ids["b"]])
+    client.app.state.product_search_service = search
+    query = "다른 보드게임 찾아줘"
+    created = client.post("/api/v1/conversations/product-search", json={"query": query})
+    assert created.status_code == 201, created.text
+    view = created.json()["data"]
+    assert view["context"]["target_id"] == "102"
+    assert view["messages"][-2]["analysis_kind"] == "HYBRID"
+    assert search.calls == [(ids["tenant"], query)]
+    assert all(query not in item["content"] for item in view["messages"])
+    with factory() as session:
+        rows = session.scalars(select(MessageContextV2).join(
+            MessageV2, MessageV2.id == MessageContextV2.message_id,
+        ).where(MessageV2.conversation_id == UUID(view["conversation_id"]))).all()
+    assert all(query not in str(row.source_versions) for row in rows)
+    assert {row.product_id for row in rows} == {ids["b"]}
+
+    search.ids = []
+    missing = client.post("/api/v1/conversations/product-search", json={"query": "없는 상품"})
+    assert missing.status_code == 404
+    assert len(client.get("/api/v1/conversations").json()["data"]) == 1
+
+
+@pytest.mark.parametrize("query", [
+    "customer@example.com", "order_id=123", "고객 이름 홍길동", "payment details 123",
+    "배송지 서울", "문의 원문", "010-1234-5678", "보드게임\n주문 목록",
+])
+def test_product_search_sensitive_input_fails_closed_without_writes(c09_db, query):
+    client = _configured_app(c09_db, Environment.TEST, "actor.one")
+    search = ProductSearchStub([])
+    client.app.state.product_search_service = search
+    cid = client.post("/api/v1/conversations", json={"context": _CONTEXT}).json()[
+        "data"
+    ]["conversation_id"]
+    response = client.post(
+        f"/api/v1/conversations/{cid}/product-search/messages",
+        json=_product_search_payload(query),
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "PRODUCT_SEARCH_INPUT_FORBIDDEN"
+    assert search.calls == []
+    assert len(client.get(f"/api/v1/conversations/{cid}").json()["data"]["messages"]) == 1
+
+
+def test_product_search_missing_ambiguous_stale_and_other_actor_do_not_change_context(c09_db):
+    _, ids = c09_db
+    owner = _configured_app(c09_db, Environment.TEST, "actor.one")
+    search = ProductSearchStub([])
+    owner.app.state.product_search_service = search
+    cid = owner.post("/api/v1/conversations", json={"context": _CONTEXT}).json()[
+        "data"
+    ]["conversation_id"]
+    path = f"/api/v1/conversations/{cid}/product-search/messages"
+    assert owner.post(path, json=_product_search_payload("보드게임")).status_code == 404
+    search.ids = [ids["a"], ids["b"]]
+    assert owner.post(path, json=_product_search_payload("보드게임")).status_code == 409
+    search.ids = [ids["a"]]
+    stale = owner.post(path, json=_product_search_payload("보드게임", revision=2))
+    assert stale.status_code == 409
+    assert stale.json()["detail"]["code"] == "REQUEST_REVISION_MISMATCH"
+    other = _configured_app(c09_db, Environment.TEST, "actor.two")
+    other.app.state.product_search_service = search
+    before = len(search.calls)
+    assert other.post(path, json=_product_search_payload("보드게임")).status_code == 404
+    assert len(search.calls) == before
+    view = owner.get(f"/api/v1/conversations/{cid}").json()["data"]
+    assert len(view["messages"]) == 1
+    assert view["context"]["target_id"] == "101"
 
 def _configured_app(c09_db, environment, actor_id):
     factory, ids = c09_db
@@ -341,6 +483,118 @@ def test_analysis_persists_ordered_user_and_assistant_with_snapshot(c09_db, kind
             select(MessageV2).where(MessageV2.conversation_id == UUID(data["conversation_id"]))
         ).all()
         assert len(rows) == 3
+    
+
+
+@pytest.mark.parametrize("kind", ["HYBRID", "RELATION_DOCUMENT"])
+def test_unwired_analysis_dispatch_holds_without_running_deterministic(
+    c09_db, monkeypatch, kind,
+):
+    factory, ids = c09_db
+    calls = []
+
+    def forbidden_analysis(*args, **kwargs):
+        calls.append("analysis")
+        raise AssertionError("unwired analysis called")
+
+    monkeypatch.setattr(
+        "backend.app.services.conversation_v2._safe_analysis", forbidden_analysis,
+    )
+    with factory() as session:
+        conversation = create_conversation(
+            session, tenant_id=ids["tenant"], actor_id="actor.one", target=product(),
+        )
+        request = begin_analysis_request(
+            session, tenant_id=ids["tenant"], actor_id="actor.one",
+            conversation_id=conversation.id, target=product(), intent="INSPECT_TARGET",
+            analysis_kind=kind, request_revision=1,
+        )
+        complete_analysis_request(
+            session, tenant_id=ids["tenant"], actor_id="actor.one",
+            conversation_id=conversation.id, request_message_id=request.id,
+        )
+        view = read_conversation(
+            session, tenant_id=ids["tenant"], actor_id="actor.one",
+            conversation_id=conversation.id,
+        )
+    assert calls == []
+    assert view["messages"][-1]["response_status"] == "HOLD"
+    assert view["messages"][-1]["evidence_ids"] == []
+    assert f"분석 방식: {kind}" in view["messages"][-1]["content"]
+    assert view["messages"][-1]["request_message_id"] == str(request.id)
+    
+
+def test_hybrid_uses_exact_frozen_product_chunk_without_provider(c09_db, monkeypatch):
+    factory, ids = c09_db
+    calls = []
+
+    def forbidden_provider(*args, **kwargs):
+        calls.append("provider")
+        raise AssertionError("HYBRID evidence lookup invoked a provider")
+
+    monkeypatch.setattr("openai.OpenAI", forbidden_provider)
+    with factory() as session:
+        product_row = session.get(ProductV2, ids["a"])
+        chunk_text = f"상품명: {product_row.product_name}\n상품 코드: {product_row.product_code}"
+        session.add(RagChunkV2(
+            tenant_id=ids["tenant"], source_type="PRODUCT",
+            source_id=str(product_row.id), source_version="c15-test-v1",
+            chunk_no=0, chunk_text=chunk_text,
+            content_hash=sha256(chunk_text.encode()).hexdigest(),
+            metadata_json={"data_mode": "SYNTHETIC_DEMO", "product_code": product_row.product_code},
+            is_current=True,
+        ))
+        session.commit()
+        session.execute(text(
+            "UPDATE rag_chunks SET embedding = 'stored-vector' WHERE source_id = :source_id"
+        ), {"source_id": str(product_row.id)})
+        session.commit()
+    client = _configured_app(c09_db, Environment.TEST, "actor.one")
+    created = client.post("/api/v1/conversations", json={"context": _CONTEXT})
+    cid = created.json()["data"]["conversation_id"]
+    response = client.post(
+        f"/api/v1/conversations/{cid}/messages",
+        json=_analysis_payload(kind="HYBRID"),
+    )
+    assert response.status_code == 200, response.text
+    assistant = response.json()["data"]["messages"][-1]
+    assert assistant["response_status"] == "ANSWER"
+    assert assistant["evidence_ids"] == [
+        f"rag:PRODUCT:{ids['a']}:c15-test-v1:0"
+    ]
+    assert "상품 코드: C09_A" in assistant["content"]
+    assert calls == []
+    with factory() as session:
+        context = session.scalar(select(MessageContextV2).where(
+            MessageContextV2.message_id == UUID(assistant["message_id"]),
+        ))
+        assert context.source_versions["c18_retrieval"] == [{
+            "evidence_id": assistant["evidence_ids"][0],
+            "source_type": "PRODUCT", "source_id": str(ids["a"]),
+            "source_version": "c15-test-v1", "chunk_no": 0,
+            "method": "EXACT_PRODUCT_ID", "rank": 1, "score": None,
+        }]
+        assert "c18_retrieval" in context.source_versions
+        assert "c17_relation_evidence" not in context.source_versions
+
+def test_hybrid_without_frozen_product_context_holds(c09_db):
+    factory, ids = c09_db
+    with factory() as session:
+        target = incoming_target(ids["incoming"])
+        conversation = create_conversation(
+            session, tenant_id=ids["tenant"], actor_id="actor.one", target=target,
+        )
+        analyze_turn(
+            session, tenant_id=ids["tenant"], actor_id="actor.one",
+            conversation_id=conversation.id, target=target,
+            intent="INSPECT_TARGET", analysis_kind="HYBRID", request_revision=1,
+        )
+        view = read_conversation(
+            session, tenant_id=ids["tenant"], actor_id="actor.one",
+            conversation_id=conversation.id,
+        )
+    assert view["messages"][-1]["response_status"] == "HOLD"
+    assert view["messages"][-1]["evidence_ids"] == []
 
 
 def test_analysis_requires_actor_and_owner_without_leaking_content(c09_db):
@@ -892,7 +1146,14 @@ def test_existing_agent_run_reference_is_read_only(c09_db):
             }
         ]
 
-def test_product_analysis_answers_from_safe_synthetic_demand(c09_db):
+def test_product_analysis_answers_from_safe_synthetic_demand(c09_db, monkeypatch):
+    provider_calls = []
+
+    def forbidden_provider(*args, **kwargs):
+        provider_calls.append("OpenAI")
+        raise AssertionError("C18 deterministic dispatch must not call a provider")
+
+    monkeypatch.setattr("openai.OpenAI", forbidden_provider)
     factory, ids = c09_db
 
     with factory() as session:
@@ -1079,6 +1340,7 @@ def test_product_analysis_answers_from_safe_synthetic_demand(c09_db):
     assert assistant["evidence_ids"] == [
         "product-demand:SYNTHETIC_DEMO:101:2026-10-04"
     ]
+    assert provider_calls == []
 
     user_messages = [
         message

@@ -3,6 +3,7 @@ import {
   useState,
 } from "react";
 import EnvironmentBanner, { type EnvironmentVariant } from "../components/EnvironmentBanner";
+import FloatingAiLauncher from "../components/FloatingAiLauncher";
 import {
   CommonAiDrawerHost,
 } from "./CommonAiDrawerContext";
@@ -16,15 +17,17 @@ function currentPath() {
 
 export default function App({ environment }: { environment?: EnvironmentVariant }) {
   const [pathname, setPathname] = useState(currentPath);
-  const activeRoute = resolveRoute(pathname);
+  const publicDemo = import.meta.env.VITE_USE_REAL_BACKEND === "true";
   const queryEnvironment = new URLSearchParams(window.location.search).get("environment");
   const activeEnvironment =
-    environment ??
+    publicDemo ? "DEMO" : environment ??
     (queryEnvironment === "production-read"
       ? "PRODUCTION_READ"
       : queryEnvironment === "local-eval"
         ? "LOCAL_EVAL"
         : "DEMO");
+  const visibleRoutes = publicDemo ? routes.filter((route) => route.path !== "/inquiries") : routes;
+  const activeRoute = resolveRoute(pathname, publicDemo);
 
   const headerDataLabel =
     activeEnvironment === "LOCAL_EVAL"
@@ -46,52 +49,57 @@ export default function App({ environment }: { environment?: EnvironmentVariant 
     setPathname(path);
   };
 
-  return (
-    <CommonAiDrawerHost key={pathname}>
-    <div className="app">
-      <EnvironmentBanner variant={activeEnvironment} />
-      <div className="app-frame">
-        <aside className="sidebar">
-          <div className="brand">
-            <strong>AI Commerce</strong>
-            <strong>Operations Agent</strong>
-            <small>운영 의사결정 지원</small>
-          </div>
-          <nav className="nav-list" aria-label="주요 화면">
-            {routes.map((route) => (
-              <a
-                key={route.path}
-                href={route.path}
-                className={`nav-link ${route.path === activeRoute.path ? "active" : ""}`}
-                aria-current={route.path === activeRoute.path ? "page" : undefined}
-                onClick={(event) => navigate(event, route.path)}
+    return (
+    <CommonAiDrawerHost sessionRequired={publicDemo}>
+      <div className="app commerce-app">
+        {activeEnvironment !== "DEMO" && (
+          <EnvironmentBanner variant={activeEnvironment} />
+        )}
+
+        <div className="app-frame commerce-frame">
+          <section className="workspace commerce-workspace">
+            <header className="commerce-topbar">
+              <div className="commerce-topbar-brand">
+                <strong>AI COMMERCE</strong>
+                <span>/ OPERATIONS</span>
+              </div>
+
+              <nav
+                className="commerce-topnav"
+                aria-label="주요 화면"
               >
-                <span className="nav-icon" aria-hidden="true">{route.icon}</span>
-                <span>{route.navLabel}</span>
-                {"badge" in route && <span className="nav-badge">{route.badge}</span>}
-              </a>
-            ))}
-          </nav>
-          <div className="safety-card">🛡 안전 원칙<br />외부 주문·재고·결제 변경 없음<br />내부 확인 업무만 생성</div>
-        </aside>
-        <section className="workspace">
-          <header className="header">
-            <h1>{activeRoute.label}</h1>
-            <div className="provider-row" role="status" aria-label="연동 상태">
-              <span className="badge success">● Cafe24</span>
-              <span className="badge success">● Toss POS</span>
-              <span className="badge warning">▲ eCount 지연</span>
-            </div>
-            <time className="header-meta">
-              {headerDataLabel} · 최근 확인 11:42 KST
-            </time>
-          </header>
-          <main className="main">
-            <activeRoute.Component />
-          </main>
-        </section>
+                {visibleRoutes.map((route) => (
+                  <a
+                    key={route.path}
+                    href={route.path}
+                    className={`commerce-nav-link ${
+                      route.path === activeRoute.path ? "active" : ""
+                    }`}
+                    aria-current={
+                      route.path === activeRoute.path
+                        ? "page"
+                        : undefined
+                    }
+                    onClick={(event) => navigate(event, route.path)}
+                  >
+                    <span>{route.navLabel}</span>
+                    {"badge" in route && (
+                      <span className="nav-badge">
+                        {route.badge}
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </nav>
+            </header>
+            <main className="main commerce-main">
+              <activeRoute.Component />
+            </main>
+          </section>
+        </div>
+
+        {publicDemo && <FloatingAiLauncher />}
       </div>
-    </div>
     </CommonAiDrawerHost>
   );
 }

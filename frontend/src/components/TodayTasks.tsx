@@ -1,5 +1,6 @@
 import type {
   TaskSummary,
+  ScheduleTask,
   ReservationShortageTask,
   ReservationRiskItem,
   TaskFeedback,
@@ -11,10 +12,13 @@ import { taskStatusLabel } from "./statusLabels";
 import SystemState from "./SystemStates";
 
 type TodayTasksProps = {
-  tasks: TaskSummary[];
+  tasks: (TaskSummary | ScheduleTask)[];
   compact?: boolean;
   shortageTasks?: ReservationShortageTask[];
   reservations?: ReservationRiskItem[];
+  emptyMessage?: string;
+  emptyDescription?: string;
+  countUnavailable?: boolean;
 };
 
 const shown = (value: unknown) => value === null || value === undefined || value === "" ? "확인 필요" : String(value);
@@ -134,8 +138,12 @@ function ShortageTask({ task, reservation }: { task: ReservationShortageTask; re
 }
 
 function formatDateTime(
-  value: string,
+  value: string | null,
 ): string {
+  if (!value) {
+    return "마감일 미정";
+  }
+
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -170,6 +178,9 @@ export default function TodayTasks({
   compact = false,
   shortageTasks = [],
   reservations = [],
+  emptyMessage,
+  emptyDescription,
+  countUnavailable = false,
 }: TodayTasksProps) {
   return (
     <section
@@ -194,15 +205,22 @@ export default function TodayTasks({
         </div>
 
         <span className="badge source">
-          {tasks.length + shortageTasks.length}건
+          {countUnavailable
+            ? tasks.length + shortageTasks.length > 0
+              ? `표시 ${tasks.length + shortageTasks.length}건`
+              : "—"
+            : `${tasks.length + shortageTasks.length}건`}
         </span>
       </div>
 
       {tasks.length === 0 && shortageTasks.length === 0 ? (
         <SystemState
           state="empty"
-          title="오늘 예정된 확인 업무가 없습니다"
-          description="새로운 내부 확인 업무가 생성되면 이곳에 표시됩니다."
+          title={emptyMessage ?? "오늘 예정된 확인 업무가 없습니다"}
+          description={
+            emptyDescription ??
+            "새로운 내부 확인 업무가 생성되면 이곳에 표시됩니다."
+          }
         />
       ) : (
         <div className="today-task-list">

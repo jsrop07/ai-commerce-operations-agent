@@ -24,7 +24,8 @@ from ai.services.grounded_explanation_provider import (
     run_grounded_explanation,
 )
 from ai.services.grounded_explanation_validator import validate_grounded_explanation
-from backend.app.core.config import Settings
+from backend.app.core.config import Environment, Settings
+from backend.app.services.demo_provider_quota import DemoQuotaDenied
 from backend.app.services.retrieval_runtime import validate_query
 
 LOGGER = logging.getLogger(__name__)
@@ -55,7 +56,8 @@ def hold(reason: str, data_mode: str, request_id: str, *, lookup=(), model_used=
 def explain_policy(*, question: str, condition: str, projection: dict,
                    lookup_service, tenant_id: str, request_id: str,
                    provider: Callable | None = None,
-                   settings: Settings | None = None) -> dict:
+                   settings: Settings | None = None,
+                   quota_call: Callable[[Callable], GroundedProviderResult] | None = None) -> dict:
     data_mode = projection.get("data_mode", "SYNTHETIC_DEMO")
     try:
         validate_query(question)
@@ -138,22 +140,26 @@ def explain_policy(*, question: str, condition: str, projection: dict,
         if credential is None or not credential.get_secret_value():
             LOGGER.info("C06 OpenAI credential configured=false")
             return hold("RUNTIME_UNAVAILABLE", data_mode, request_id)
+    if settings is not None and settings.environment == Environment.DEMO and quota_call is None:
+        return hold("C24_QUOTA_UNAVAILABLE", data_mode, request_id)
     provider_attempted = False
     try:
         model_input = build_policy_grounded_explanation_input(
             question=question, data_mode=data_mode, evidence=tuple(evidence),
         )
-        if provider is None:
-            runtime_client = OpenAI(
-                api_key=credential.get_secret_value(), max_retries=0,
-            )
+        def invoke_provider():
+            nonlocal provider_attempted
             provider_attempted = True
-            runtime_result = run_grounded_explanation(
-                model_input, condition=condition, client=runtime_client,
-            )
-        else:
-            provider_attempted = True
-            runtime_result = provider(model_input, condition=condition)
+            if provider is None:
+                runtime_client = OpenAI(
+                    api_key=credential.get_secret_value(), max_retries=0,
+                )
+                return run_grounded_explanation(
+                    model_input, condition=condition, client=runtime_client,
+                )
+            return provider(model_input, condition=condition)
+
+        runtime_result = quota_call(invoke_provider) if quota_call else invoke_provider()
         if not isinstance(runtime_result, GroundedProviderResult) or not runtime_result.model_used:
             raise ValueError("MALFORMED_PROVIDER_RESULT")
         output = runtime_result.output
@@ -181,6 +187,8 @@ def explain_policy(*, question: str, condition: str, projection: dict,
                     next_check=output.next_check, model_used=True,
                     data_mode=data_mode, request_id=request_id, warnings=[],
                     c04_lookup=lookups)
+    except DemoQuotaDenied as exc:
+        return hold(str(exc), data_mode, request_id, model_used=provider_attempted)
     except Exception:
         return hold("C06_RUNTIME_OR_PROVIDER_FAILURE", data_mode, request_id,
                     model_used=provider_attempted)

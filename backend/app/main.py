@@ -1,7 +1,7 @@
 """FastAPI application factory."""
 
 from threading import Lock
-
+from backend.app.api.orders_summary import router as orders_summary_router
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.engine import Engine
@@ -41,6 +41,7 @@ from backend.app.db.session_v2 import (
 )
 from backend.app.services.c04_lookup import C04LookupService
 from backend.app.services.corpus_restore import restore_corpus
+from backend.app.services.demo_session import COOKIE_NAME, resolve_demo_session
 from backend.app.services.ingestion.mapping_queue import MappingReviewQueue
 from backend.app.services.offline_sale import OfflineSalePipeline
 from backend.app.services.reservation_tasks import ReservationTaskService
@@ -61,6 +62,24 @@ def create_app(
         @application.middleware("http")
         async def c09_development_actor(request: Request, call_next):
             request.scope["c09_trusted_actor_id"] = resolved.c09_dev_actor_id
+            return await call_next(request)
+
+    if resolved.environment == Environment.DEMO:
+        @application.middleware("http")
+        async def c09_demo_session_actor(request: Request, call_next):
+            if (request.url.path.startswith("/api/v1/conversations")
+                    or request.url.path == "/api/v1/retrieval/explanations"):
+                factory = request.app.state.v2_db_session_factory
+                tenant_id = resolved.v2_tenant_id
+                if factory is not None and tenant_id is not None:
+                    with factory() as db:
+                        row = resolve_demo_session(
+                            db, tenant_id=tenant_id,
+                            token=request.cookies.get(COOKIE_NAME), touch=True,
+                        )
+                        if row is not None:
+                            request.scope["c09_trusted_actor_id"] = row.actor_id
+                            request.scope["c22_demo_session_id"] = row.id
             return await call_next(request)
 
     application.add_middleware(RedactCafe24OAuthQueryMiddleware,)
@@ -98,19 +117,32 @@ def create_app(
         corpus=application.state.c04_corpus_restore, tenant_id=resolved.tenant_id,
         method=resolved.retrieval_method, timeout_seconds=resolved.retrieval_timeout_seconds,
     )
-    application.state.db_engine = db_engine or build_engine(
-        resolved.database_url
-    )
+    # Public DEMO reads V2 only. Never construct a legacy/Actual DB engine
+    # from DATABASE_URL in that runtime; injected engines remain for tests.
+    if db_engine is not None:
+        application.state.db_engine = db_engine
+    elif resolved.environment == Environment.DEMO:
+        # Existing isolated SQLite Demo tests may use the legacy fixture schema.
+        # Public DEMO's PostgreSQL DATABASE_URL must never be opened.
+        application.state.db_engine = (
+            build_engine(resolved.database_url)
+            if resolved.database_url.startswith("sqlite") else None
+        )
+    else:
+        application.state.db_engine = build_engine(resolved.database_url)
     application.state.db_session_factory = (
         sessionmaker(
             bind=application.state.db_engine,
             expire_on_commit=False,
         )
-        if resolved.environment.value == "DEMO"
+        if resolved.environment == Environment.DEMO
+        and application.state.db_engine is not None
         else None
     )
     application.state.v2_db_engine = None
     application.state.v2_db_session_factory = None
+    application.state.product_search_service = None
+    application.state.neo4j_driver = None
 
     if v2_db_engine is not None:
         application.state.v2_db_engine = v2_db_engine
@@ -125,6 +157,36 @@ def create_app(
             build_v2_session_factory(
                 application.state.v2_db_engine
             )
+        )
+    if (
+        application.state.v2_db_session_factory is not None
+        and resolved.environment in {
+            Environment.LOCAL,
+            Environment.DEMO,
+        }
+    ):
+        from backend.app.services.c18_product_search import ProductSearchService
+        application.state.product_search_service = (
+            ProductSearchService()
+        )
+    if (
+        resolved.environment in {
+            Environment.LOCAL,
+            Environment.DEMO,
+        }
+        and resolved.neo4j_uri
+        and resolved.neo4j_user
+        and resolved.neo4j_password is not None
+        and resolved.neo4j_password.get_secret_value()
+    ):
+        from neo4j import GraphDatabase
+
+        application.state.neo4j_driver = GraphDatabase.driver(
+            resolved.neo4j_uri,
+            auth=(
+                resolved.neo4j_user,
+                resolved.neo4j_password.get_secret_value(),
+            ),
         )
     application.state.pipeline = OfflineSalePipeline(
         db_session_factory=application.state.db_session_factory
@@ -169,6 +231,14 @@ def create_app(
     application.include_router(workflows_router)
     application.include_router(catalog_v2_router)
     application.include_router(conversations_v2_router)
+    application.include_router(orders_summary_router)
+    
+    @application.on_event("shutdown")
+    def close_neo4j_driver() -> None:
+        driver = application.state.neo4j_driver
+        if driver is not None:
+            driver.close()
+
     return application
 
 

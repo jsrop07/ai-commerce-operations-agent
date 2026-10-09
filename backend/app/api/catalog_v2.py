@@ -27,6 +27,8 @@ router = APIRouter(
     tags=["catalog-v2"],
 )
 
+DEMO_CATALOG_TENANT_ID = UUID("35556e27-4200-4712-8ac5-e5a569a91c47")
+
 
 class CatalogSummaryData(BaseModel):
     product_count: int
@@ -56,8 +58,9 @@ class CatalogProductData(BaseModel):
     sale_price: str | None
     display_status: str
     selling_status: str
-    sold_out: bool
+    sold_out: bool  
     operational: bool
+    source_as_of: datetime | None
     category_nos: list[int]
     categories: list[CatalogCategoryData]
 
@@ -73,9 +76,11 @@ class CatalogProductsPage(BaseModel):
 def _require_v2_runtime(
     request: Request,
 ):
-    if request.app.state.settings.environment not in {
+    environment = request.app.state.settings.environment
+    if environment not in {
         Environment.LOCAL,
         Environment.TEST,
+        Environment.DEMO,
     }:
         raise HTTPException(status_code=403, detail="V2_CATALOG_ENVIRONMENT_FORBIDDEN")
 
@@ -103,18 +108,31 @@ def _require_v2_runtime(
             detail="V2_TENANT_NOT_CONFIGURED",
         )
 
-    return session_factory, tenant_id
+    if environment == Environment.DEMO and tenant_id != DEMO_CATALOG_TENANT_ID:
+        raise HTTPException(status_code=403, detail="V2_TENANT_FORBIDDEN")
+
+    return session_factory, tenant_id, environment
 
 
-def _require_catalog_tenant(session, tenant_id) -> None:
+def _require_catalog_tenant(session, tenant_id, environment: Environment) -> None:
     tenant = session.get(TenantV2, tenant_id)
     if tenant is None:
         raise HTTPException(status_code=503, detail="V2_TENANT_NOT_FOUND")
-    if (
-        tenant.name != TENANT_NAME
-        or tenant.environment != TENANT_ENVIRONMENT
-        or tenant.status != TENANT_STATUS
-    ):
+    if environment == Environment.DEMO:
+        allowed = (
+            tenant_id == DEMO_CATALOG_TENANT_ID
+            and tenant.id == DEMO_CATALOG_TENANT_ID
+            and tenant.environment == Environment.DEMO
+            and tenant.status == TENANT_STATUS
+        )
+    else:
+        allowed = (
+            tenant.id == tenant_id
+            and tenant.name == TENANT_NAME
+            and tenant.environment == TENANT_ENVIRONMENT
+            and tenant.status == TENANT_STATUS
+        )
+    if not allowed:
         raise HTTPException(status_code=403, detail="V2_TENANT_FORBIDDEN")
 
 
@@ -143,12 +161,12 @@ def catalog_summary(
         f"tr_{uuid4().hex}",
     )
 
-    session_factory, tenant_id = (
+    session_factory, tenant_id, environment = (
         _require_v2_runtime(request)
     )
 
     with session_factory() as session:
-        _require_catalog_tenant(session, tenant_id)
+        _require_catalog_tenant(session, tenant_id, environment)
         summary = get_catalog_summary(
             session,
             tenant_id=tenant_id,
@@ -185,9 +203,9 @@ def catalog_categories(
     if (depth == 1 and parent_category_id is not None) or (depth > 1 and parent_category_id is None):
         raise HTTPException(status_code=422, detail="INVALID_CATEGORY_PARENT")
 
-    session_factory, tenant_id = _require_v2_runtime(request)
+    session_factory, tenant_id, environment = _require_v2_runtime(request)
     with session_factory() as session:
-        _require_catalog_tenant(session, tenant_id)
+        _require_catalog_tenant(session, tenant_id, environment)
         categories = list_catalog_categories(
             session,
             tenant_id=tenant_id,
@@ -268,12 +286,12 @@ def catalog_products(
         f"tr_{uuid4().hex}",
     )
 
-    session_factory, tenant_id = (
+    session_factory, tenant_id, environment = (
         _require_v2_runtime(request)
     )
 
     with session_factory() as session:
-        _require_catalog_tenant(session, tenant_id)
+        _require_catalog_tenant(session, tenant_id, environment)
         total = count_catalog_products(session, tenant_id=tenant_id, filters=filters)
         products = list_catalog_products(
             session,
@@ -303,6 +321,7 @@ def catalog_products(
             "selling_status": product.selling_status,
             "sold_out": product.sold_out,
             "operational": product.operational,
+            "source_as_of": product.source_as_of,
             "category_nos": list(
                 product.category_nos
             ),

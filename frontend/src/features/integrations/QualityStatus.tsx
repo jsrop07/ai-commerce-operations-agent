@@ -3,7 +3,8 @@ type QualityStatusValue =
   | "STALE"
   | "UNMAPPED"
   | "QUARANTINED"
-  | "SOURCE_QUALITY_BLOCKED";
+  | "SOURCE_QUALITY_BLOCKED"
+  | "CONFIRMED";
 
 type QualityStatusProps = {
   status: QualityStatusValue;
@@ -52,6 +53,13 @@ const qualityContent: Record<
     description:
       "원천 데이터 품질 문제로 업무 기준값으로 사용할 수 없습니다. 재고 0으로 간주하지 않고 확정 재고 합계에서 제외합니다.",
     className: "critical",
+  },
+
+  CONFIRMED: {
+    label: "원천 수량 확인",
+    description:
+      "원천 데이터의 수량이 확인된 상태입니다. 단, 최신 재고이거나 확정 재고 합계에 포함할 수 있다는 의미는 아닙니다. 최신성과 합계 포함 여부를 별도로 확인해야 합니다.",
+    className: "warning",
   },
 };
 

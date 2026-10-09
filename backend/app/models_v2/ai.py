@@ -4,19 +4,21 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
     ForeignKeyConstraint,
+    Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
     Uuid,
     func,
-    Index,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -112,6 +114,63 @@ class ConversationV2(
         String(32),
         nullable=False,
     )
+
+
+class DemoSessionV2(UUIDIdentityMixin, TenantV2Mixin, BaseV2):
+    __tablename__ = "demo_sessions"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_ai_demo_sessions_tenant_id_id"),
+        UniqueConstraint("token_hash", name="uq_ai_demo_sessions_token_hash"),
+        UniqueConstraint("actor_id", name="uq_ai_demo_sessions_actor_id"),
+        CheckConstraint("expires_at > created_at", name="ck_ai_demo_sessions_expiry"),
+        CheckConstraint("status IN ('ACTIVE', 'INACTIVE')", name="ck_ai_demo_sessions_status"),
+        {"schema": "ai"},
+    )
+
+    actor_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    last_request_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DemoProviderUsageV2(UUIDIdentityMixin, TenantV2Mixin, BaseV2):
+    """C24 reservation ledger; never stores prompts or evidence."""
+
+    __tablename__ = "demo_provider_usage"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "demo_session_id"],
+            ["ai.demo_sessions.tenant_id", "ai.demo_sessions.id"],
+            name="fk_ai_demo_provider_usage_session_same_tenant", ondelete="RESTRICT",
+        ),
+        UniqueConstraint("demo_session_id", "request_id", name="uq_ai_demo_provider_usage_request"),
+        CheckConstraint(
+            "status IN ('RESERVED', 'SETTLED', 'FAILED', 'OVERRUN')",
+            name="ck_ai_demo_provider_usage_status",
+        ),
+        {"schema": "ai"},
+    )
+
+    demo_session_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    request_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    reserved_calls: Mapped[int] = mapped_column(Integer, nullable=False)
+    reserved_input_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    reserved_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    reserved_cost_usd: Mapped[Decimal] = mapped_column(Numeric(30, 18), nullable=False)
+    actual_calls: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actual_input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actual_output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actual_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(30, 18), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(),
+    )
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class MessageV2(

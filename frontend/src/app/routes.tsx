@@ -16,6 +16,6 @@ export const routes = [
   { path: "/settings", label: "연동 & 설정", navLabel: "연동 & 설정", icon: "⚙", Component: SettingsPage },
 ] as const;
 
-export function resolveRoute(pathname: string) {
-  return routes.find((route) => route.path === pathname) ?? routes[0];
+export function resolveRoute(pathname: string, publicDemo = false) {
+  return routes.find((route) => route.path === pathname && (!publicDemo || route.path !== "/inquiries")) ?? routes[0];
 }

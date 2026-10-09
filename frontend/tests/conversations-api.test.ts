@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  appendAnalysis, contextIdentity, createConversation, getConversation, getConversations,
+  appendAnalysis, appendProductSearch, contextIdentity, createConversation,
+  createProductSearchConversation, getConversation, getConversations,
   parseConversationList, parseConversationResponse, reopenConversation, type ConversationView,
 } from "../src/api/conversations";
 
@@ -71,10 +72,24 @@ describe("C09 conversation client", () => {
     expect((await getConversation("conversation-a")).data.conversation_id).toBe("conversation-a");
     expect((await getConversations()).data).toHaveLength(1);
     expect((await reopenConversation("conversation-a")).data.conversation_status).toBe("ACTIVE");
-    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url), window.location.origin).pathname)).toEqual([
       "/api/v1/conversations/conversation-a",
       "/api/v1/conversations",
       "/api/v1/conversations/conversation-a/reopen",
     ]);
+  });
+
+  it("uses the dedicated Product search routes and frozen revision", async () => {
+    vi.stubEnv("VITE_USE_REAL_BACKEND", "true");
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => envelope() });
+    vi.stubGlobal("fetch", fetchMock);
+    await createProductSearchConversation("투명 주사위 찾아줘");
+    await appendProductSearch("conversation-a", "폭풍 항구 확장", 2);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/conversations/product-search");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ query: "투명 주사위 찾아줘" });
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/conversations/conversation-a/product-search/messages");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+      query: "폭풍 항구 확장", intent: "INSPECT_TARGET", request_revision: 2,
+    });
   });
 });

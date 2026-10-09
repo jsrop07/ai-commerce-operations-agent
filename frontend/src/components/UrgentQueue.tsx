@@ -15,6 +15,7 @@ type UrgentQueueProps = {
   items: ApiEnvelope<UrgentQueueInsight>[];
   onSelect?: (requestId: string) => void;
   onSelectActual?: (insight: UrgentQueueInsight) => void;
+  dataStatus?: "READY" | "LOADING" | "UNAVAILABLE" | "NO_DATA";
 };
 
 export type UrgentQueueInsight = Pick<
@@ -74,6 +75,7 @@ export default function UrgentQueue({
   items,
   onSelect,
   onSelectActual,
+  dataStatus = "READY",
 }: UrgentQueueProps) {
   const sortedItems =
     sortUrgentQueue(items);
@@ -100,7 +102,13 @@ export default function UrgentQueue({
 
         <div className="urgent-header-meta">
           <span className="badge source">
-            {sortedItems.length}건
+            {dataStatus === "LOADING"
+              ? "조회 중"
+              : dataStatus === "UNAVAILABLE"
+                ? "조회 실패"
+                : dataStatus === "NO_DATA"
+                  ? "데이터 없음"
+                  : `${sortedItems.length}건`}
           </span>
 
           <span className="tertiary">
@@ -112,9 +120,25 @@ export default function UrgentQueue({
 
       {sortedItems.length === 0 ? (
         <SystemState
-          state="empty"
-          title="현재 긴급 위험이 없습니다"
-          description="새로운 운영 위험이 감지되면 위험도와 이유를 기준으로 이곳에 표시됩니다. 현재는 일반 운영 업무를 확인하세요."
+          state={dataStatus === "LOADING" ? "loading" : "empty"}
+          title={
+            dataStatus === "LOADING"
+              ? "운영 위험 조회 중"
+              : dataStatus === "UNAVAILABLE"
+                ? "운영 위험 조회 실패"
+                : dataStatus === "NO_DATA"
+                  ? "운영 위험 분석 결과 없음"
+                  : "표시할 긴급 위험 없음"
+          }
+          description={
+            dataStatus === "LOADING"
+              ? "운영 위험 데이터를 불러오고 있습니다."
+              : dataStatus === "UNAVAILABLE"
+                ? "Backend에서 운영 위험 목록을 가져오지 못했습니다."
+                : dataStatus === "NO_DATA"
+                  ? "현재 조회 가능한 Insight가 없습니다. 위험 분석이 완료되어 위험이 0건이라는 의미는 아닙니다."
+                  : "표시할 운영 위험 항목이 없습니다."
+          }
         />
       ) : (
         <div className="urgent-queue-list">

@@ -18,15 +18,23 @@ from backend.app.services.conversation_v2 import (
     Intent,
     MessageResponseStatus,
     TargetInput,
+    analyze_product_search_turn,
     analyze_turn,
     append_turn,
     create_conversation,
+    create_product_search_conversation,
     read_conversation,
     recent_conversations,
     reopen_conversation,
+    resolve_target,
+    validate_pre_storage,
+    classify_operational_question,
 )
 from contracts.api import ApiEnvelope
-
+from backend.app.services.c24_reservation_context import (
+    ReservationContextError,
+    resolve_product_reservation_projection,
+)
 router = APIRouter(prefix="/api/v1/conversations", tags=["conversations-v2"])
 
 
@@ -55,6 +63,25 @@ class AppendTurnInput(BaseModel):
     intent: Intent
     analysis_kind: AnalysisKind | None = None
     request_revision: int | None = Field(default=None, ge=1)
+
+class NaturalQuestionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    context: ContextInput
+    question: str = Field(min_length=1, max_length=500, strict=True)
+    request_revision: int = Field(ge=1)
+
+
+class ProductSearchTurnInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    query: str = Field(min_length=1, max_length=200, strict=True)
+    intent: Intent
+    request_revision: int = Field(ge=1)
+
+
+class ProductSearchConversationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    query: str = Field(min_length=1, max_length=200, strict=True)
 
 
 class ContextView(BaseModel):
@@ -106,9 +133,12 @@ def _runtime(request: Request):
     actor_id = request.scope.get("c09_trusted_actor_id")
     if not isinstance(actor_id, str) or not actor_id:
         raise HTTPException(status_code=403, detail="C09_TRUSTED_ACTOR_REQUIRED")
-    if request.app.state.settings.environment not in {Environment.LOCAL, Environment.TEST}:
+    environment = request.app.state.settings.environment
+    if environment not in {Environment.LOCAL, Environment.TEST, Environment.DEMO}:
         raise HTTPException(status_code=403, detail="C09_ENVIRONMENT_FORBIDDEN")
-    session_factory, tenant_id = _require_v2_runtime(request)
+    if environment == Environment.DEMO and request.scope.get("c22_demo_session_id") is None:
+        raise HTTPException(status_code=403, detail="C09_TRUSTED_ACTOR_REQUIRED")
+    session_factory, tenant_id, _ = _require_v2_runtime(request)
     return session_factory, tenant_id, actor_id
 
 
@@ -141,7 +171,7 @@ def _canonical_context(context: ContextInput | ViewContextInput):
 def new_conversation(request: Request, payload: CreateConversationInput):
     session_factory, tenant_id, actor_id = _runtime(request)
     with session_factory() as session:
-        _require_catalog_tenant(session, tenant_id)
+        _require_catalog_tenant(session, tenant_id, request.app.state.settings.environment)
         try:
             row = create_conversation(
                 session, tenant_id=tenant_id, actor_id=actor_id,
@@ -159,7 +189,7 @@ def new_conversation(request: Request, payload: CreateConversationInput):
 def append_message(request: Request, conversation_id: UUID, payload: AppendTurnInput):
     session_factory, tenant_id, actor_id = _runtime(request)
     with session_factory() as session:
-        _require_catalog_tenant(session, tenant_id)
+        _require_catalog_tenant(session, tenant_id, request.app.state.settings.environment)
         try:
             if payload.analysis_kind is None and payload.request_revision is None:
                 append_turn(
@@ -174,15 +204,65 @@ def append_message(request: Request, conversation_id: UUID, payload: AppendTurnI
                 payload.analysis_kind not in (None, "NONE")
                 and payload.request_revision is not None
             ):
+                reservation_projection = None
+                canonical_context = _canonical_context(
+                    payload.context
+                )
+                validate_pre_storage(
+                    actor_id,
+                    canonical_context,
+                    payload.intent,
+                )
+                if (
+                    getattr(
+                        canonical_context,
+                        "target_type",
+                        None,
+                    )
+                    == "PRODUCT"
+                ):
+                    resolved = resolve_target(
+                        session,
+                        tenant_id=tenant_id,
+                        target=canonical_context,
+                    )
+
+                    if resolved.product_id is not None:
+                        try:
+                            reservation_projection = (
+                                resolve_product_reservation_projection(
+                                    session,
+                                    tenant_id=tenant_id,
+                                    projection_tenant_id=(
+                                        request.app.state.settings.tenant_id
+                                    ),
+                                    product_id=resolved.product_id,
+                                    projections=(
+                                        request.app.state
+                                        .reservation_risk_projections
+                                    ),
+                                )
+                            )
+                        except ReservationContextError:
+                            reservation_projection = None
                 analyze_turn(
                     session,
                     tenant_id=tenant_id,
                     actor_id=actor_id,
                     conversation_id=conversation_id,
-                    target=_canonical_context(payload.context),
+                    target=canonical_context,
                     intent=payload.intent,
                     analysis_kind=payload.analysis_kind,
                     request_revision=payload.request_revision,
+                    session_factory=session_factory,
+                    demo_session_id=(
+                        request.scope.get(
+                            "c22_demo_session_id"
+                        )
+                    ),
+                    settings=request.app.state.settings,
+                    reservation_projection=reservation_projection,
+                    neo4j_driver=getattr(request.app.state, "neo4j_driver", None),
                 )
             else:
                 raise C09ContractError("HOLD", "INCOMPLETE_ANALYSIS_REQUEST")
@@ -193,12 +273,114 @@ def append_message(request: Request, conversation_id: UUID, payload: AppendTurnI
             _fail(error)
     return _envelope(tenant_id, data)
 
+@router.post(
+    "/{conversation_id}/questions",
+    response_model=ApiEnvelope[ConversationView],
+)
+def append_natural_question(
+    request: Request,
+    conversation_id: UUID,
+    payload: NaturalQuestionInput,
+):
+    session_factory, tenant_id, actor_id = _runtime(request)
+
+    # 어떠한 질문 메시지도 저장하기 전에 검증한다.
+    try:
+        analysis_kind, _ = classify_operational_question(payload.question)
+    except C09ContractError as error:
+        _fail(error)
+
+    target = payload.context.canonical()
+    
+    with session_factory() as session:
+        _require_catalog_tenant(
+            session,
+            tenant_id,
+            request.app.state.settings.environment,
+        )
+
+        try:
+            analyze_turn(
+                session,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                conversation_id=conversation_id,
+                target=target,
+                intent="INSPECT_TARGET",
+                analysis_kind=analysis_kind,
+                request_revision=payload.request_revision,
+                session_factory=session_factory,
+                demo_session_id=request.scope.get("c22_demo_session_id"),
+                settings=request.app.state.settings,
+                neo4j_driver=getattr(
+                    request.app.state, "neo4j_driver", None
+                ),
+                question=payload.question,
+            )
+
+            data = read_conversation(
+                session,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                conversation_id=conversation_id,
+            )
+
+        except C09ContractError as error:
+            _fail(error)
+
+    return _envelope(tenant_id, data)
+
+@router.post(
+    "/product-search", response_model=ApiEnvelope[ConversationView], status_code=201,
+)
+def new_product_search_conversation(request: Request, payload: ProductSearchConversationInput):
+    session_factory, tenant_id, actor_id = _runtime(request)
+    with session_factory() as session:
+        _require_catalog_tenant(session, tenant_id, request.app.state.settings.environment)
+        try:
+            row = create_product_search_conversation(
+                session, tenant_id=tenant_id, actor_id=actor_id,
+                query=payload.query,
+                search_service=getattr(request.app.state, "product_search_service", None),
+            )
+            data = read_conversation(
+                session, tenant_id=tenant_id, actor_id=actor_id, conversation_id=row.id,
+            )
+        except C09ContractError as error:
+            _fail(error)
+    return _envelope(tenant_id, data)
+
+
+@router.post(
+    "/{conversation_id}/product-search/messages",
+    response_model=ApiEnvelope[ConversationView],
+)
+def append_product_search_message(
+    request: Request, conversation_id: UUID, payload: ProductSearchTurnInput,
+):
+    session_factory, tenant_id, actor_id = _runtime(request)
+    with session_factory() as session:
+        _require_catalog_tenant(session, tenant_id, request.app.state.settings.environment)
+        try:
+            analyze_product_search_turn(
+                session, tenant_id=tenant_id, actor_id=actor_id,
+                conversation_id=conversation_id, query=payload.query,
+                intent=payload.intent, request_revision=payload.request_revision,
+                search_service=getattr(request.app.state, "product_search_service", None),
+            )
+            data = read_conversation(
+                session, tenant_id=tenant_id, actor_id=actor_id, conversation_id=conversation_id,
+            )
+        except C09ContractError as error:
+            _fail(error)
+    return _envelope(tenant_id, data)
+
 
 @router.get("/{conversation_id}", response_model=ApiEnvelope[ConversationView])
 def conversation_detail(request: Request, conversation_id: UUID):
     session_factory, tenant_id, actor_id = _runtime(request)
     with session_factory() as session:
-        _require_catalog_tenant(session, tenant_id)
+        _require_catalog_tenant(session, tenant_id, request.app.state.settings.environment)
         try:
             data = read_conversation(
                 session, tenant_id=tenant_id, actor_id=actor_id, conversation_id=conversation_id
@@ -212,7 +394,7 @@ def conversation_detail(request: Request, conversation_id: UUID):
 def recent(request: Request, limit: int = Query(default=20, ge=1, le=50)):
     session_factory, tenant_id, actor_id = _runtime(request)
     with session_factory() as session:
-        _require_catalog_tenant(session, tenant_id)
+        _require_catalog_tenant(session, tenant_id, request.app.state.settings.environment)
         try:
             data = recent_conversations(
                 session, tenant_id=tenant_id, actor_id=actor_id, limit=limit
@@ -226,7 +408,7 @@ def recent(request: Request, limit: int = Query(default=20, ge=1, le=50)):
 def reopen(request: Request, conversation_id: UUID):
     session_factory, tenant_id, actor_id = _runtime(request)
     with session_factory() as session:
-        _require_catalog_tenant(session, tenant_id)
+        _require_catalog_tenant(session, tenant_id, request.app.state.settings.environment)
         try:
             reopen_conversation(
                 session, tenant_id=tenant_id, actor_id=actor_id, conversation_id=conversation_id

@@ -655,6 +655,7 @@ const providers: readonly Provider[] = [
   "TOSS_POS",
   "ECOUNT",
   "DEMO",
+  "SYNTHETIC_DEMO",
 ];
 
 const freshnessValues: readonly Freshness[] = [
@@ -669,6 +670,7 @@ const qualityStatuses: readonly InventoryQualityStatus[] = [
   "UNMAPPED",
   "QUARANTINED",
   "SOURCE_QUALITY_BLOCKED",
+  "CONFIRMED",
 ];
 
 const riskLevels: readonly RiskLevel[] = [
@@ -737,7 +739,7 @@ function parseInventoryItem(
     !isRecord(value) ||
     !providers.includes(value.provider as Provider) ||
     typeof value.sku_id !== "string" ||
-    typeof value.on_hand !== "number" ||
+    typeof value.source_on_hand !== "number" ||
     typeof value.reserved !== "number" ||
     typeof value.as_of !== "string" ||
     !freshnessValues.includes(
@@ -752,9 +754,9 @@ function parseInventoryItem(
   const item: InventorySnapshot = {
     provider: value.provider as Provider,
     sku_id: value.sku_id,
-    on_hand: value.on_hand,
-    reserved: value.reserved,
-    as_of: value.as_of,
+    on_hand: value.source_on_hand as number,
+    reserved: value.reserved as number,
+    as_of: value.as_of as string,
     freshness: value.freshness as Freshness,
   };
 
@@ -776,10 +778,11 @@ function parseInventoryItem(
 
   if (
     value.risk_level === null ||
+    value.risk_level === "UNKNOWN" ||
     riskLevels.includes(value.risk_level as RiskLevel)
   ) {
     item.risk_level =
-      value.risk_level as RiskLevel | null;
+      value.risk_level as RiskLevel | "UNKNOWN" | null;
   }
 
   if (

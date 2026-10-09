@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from contracts.api import ApiEnvelope
 from backend.app.services.delay_impact import (
     DelayImpactResult,
     FreshnessStatus,
@@ -23,20 +23,16 @@ from backend.app.services.schedule_replan import (
     ScheduleItem,
     build_replan_proposal,
 )
-
-from backend.app.services.task_priority import (
-    score_task_priority,
-)
-from typing import Any, Literal
-
-from sqlalchemy.orm import Session
-
 from backend.app.services.task_feedback import (
     FeedbackIdempotencyConflict,
     FeedbackVersionConflict,
     append_task_feedback,
     list_task_feedback,
 )
+from backend.app.services.task_priority import (
+    score_task_priority,
+)
+from contracts.api import ApiEnvelope
 
 router = APIRouter(
     prefix="/api/v1",
@@ -468,7 +464,9 @@ def create_task_feedback(
     payload: TaskFeedbackRequest,
     request: Request,
 ) -> ApiEnvelope[dict[str, Any]]:
-    if _is_production_read(request):
+    if (_is_production_read(request) or
+            (request.app.state.settings.environment == "DEMO"
+             and request.app.state.db_engine is None)):
         raise HTTPException(
             status_code=(
                 status.HTTP_403_FORBIDDEN
@@ -621,6 +619,8 @@ def task_feedback_history(
 ) -> ApiEnvelope[
     list[dict[str, Any]]
 ]:
+    if request.app.state.settings.environment == "DEMO" and request.app.state.db_engine is None:
+        raise HTTPException(status_code=403, detail={"code": "POLICY_DENIED"})
     task = _find_task_projection(
         request,
         task_id=task_id,

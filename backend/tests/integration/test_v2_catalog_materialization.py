@@ -17,7 +17,7 @@ from backend.app.db.session_v2 import (
     build_v2_engine,
     build_v2_session_factory,
 )
-from backend.app.main import app
+from backend.app.main import create_app
 from backend.app.models_v2.catalog import CategoryV2, ProductCategoryV2, ProductV2
 from backend.app.services.catalog_v2_read import (
     CatalogProductFilters,
@@ -27,9 +27,12 @@ from backend.app.services.catalog_v2_read import (
     list_catalog_products,
 )
 
-EXPECTED_PRODUCTS = 2167
-EXPECTED_CATEGORIES = 123
-EXPECTED_RELATIONS = 2165
+EXPECTED_PRODUCTS = 150
+EXPECTED_CATEGORIES = 41
+EXPECTED_RELATIONS = 157
+
+# This snapshot belongs to the active DEMO V2 tenant. The process default is LOCAL.
+app = create_app(get_settings().model_copy(update={"environment": Environment.DEMO}))
 
 
 @pytest.fixture(scope="module")
@@ -161,7 +164,7 @@ def test_v2_catalog_products_beyond_total_is_empty() -> None:
 def test_v2_catalog_desc_limit_offset_and_last_page() -> None:
     first = products_data(limit=50, offset=0)
     second = products_data(limit=50, offset=50)
-    last = products_data(limit=50, offset=2150)
+    last = products_data(limit=50, offset=EXPECTED_PRODUCTS - 17)
     assert len(first["items"]) == len(second["items"]) == 50
     assert first["items"][0]["cafe24_product_no"] > first["items"][-1]["cafe24_product_no"]
     assert first["items"][-1]["cafe24_product_no"] > second["items"][0]["cafe24_product_no"]
@@ -330,7 +333,7 @@ def test_v2_catalog_hierarchy_lists_only_real_children(catalog_session) -> None:
     tenant_id = get_settings().v2_tenant_id
     root, middle, leaf = hierarchy_branch(catalog_session)
     roots = categories_data(depth=1)
-    assert len(roots) == 10
+    assert len(roots) == 7
     assert all(item["category_depth"] == 1 and item["parent_category_id"] is None for item in roots)
     assert str(root.id) in {item["id"] for item in roots}
 
@@ -502,13 +505,19 @@ def test_v2_catalog_products_rejects_invalid_pagination(params: dict) -> None:
 
 
 @pytest.mark.parametrize("environment", [Environment.LOCAL, Environment.TEST])
-def test_v2_catalog_allows_local_and_test(monkeypatch, environment: Environment) -> None:
+def test_v2_catalog_local_and_test_reject_demo_tenant(
+    monkeypatch, environment: Environment,
+) -> None:
     monkeypatch.setattr(app.state.settings, "environment", environment)
-    assert TestClient(app).get("/api/v1/catalog/summary").status_code == 200
+    response = TestClient(app).get("/api/v1/catalog/summary")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "V2_TENANT_FORBIDDEN"
 
 
 @pytest.mark.parametrize("path", ["summary", "products"])
-@pytest.mark.parametrize("environment", [Environment.DEMO, Environment.PRODUCTION_READ])
+@pytest.mark.parametrize("environment", [
+    Environment.PRODUCTION_READ, Environment.PILOT_SHADOW, Environment.PILOT_APPROVED,
+])
 def test_v2_catalog_rejects_other_environments(
     monkeypatch, path: str, environment: Environment
 ) -> None:
@@ -538,6 +547,7 @@ def test_v2_catalog_requires_configured_tenant(monkeypatch, path: str) -> None:
 
 @pytest.mark.parametrize("path", ["summary", "products"])
 def test_v2_catalog_unknown_tenant_cannot_read(monkeypatch, path: str) -> None:
+    monkeypatch.setattr(app.state.settings, "environment", Environment.LOCAL)
     monkeypatch.setattr(app.state.settings, "v2_tenant_id", uuid4())
     response = TestClient(app).get(f"/api/v1/catalog/{path}")
     assert response.status_code == 503
@@ -550,7 +560,7 @@ def test_v2_catalog_preserves_nullable_product_fields(monkeypatch) -> None:
     product = CatalogV2Product(
         id=uuid4(), cafe24_product_no=1, product_name="test", product_code="P1",
         custom_product_code=None, sale_price=None, display_status="T",
-        selling_status="T", sold_out=False, operational=True, category_nos=(), categories=(),
+        selling_status="T", sold_out=False, operational=True, category_nos=(), categories=(),source_as_of=None,
     )
     monkeypatch.setattr(catalog_v2, "count_catalog_products", lambda *args, **kwargs: 1)
     monkeypatch.setattr(catalog_v2, "list_catalog_products", lambda *args, **kwargs: [product])
@@ -565,7 +575,11 @@ def test_v2_catalog_preserves_nullable_product_fields(monkeypatch) -> None:
     {"name": "other"}, {"environment": "DEMO"}, {"status": "INACTIVE"},
 ])
 def test_v2_catalog_rejects_non_bootstrap_tenant(monkeypatch, tenant_fields: dict) -> None:
-    tenant = SimpleNamespace(name="commerce_ops_local", environment="LOCAL", status="ACTIVE")
+    monkeypatch.setattr(app.state.settings, "environment", Environment.LOCAL)
+    tenant = SimpleNamespace(
+        id=app.state.settings.v2_tenant_id,
+        name="commerce_ops_local", environment="LOCAL", status="ACTIVE",
+    )
     for field, value in tenant_fields.items():
         setattr(tenant, field, value)
     session = SimpleNamespace(get=lambda *args: tenant)

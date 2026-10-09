@@ -1,5 +1,6 @@
 """Synthetic retrieval and guarded C06 policy explanation endpoints."""
 
+import json
 from datetime import UTC, datetime
 from typing import Literal
 from uuid import uuid4
@@ -8,12 +9,19 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
+from ai.services.grounded_explanation_provider import DEFAULT_CONFIG_PATH
+from backend.app.core.config import Environment
 from backend.app.services.actual_retrieval_summary import (
     ActualSummary,
     ActualSummaryFailure,
     load_actual_summary,
 )
 from backend.app.services.c04_lookup import SourceType
+from backend.app.services.demo_provider_quota import (
+    DemoQuotaDenied,
+    QuotaLimits,
+    call_with_demo_quota,
+)
 from backend.app.services.grounded_explanation_bridge import (
     explain_policy,
     forbidden_structure,
@@ -153,6 +161,39 @@ async def search(body: SearchInput, request: Request):
 async def explain(request: Request):
     request_id = f"req_{uuid4().hex}"
     settings = request.app.state.settings
+    quota_call = None
+    if settings.environment == Environment.DEMO:
+        session_id = request.scope.get("c22_demo_session_id")
+        factory = request.app.state.v2_db_session_factory
+        if session_id is None or settings.v2_tenant_id is None or factory is None:
+            data = hold("C24_SESSION_REQUIRED", "SYNTHETIC_DEMO", request_id)
+            return ApiEnvelope(tenant_id=settings.tenant_id, request_id=request_id,
+                               trace_id=f"tr_{uuid4().hex}", data=data,
+                               as_of=datetime.now(UTC))
+        try:
+            limits = QuotaLimits.from_settings(settings)
+            config = json.loads(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8"))
+            model = config["model"]
+            calls = 1 + int(config["max_retries"])
+            input_tokens = settings.demo_quota_reserve_input_tokens
+            output_tokens = settings.demo_quota_reserve_output_tokens
+            if (config.get("provider") != "openai" or not model or calls < 1
+                    or input_tokens is None or output_tokens is None
+                    or input_tokens < 1
+                    or output_tokens < calls * int(config["max_output_tokens"])):
+                raise DemoQuotaDenied("C24_QUOTA_UNCONFIGURED")
+            def quota_call(provider_call):
+                return call_with_demo_quota(
+                    provider_call, factory=factory, tenant_id=settings.v2_tenant_id,
+                    session_id=session_id, request_id=request_id, model=model,
+                    calls=calls, input_tokens=input_tokens,
+                    output_tokens=output_tokens, limits=limits,
+                )
+        except (DemoQuotaDenied, ValueError, KeyError, OSError, TypeError):
+            data = hold("C24_QUOTA_UNCONFIGURED", "SYNTHETIC_DEMO", request_id)
+            return ApiEnvelope(tenant_id=settings.tenant_id, request_id=request_id,
+                               trace_id=f"tr_{uuid4().hex}", data=data,
+                               as_of=datetime.now(UTC))
     try:
         raw = await request.json()
     except ValueError:
@@ -186,7 +227,7 @@ async def explain(request: Request):
                     lookup_service=request.app.state.c04_lookup_service,
                     tenant_id=settings.tenant_id, request_id=request_id,
                     provider=getattr(request.app.state, "c06_provider", None),
-                    settings=settings,
+                    settings=settings, quota_call=quota_call,
                 )
             except RetrievalFailure as exc:
                 reason = ("NO_SOURCE" if exc.code == "RETRIEVAL_INDEX_UNAVAILABLE"

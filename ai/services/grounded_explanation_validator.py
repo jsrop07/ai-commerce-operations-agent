@@ -45,10 +45,12 @@ def validate_grounded_explanation(
 
     numeric_fields = {
         "required_qty": model_input.required_qty,
+        "secured_qty": model_input.secured_qty,
         "expected_inventory": model_input.expected_inventory,
         "available_inventory": model_input.available_inventory,
         "reserved": model_input.reserved,
         "confirmed_incoming": model_input.confirmed_incoming,
+        "shortage_qty": model_input.shortage_qty,
     }
 
     for fact in model_output.used_numeric_facts:
@@ -85,6 +87,41 @@ def validate_grounded_explanation(
     if mentioned_counts - declared_counts:
         errors.append("NUMERIC_FACT_REQUIRED")
 
+    shortage_mentions = {
+        int(value)
+        for value in re.findall(
+            r"(\d+)\s*개(?:가|이)?\s*부족",
+            text,
+        )
+    }
+
+    if shortage_mentions:
+        if model_input.shortage_qty is None:
+            errors.append(
+                "SHORTAGE_MENTIONED_WHEN_UNKNOWN"
+            )
+        elif shortage_mentions != {
+            model_input.shortage_qty
+        }:
+            errors.append(
+                "SHORTAGE_VALUE_MISMATCH"
+            )
+
+        declared_shortage = {
+            fact.value
+            for fact in model_output.used_numeric_facts
+            if fact.field == "shortage_qty"
+        }
+
+        if (
+            model_input.shortage_qty is not None
+            and model_input.shortage_qty
+            not in declared_shortage
+        ):
+            errors.append(
+                "SHORTAGE_NUMERIC_FACT_REQUIRED"
+            )
+            
     tentative_confirmed_error = ("잠정입고는 확정입고로 봅니다" in text or "잠정입고를 확정입고로 봅니다" in text or "잠정입고를 확정입고로 간주" in text or "TENTATIVE는 CONFIRMED" in text)
     if tentative_confirmed_error:
         errors.append("TENTATIVE_CONFIRMED_SEMANTIC_ERROR")

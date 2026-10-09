@@ -1,5 +1,6 @@
 """Environment configuration with fail-closed write defaults."""
 import uuid
+from decimal import Decimal
 from enum import StrEnum
 
 from pydantic import Field, SecretStr, model_validator
@@ -32,12 +33,26 @@ class Settings(BaseSettings):
     global_write_kill: bool = True
     database_url: str = ("postgresql+psycopg://commerce:commerce@localhost:5432/commerce_test")
     postgres_v2_url: str | None = None
+    neo4j_uri: str | None = None
+    neo4j_user: str | None = None
+    neo4j_password: SecretStr | None = None
     v2_tenant_id: uuid.UUID | None = None
     c09_dev_actor_id: str | None = None
+    demo_session_ttl_seconds: int | None = Field(default=None, ge=1)
+    demo_session_cookie_secure: bool = True
     log_level: str = "INFO"
     retrieval_method: str | None = None  # None follows the handoff selection.
     retrieval_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     openai_api_key: SecretStr | None = None
+    demo_quota_max_provider_calls: int | None = Field(default=None, ge=1)
+    demo_quota_max_input_tokens: int | None = Field(default=None, ge=1)
+    demo_quota_max_output_tokens: int | None = Field(default=None, ge=1)
+    demo_quota_max_estimated_cost_usd: Decimal | None = Field(default=None, gt=0)
+    demo_quota_priced_model: str | None = None
+    demo_quota_input_usd_per_million_tokens: Decimal | None = Field(default=None, gt=0)
+    demo_quota_output_usd_per_million_tokens: Decimal | None = Field(default=None, gt=0)
+    demo_quota_reserve_input_tokens: int | None = Field(default=None, ge=1)
+    demo_quota_reserve_output_tokens: int | None = Field(default=None, ge=1)
 
     cafe24_mall_id: str | None = None
     cafe24_access_token: str | None = None

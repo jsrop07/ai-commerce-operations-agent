@@ -21,6 +21,7 @@ export interface CatalogProduct {
   selling_status: string;
   sold_out: boolean;
   operational: boolean;
+  source_as_of: string | null;
   category_nos: number[];
   categories: CatalogCategory[];
 }
@@ -139,6 +140,7 @@ function parseProduct(value: unknown): CatalogProduct {
       typeof value.selling_status === "string" &&
       typeof value.sold_out === "boolean" &&
       typeof value.operational === "boolean" &&
+      sourceTimestamp(value.source_as_of) &&
       Array.isArray(value.categories),
     "product",
   );
@@ -159,6 +161,7 @@ function parseProduct(value: unknown): CatalogProduct {
     selling_status: value.selling_status,
     sold_out: value.sold_out,
     operational: value.operational,
+    source_as_of: value.source_as_of,
     category_nos: categoryNos,
     categories,
   };

@@ -6,18 +6,72 @@ from hashlib import sha256
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 
+from backend.app.api.catalog_v2 import _require_catalog_tenant, _require_v2_runtime
 from backend.app.core.config import Environment
 from backend.app.services.c04_lookup import C04LookupService
 from backend.app.services.demo import (
     prepare_synthetic_reservations,
     prepare_synthetic_schedule_c08,
 )
+from backend.app.services.demo_session import COOKIE_NAME, issue_demo_session, resolve_demo_session
 from contracts.api import ApiEnvelope
 from contracts.events import CanonicalCommerceEvent, EventType
 
 router = APIRouter(prefix="/api/v1", tags=["demo"])
+
+
+def _session_runtime(request: Request):
+    if request.app.state.settings.environment != Environment.DEMO:
+        raise HTTPException(status_code=403, detail="DEMO_SESSION_ENVIRONMENT_FORBIDDEN")
+    return _require_v2_runtime(request)
+
+
+def _session_view(row):
+    return {
+        "session_id": str(row.id),
+        "status": row.status,
+        "expires_at": row.expires_at,
+    }
+
+
+@router.post("/demo/session", status_code=201)
+async def bootstrap_demo_session(request: Request, response: Response):
+    """Create an anonymous server-owned C09 actor, or reuse the valid cookie."""
+    if request.query_params or await request.body():
+        raise HTTPException(status_code=422, detail="DEMO_SESSION_INPUT_FORBIDDEN")
+    factory, tenant_id, environment = _session_runtime(request)
+    ttl = request.app.state.settings.demo_session_ttl_seconds
+    if ttl is None:
+        raise HTTPException(status_code=503, detail="DEMO_SESSION_TTL_NOT_CONFIGURED")
+    with factory() as db:
+        _require_catalog_tenant(db, tenant_id, environment)
+        row = resolve_demo_session(
+            db, tenant_id=tenant_id, token=request.cookies.get(COOKIE_NAME), touch=True,
+        )
+        if row is not None:
+            response.status_code = 200
+            return _session_view(row)
+        row, token = issue_demo_session(db, tenant_id=tenant_id, ttl_seconds=ttl)
+    response.set_cookie(
+        COOKIE_NAME, token, max_age=ttl, expires=ttl, path="/", httponly=True,
+        samesite="lax", secure=request.app.state.settings.demo_session_cookie_secure,
+    )
+    return _session_view(row)
+
+
+@router.get("/demo/session")
+def demo_session_status(request: Request):
+    factory, tenant_id, environment = _session_runtime(request)
+    with factory() as db:
+        _require_catalog_tenant(db, tenant_id, environment)
+        row = resolve_demo_session(
+            db, tenant_id=tenant_id, token=request.cookies.get(COOKIE_NAME), touch=True,
+        )
+        if row is None:
+            raise HTTPException(status_code=401, detail="DEMO_SESSION_REQUIRED")
+        return _session_view(row)
 
 
 @router.post("/demo/schedule/prepare")

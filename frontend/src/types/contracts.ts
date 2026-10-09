@@ -1,12 +1,18 @@
 export type Environment = "LOCAL" | "TEST" | "DEMO" | "PRODUCTION_READ" | "PILOT_SHADOW" | "PILOT_APPROVED";
-export type Provider = "CAFE24" | "TOSS_POS" | "ECOUNT" | "DEMO";
+export type Provider =
+  | "CAFE24"
+  | "TOSS_POS"
+  | "ECOUNT"
+  | "DEMO"
+  | "SYNTHETIC_DEMO";
 export type Freshness = "FRESH" | "STALE" | "UNKNOWN";
 export type InventoryQualityStatus =
   | "USABLE"
   | "STALE"
   | "UNMAPPED"
   | "QUARANTINED"
-  | "SOURCE_QUALITY_BLOCKED";
+  | "SOURCE_QUALITY_BLOCKED"
+  | "CONFIRMED";
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "PROHIBITED";
 export type TaskStatus = "PROPOSED" | "APPROVED" | "IN_PROGRESS" | "DONE" | "BLOCKED" | "DISMISSED";
 
@@ -73,7 +79,7 @@ export interface InventorySnapshot {
 
   expected_inventory?: number | null;
   confirmed_incoming?: number | null;
-  risk_level?: RiskLevel | null;
+  risk_level?: RiskLevel | "UNKNOWN" | null;
   calculation?: Record<string, number> | null;
   evidence?: EvidenceReference[];
   quality_status?: InventoryQualityStatus;

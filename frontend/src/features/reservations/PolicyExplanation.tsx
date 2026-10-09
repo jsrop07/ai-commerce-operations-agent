@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getPolicyExplanation, type Explanation } from "../../api/explanations";
 import type { C04Key } from "../../api/day04";
 import EvidenceDrawer from "../../components/EvidenceDrawer";
+import { BackendHttpError } from "../../api/backendHttp";
 
 const QUESTION = "예약상품은 언제 출고해?";
 
@@ -20,6 +21,10 @@ const warningText: Record<string, string> = {
   MODEL_VALIDATION_FAILED: "설명 검증을 통과하지 못했습니다.",
   MODEL_HOLD: "설명 결과를 보류했습니다.",
   C06_RUNTIME_OR_PROVIDER_FAILURE: "설명 처리 중 오류가 발생했습니다.",
+  C24_QUOTA_EXCEEDED: "이 Demo Session의 AI 모델 사용 한도에 도달했습니다.",
+  C24_QUOTA_UNCONFIGURED: "Public Demo의 AI 모델 호출이 현재 중지되어 있습니다.",
+  C24_QUOTA_UNAVAILABLE: "Public Demo의 AI 모델 호출이 현재 중지되어 있습니다.",
+  C24_SESSION_REQUIRED: "Demo Session이 필요합니다. 새 세션을 시작해 주세요.",
 };
 
 export function explanationWarning(reason: string): string {
@@ -29,6 +34,7 @@ export function explanationWarning(reason: string): string {
 
 export default function PolicyExplanation({ targetId, productName }: { targetId: string; productName: string }) {
   const [phase, setPhase] = useState<"idle" | "loading" | "answer" | "hold" | "error">("idle");
+  const [errorText, setErrorText] = useState("설명을 불러오지 못했습니다.");
   const [result, setResult] = useState<Explanation | null>(null);
   const [c04Key, setC04Key] = useState<C04Key | undefined>();
   const controllerRef = useRef<AbortController | null>(null);
@@ -57,8 +63,14 @@ export default function PolicyExplanation({ targetId, productName }: { targetId:
         setResult(response.data); // request_id remains in the internal result only.
         setPhase(response.data.status === "ANSWER" ? "answer" : "hold");
       })
-      .catch(() => {
-        if (activeRef.current && !controller.signal.aborted && sequence === sequenceRef.current) setPhase("error");
+      .catch((error: unknown) => {
+        if (activeRef.current && !controller.signal.aborted && sequence === sequenceRef.current) {
+          setErrorText(error instanceof BackendHttpError && error.status === 429 ?
+            "요청이 잠시 제한되었습니다. 잠시 후 다시 시도해 주세요." :
+            error instanceof BackendHttpError && error.status >= 500 ?
+              "AI 설명 제공자가 일시적으로 응답하지 않습니다." : "설명을 불러오지 못했습니다.");
+          setPhase("error");
+        }
       })
       .finally(() => {
         if (controllerRef.current === controller) controllerRef.current = null;
@@ -72,10 +84,12 @@ export default function PolicyExplanation({ targetId, productName }: { targetId:
       {phase === "loading" ? "설명 생성 중" : phase === "idle" ? "정책 설명 보기" : "정책 설명 다시 확인"}
     </button>
     {phase === "loading" && <p role="status">설명 생성 중입니다.</p>}
-    {phase === "error" && <p role="alert">설명을 불러오지 못했습니다.</p>}
+    {phase === "error" && <p role="alert">{errorText}</p>}
     {phase === "hold" && result && <div className="notice" role="status">
       <strong>확인 필요</strong>
-      <p>현재 근거만으로 설명할 수 없습니다.</p>
+      <p>{result.warnings.some((reason) => reason.startsWith("C24_")) ?
+        "AI 모델 호출 상태를 확인해 주세요. 기존 검증 근거는 별도로 확인할 수 있습니다." :
+        "현재 근거만으로 설명할 수 없습니다."}</p>
       <ul>{result.warnings.map((reason) => <li key={reason}>{explanationWarning(reason)}</li>)}</ul>
       <p>자료 모드: 예시 데이터 (SYNTHETIC_DEMO)</p>
     </div>}

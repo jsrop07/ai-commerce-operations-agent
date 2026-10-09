@@ -1,5 +1,6 @@
 import type { ApiEnvelope } from "../types/contracts";
 import type { C04Key } from "./day04";
+import { BackendHttpError } from "./backendHttp";
 
 export type Explanation = {
   status: "ANSWER" | "HOLD";
@@ -65,6 +66,12 @@ export async function getPolicyExplanation(question: string, signal?: AbortSigna
     body: JSON.stringify({ question, condition: "CITATION", scope: "POLICY_ONLY" }),
     signal: requestSignal,
   });
-  if (!response.ok) throw new Error(`Explanation HTTP ${response.status}`);
+  if (!response.ok) {
+    const value: unknown = await response.json().catch(() => null);
+    const detail = record(value) ? value.detail : null;
+    const code = typeof detail === "string" ? detail :
+      record(detail) && typeof detail.code === "string" ? detail.code : null;
+    throw new BackendHttpError(response.status, code);
+  }
   return parseExplanation(await response.json());
 }

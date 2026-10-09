@@ -23,7 +23,7 @@ const summary = { product_count: 2167, category_count: 123, product_category_cou
 const baseProduct = {
   id: "product-1", cafe24_product_no: 1, product_name: "C13 sample product",
   product_code: "P1", custom_product_code: null, sale_price: null,
-  display_status: "T", selling_status: "T", sold_out: false, operational: true,
+  display_status: "T", selling_status: "T", sold_out: false, operational: true,source_as_of: null,
   category_nos: [10, 11], categories: [
     { cafe24_category_no: 10, category_name: "Games" },
     { cafe24_category_no: 11, category_name: "Miniatures" },
@@ -31,7 +31,7 @@ const baseProduct = {
 };
 function productsPage(offset = 0, total = 1): CatalogProductsPage {
   return { items: Array.from({ length: Math.min(50, Math.max(0, total - offset)) }, (_, index) => ({
-    ...baseProduct, id: `product-${offset + index + 1}`, cafe24_product_no: offset + index + 1,
+    ...baseProduct, id: `product-${offset + index + 1}`, cafe24_product_no: offset + index + 1,source_as_of: null,
     product_name: `Catalog product ${offset + index + 1}`,
   })), total, limit: 50, offset, source_as_of: null };
 }
@@ -49,6 +49,8 @@ const leafA: CatalogHierarchyCategory = { id: "leaf-a", cafe24_category_no: 111,
   category_name: "Figures", category_depth: 3, parent_category_id: midA.id };
 
 beforeEach(() => {
+  sessionStorage.removeItem("commerce-ai-drawer-state");
+  sessionStorage.removeItem("commerce-ai-active-conversation");
   vi.mocked(getCatalogSummary).mockResolvedValue(envelope(summary));
   vi.mocked(getCatalogProducts).mockImplementation((_limit, offset) => Promise.resolve(envelope(productsPage(offset))));
   vi.mocked(getCatalogCategories).mockImplementation((depth, parent) => Promise.resolve(envelope(
@@ -63,6 +65,18 @@ afterEach(() => { cleanup(); vi.resetAllMocks(); });
 const catalog = () => screen.getByTestId("catalog-section");
 const inventory = () => screen.getByTestId("inventory-snapshot-section");
 
+function openInventoryTab() {
+  fireEvent.click(
+    screen.getByRole("tab", { name: "재고 현황" }),
+  );
+}
+
+function openCatalogFilters() {
+  fireEvent.click(
+    within(catalog()).getByRole("button", { name: /필터/ }),
+  );
+}
+
 describe("InventoryPage C13 Catalog Browser", () => {
   it("opens the AI drawer with Cafe24 product_no and does not analyze on open", async () => {
     vi.mocked(getCatalogProducts).mockResolvedValue(envelope({
@@ -75,49 +89,70 @@ describe("InventoryPage C13 Catalog Browser", () => {
     });
     fireEvent.click(open);
     const drawer = screen.getByRole("dialog", { name: "운영 AI" });
-    expect(within(drawer).getByText("245")).toBeInTheDocument();
-    expect(within(drawer).getByText("아직 분석을 실행하지 않았습니다.")).toBeInTheDocument();
-    expect(within(drawer).getByText("상품정보 · 실제 Catalog")).toBeInTheDocument();
+    expect(within(drawer).getByText("IMPERIAL KNIGHTS: KNIGHT QUESTORIS")).toBeInTheDocument();
+    expect(within(drawer).getByText(/PRODUCT · CAFE24_CATALOG/)).toBeInTheDocument();
+    expect(within(drawer).getByRole("button", { name: "분석 실행" })).toBeInTheDocument();
   });
 
-  it("opens a VIEW scope from structured catalog filters", async () => {
-    render(<CommonAiDrawerHost><InventoryPage /></CommonAiDrawerHost>);
-    await within(catalog()).findByRole("button", { name: "상품·재고 화면 운영 AI 열기" });
-    fireEvent.change(within(catalog()).getByRole("combobox", { name: "판매 필터" }), {
-      target: { value: "T" },
-    });
-    fireEvent.change(within(catalog()).getByRole("combobox", { name: "품절 필터" }), {
-      target: { value: "false" },
-    });
-    fireEvent.click(within(catalog()).getByRole("button", { name: "상품·재고 화면 운영 AI 열기" }));
-    const drawer = screen.getByRole("dialog", { name: "운영 AI" });
-    expect(within(drawer).getByText("PRODUCT_INVENTORY", { selector: "dd" })).toBeInTheDocument();
-    expect(within(drawer).getByText(/selling: true/)).toBeInTheDocument();
-    expect(within(drawer).getByText(/sold_out: false/)).toBeInTheDocument();
-    expect(within(drawer).getByText("아직 분석을 실행하지 않았습니다.")).toBeInTheDocument();
-  });
+  it("does not expose the removed VIEW AI entry point", async () => {
+    render(
+      <CommonAiDrawerHost>
+        <InventoryPage />
+      </CommonAiDrawerHost>,
+    );
 
-  it("does not send a phone-like catalog search into VIEW context", async () => {
-    render(<CommonAiDrawerHost><InventoryPage /></CommonAiDrawerHost>);
-    const search = within(catalog()).getByRole("textbox", { name: "Catalog 검색어" });
-    fireEvent.change(search, { target: { value: "010-1234-5678" } });
+    const search = within(catalog()).getByRole("textbox", {
+      name: "Catalog 검색어",
+    });
+
+    fireEvent.change(search, {
+      target: { value: "010-1234-5678" },
+    });
+
     fireEvent.submit(search.closest("form")!);
-    const viewButton = within(catalog()).getByRole("button", { name: "상품·재고 화면 운영 AI 열기" });
-    expect(viewButton).toBeDisabled();
-    expect(screen.queryByRole("dialog", { name: "운영 AI" })).not.toBeInTheDocument();
+
+    expect(
+      within(catalog()).queryByRole("button", {
+        name: "상품·재고 화면 운영 AI 열기",
+      }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      within(catalog()).queryByRole("button", {
+        name: "상품·재고 화면 운영 AI 열기",
+      }),
+    ).not.toBeInTheDocument();
   });
+
   it("keeps Catalog master separate, shows real category names, and hides operational", async () => {
     render(<InventoryPage />);
-    expect(await within(catalog()).findByText(/상품 2167건 · 카테고리 123건/)).toBeInTheDocument();
+    expect(
+      await within(catalog()).findByText("상품 2167건")
+    ).toBeInTheDocument();
+
+    expect(
+      within(catalog()).getByText("카테고리 123건")
+    ).toBeInTheDocument();
+
+    expect(
+      within(catalog()).getByText("상품·카테고리 관계 2165건")
+    ).toBeInTheDocument();
     expect(within(catalog()).getByText("원본 기준시각 미확인")).toBeInTheDocument();
     const row = (await within(catalog()).findByText("Catalog product 1")).closest("tr")!;
     expect(within(row).getByText("Games · Miniatures")).toBeInTheDocument();
     expect(within(row).getAllByText("미확인")).toHaveLength(2);
     expect(within(catalog()).queryByRole("columnheader", { name: "운영" })).not.toBeInTheDocument();
     expect(within(catalog()).queryByRole("columnheader", { name: "카테고리 번호" })).not.toBeInTheDocument();
-    expect(await within(inventory()).findByText("sku_demo_002")).toBeInTheDocument();
-    expect(getCatalogProducts).toHaveBeenCalledWith(50, 0, expect.any(AbortSignal),
-      { sort_by: "cafe24_product_no", sort_dir: "desc" });
+    expect(getCatalogProducts).toHaveBeenCalledWith(
+      50, 0, expect.any(AbortSignal),
+      { sort_by: "cafe24_product_no", sort_dir: "desc" },
+    );
+
+    openInventoryTab();
+
+    expect(
+      await within(inventory()).findByText("sku_demo_002"),
+    ).toBeInTheDocument();
   });
 
   it("does not guess category names when no relation exists", async () => {
@@ -153,6 +188,7 @@ describe("InventoryPage C13 Catalog Browser", () => {
     window.history.replaceState({}, "", "/inventory?page=3&price_min=100&price_max=250");
     vi.mocked(getCatalogProducts).mockImplementation((_limit, offset) => Promise.resolve(envelope(productsPage(offset, 120))));
     render(<InventoryPage />);
+    openCatalogFilters();
     await waitFor(() => expect(getCatalogProducts).toHaveBeenCalledWith(50, 100, expect.any(AbortSignal),
       { price_min: 100, price_max: 250, sort_by: "cafe24_product_no", sort_dir: "desc" }));
     fireEvent.click(within(catalog()).getByRole("button", { name: /^판매가$/ }));
@@ -184,6 +220,7 @@ describe("InventoryPage C13 Catalog Browser", () => {
 
   it("blocks invalid price ranges and closes the popover on Escape and outside click", async () => {
     render(<InventoryPage />);
+    openCatalogFilters();
     await waitFor(() => expect(getCatalogProducts).toHaveBeenCalledTimes(1));
     const priceButton = within(catalog()).getByRole("button", { name: /^판매가$/ });
     fireEvent.click(priceButton);
@@ -199,7 +236,11 @@ describe("InventoryPage C13 Catalog Browser", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(within(catalog()).queryByRole("group", { name: "판매가 범위" })).not.toBeInTheDocument();
     fireEvent.click(priceButton);
-    fireEvent.pointerDown(within(catalog()).getByRole("heading", { name: "상품 목록" }));
+    fireEvent.pointerDown(
+      within(catalog()).getByRole("textbox", {
+        name: "Catalog 검색어",
+      }),
+    );
     expect(within(catalog()).queryByRole("group", { name: "판매가 범위" })).not.toBeInTheDocument();
   });
 
@@ -207,6 +248,7 @@ describe("InventoryPage C13 Catalog Browser", () => {
     window.history.replaceState({}, "", "/inventory?page=2&display_status=T&selling_status=F&sold_out=false");
     vi.mocked(getCatalogProducts).mockImplementation((_limit, offset) => Promise.resolve(envelope(productsPage(offset, 120))));
     render(<InventoryPage />);
+    openCatalogFilters();
     const display = within(catalog()).getByRole("combobox", { name: "진열 필터" });
     const selling = within(catalog()).getByRole("combobox", { name: "판매 필터" });
     const soldOut = within(catalog()).getByRole("combobox", { name: "품절 필터" });
@@ -224,6 +266,7 @@ describe("InventoryPage C13 Catalog Browser", () => {
 
   it("loads hierarchy by parent UUID and uses the deepest selected category number", async () => {
     render(<InventoryPage />);
+    openCatalogFilters();
     await waitFor(() => expect(getCatalogCategories).toHaveBeenCalledWith(1, undefined, expect.any(AbortSignal)));
     await waitFor(() => expect(within(catalog()).getByRole("combobox", { name: "대주제" })).toBeEnabled());
     const root = within(catalog()).getByRole("combobox", { name: "대주제" });
@@ -248,6 +291,7 @@ describe("InventoryPage C13 Catalog Browser", () => {
 
   it("disables leaf select when the actual middle category has no children", async () => {
     render(<InventoryPage />);
+    openCatalogFilters();
     const root = within(catalog()).getByRole("combobox", { name: "대주제" });
     const middle = within(catalog()).getByRole("combobox", { name: "중간주제" });
     await waitFor(() => expect(root).toBeEnabled());
@@ -262,6 +306,7 @@ describe("InventoryPage C13 Catalog Browser", () => {
     window.history.replaceState({}, "", "/inventory?page=2&category_1=10&category_2=11&category_3=111");
     vi.mocked(getCatalogProducts).mockImplementation((_limit, offset) => Promise.resolve(envelope(productsPage(offset, 120))));
     render(<InventoryPage />);
+    openCatalogFilters();
     await waitFor(() => expect(getCatalogProducts).toHaveBeenCalledWith(50, 50, expect.any(AbortSignal), expect.objectContaining({ category_no: 111 })));
     expect(within(catalog()).getByRole("combobox", { name: "대주제" })).toHaveValue("10");
     expect(within(catalog()).getByRole("combobox", { name: "중간주제" })).toHaveValue("11");
@@ -275,16 +320,18 @@ describe("InventoryPage C13 Catalog Browser", () => {
     window.history.replaceState({}, "", "/inventory?page=2");
     vi.mocked(getCatalogProducts).mockImplementation((_limit, offset) => Promise.resolve(envelope(productsPage(offset, 120))));
     render(<InventoryPage />);
-    const productNo = await within(catalog()).findByRole("button", { name: "카페24 상품 번호 ↓" });
+    const productNo = await within(catalog()).findByRole("button", {
+      name: "상품 번호 ↓",
+    });
     expect(productNo.closest("th")).toHaveAttribute("aria-sort", "descending");
     expect(within(catalog()).getByRole("button", { name: "판매가 ↕" }).closest("th")).toHaveAttribute("aria-sort", "none");
     fireEvent.click(productNo);
     await waitFor(() => expect(getCatalogProducts).toHaveBeenLastCalledWith(50, 0, expect.any(AbortSignal), { sort_by: "cafe24_product_no", sort_dir: "asc" }));
-    expect(within(catalog()).getByRole("button", { name: "카페24 상품 번호 ↑" })).toBeInTheDocument();
+    expect(within(catalog()).getByRole("button", { name: "상품 번호 ↑" })).toBeInTheDocument();
     fireEvent.click(within(catalog()).getByRole("button", { name: "판매가 ↕" }));
     await waitFor(() => expect(getCatalogProducts).toHaveBeenLastCalledWith(50, 0, expect.any(AbortSignal), { sort_by: "sale_price", sort_dir: "desc" }));
     expect(within(catalog()).getByRole("button", { name: "판매가 ↓" }).closest("th")).toHaveAttribute("aria-sort", "descending");
-    expect(within(catalog()).getByRole("button", { name: "카페24 상품 번호 ↕" }).closest("th")).toHaveAttribute("aria-sort", "none");
+    expect(within(catalog()).getByRole("button", { name: "상품 번호 ↕" }).closest("th")).toHaveAttribute("aria-sort", "none");
     fireEvent.click(within(catalog()).getByRole("button", { name: "판매가 ↓" }));
     await waitFor(() => expect(getCatalogProducts).toHaveBeenLastCalledWith(50, 0, expect.any(AbortSignal), { sort_by: "sale_price", sort_dir: "asc" }));
     expect(within(catalog()).getByRole("button", { name: "판매가 ↑" })).toBeInTheDocument();
@@ -338,8 +385,15 @@ describe("InventoryPage C13 Catalog Browser", () => {
     vi.mocked(getCatalogProducts).mockRejectedValue(new Error("Page unavailable"));
     fireEvent.click(within(paging).getByRole("button", { name: "이전 페이지" }));
     expect(await within(catalog()).findByText("상품 페이지를 불러오지 못했습니다")).toBeInTheDocument();
-    expect(within(catalog()).getByText("Catalog product 101")).toBeInTheDocument();
-    expect(within(inventory()).getByText("sku_demo_002")).toBeInTheDocument();
+    expect(
+      within(catalog()).getByText("Catalog product 101"),
+    ).toBeInTheDocument();
+
+    openInventoryTab();
+
+    expect(
+      await within(inventory()).findByText("sku_demo_002"),
+    ).toBeInTheDocument();
   });
 
   it("ignores stale category children when the parent changes", async () => {
@@ -349,6 +403,9 @@ describe("InventoryPage C13 Catalog Browser", () => {
       depth === 2 && parent === rootA.id ? oldResponse :
         Promise.resolve(envelope(depth === 1 ? [rootA, rootB] : parent === rootB.id ? [midB] : [])));
     render(<InventoryPage />);
+
+    openCatalogFilters();
+
     const root = within(catalog()).getByRole("combobox", { name: "대주제" });
     await waitFor(() => expect(root).toBeEnabled());
     fireEvent.change(root, { target: { value: "10" } });
@@ -363,13 +420,52 @@ describe("InventoryPage C13 Catalog Browser", () => {
   it("keeps Catalog and Inventory failures independent", async () => {
     vi.mocked(getCatalogProducts).mockRejectedValue(new Error("Catalog unavailable"));
     render(<InventoryPage />);
-    expect(await within(catalog()).findByText("상품 페이지를 불러오지 못했습니다")).toBeInTheDocument();
-    expect(await within(inventory()).findByText("sku_demo_002")).toBeInTheDocument();
+
+    expect(
+      await within(catalog()).findByText("상품 페이지를 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+
+    openInventoryTab();
+
+    expect(
+      await within(inventory()).findByText("sku_demo_002"),
+    ).toBeInTheDocument();
+
     cleanup();
     vi.mocked(getCatalogProducts).mockResolvedValue(envelope(productsPage()));
     vi.mocked(getDay08Inventory).mockRejectedValue(new Error("Inventory unavailable"));
     render(<InventoryPage />);
     expect(await within(catalog()).findByText("Catalog product 1")).toBeInTheDocument();
-    expect(await within(inventory()).findByText("재고 데이터를 불러오지 못했습니다")).toBeInTheDocument();
+    openInventoryTab();
+    expect(
+      await within(inventory()).findByText("재고 데이터를 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+  });
+  it("switches between Catalog and Inventory tabs", async () => {
+    render(<InventoryPage />);
+
+    const catalogTab = screen.getByRole("tab", {
+      name: "상품 목록",
+    });
+
+    const inventoryTab = screen.getByRole("tab", {
+      name: "재고 현황",
+    });
+
+    expect(catalogTab).toHaveAttribute("aria-selected", "true");
+    expect(catalog()).toBeInTheDocument();
+
+    expect(inventory()).not.toBeVisible();
+    fireEvent.click(inventoryTab);
+
+    expect(inventoryTab).toHaveAttribute("aria-selected", "true");
+    expect(inventory()).toBeVisible();
+    expect(catalog()).not.toBeVisible();
+
+    fireEvent.click(catalogTab);
+
+    expect(catalogTab).toHaveAttribute("aria-selected", "true");
+    expect(catalog()).toBeVisible();
+    expect(inventory()).not.toBeVisible();
   });
 });

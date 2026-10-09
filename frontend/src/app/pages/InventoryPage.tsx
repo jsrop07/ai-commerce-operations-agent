@@ -72,6 +72,7 @@ function displayRiskLevel(
 }
 
 function InventorySnapshotSection() {
+  const usingBackend = import.meta.env.VITE_USE_REAL_BACKEND === "true";
   const [inventory, setInventory] =
     useState<ApiEnvelope<InventorySnapshot[]> | null>(null);
   const [catalog, setCatalog] =
@@ -85,6 +86,8 @@ function InventorySnapshotSection() {
       category: "",
     });
 
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  
   const [selectedInventory, setSelectedInventory] =
     useState<InventorySnapshot | null>(null);
 
@@ -115,12 +118,10 @@ function InventorySnapshotSection() {
   useEffect(() => {
     let active = true;
 
-    mockApiGet<ApiEnvelope<TaskSummary[]>>(
+    if (!usingBackend) mockApiGet<ApiEnvelope<TaskSummary[]>>(
       "/api/v1/tasks",
     ).then((response) => {
-      if (active) {
-        setTasks(response);
-      }
+      if (active) setTasks(response);
     });
 
     getDay08Inventory()
@@ -138,18 +139,16 @@ function InventorySnapshotSection() {
         }
       });
 
-    mockApiGet<ApiEnvelope<ProductCatalogData>>(
+    if (!usingBackend) mockApiGet<ApiEnvelope<ProductCatalogData>>(
       "/api/v1/products",
     ).then((response) => {
-      if (active) {
-        setCatalog(response);
-      }
+      if (active) setCatalog(response);
     });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [usingBackend]);
 
   if (inventoryError) {
     return (
@@ -164,7 +163,7 @@ function InventorySnapshotSection() {
       </div>
     );
   }
-  if (!inventory || !catalog || !tasks) {
+  if (!inventory || (!usingBackend && (!catalog || !tasks))) {
     return (
       <div
         className="inventory-snapshot-content"
@@ -174,7 +173,8 @@ function InventorySnapshotSection() {
     );
   }
 
-  const inventoryTaskProposals = tasks.data.filter(
+  const catalogData = catalog?.data ?? { products: [], skus: [] };
+  const inventoryTaskProposals = (tasks?.data ?? []).filter(
       (task) =>
         task.type === "INVENTORY_REVIEW" &&
         task.status === "PROPOSED",
@@ -182,14 +182,14 @@ function InventorySnapshotSection() {
 
   const { data } = inventory;
   const skuById = new Map(
-    catalog.data.skus.map((sku) => [
+    catalogData.skus.map((sku) => [
       sku.id,
       sku,
     ]),
   );
 
   const productById = new Map(
-    catalog.data.products.map((product) => [
+    catalogData.products.map((product) => [
       product.id,
       product,
     ]),
@@ -197,13 +197,13 @@ function InventorySnapshotSection() {
 
   const brands = Array.from(
     new Set(
-      catalog.data.products.map(
+      catalogData.products.map(
         (product) => product.brand_id,
       ),
     ),
   ).sort();
 
-  const filteredInventory = data.filter((item) => {
+  const filteredInventory = usingBackend ? data : data.filter((item) => {
     const sku = skuById.get(item.sku_id);
 
     if (!sku) {
@@ -231,7 +231,7 @@ function InventorySnapshotSection() {
 
   const categories = Array.from(
     new Set(
-      catalog.data.products.map(
+      catalogData.products.map(
         (product) => product.category,
       ),
     ),
@@ -280,45 +280,77 @@ function InventorySnapshotSection() {
     <div
       className="inventory-snapshot-content"
     >
-      <div className="toolbar">
-        <span className="right tertiary">
-          조회 기준 시각{" "}
-          <time dateTime={inventory.as_of}>
-            {new Date(inventory.as_of).toLocaleString("ko-KR")}
-          </time>
-        </span>
-      </div>
 
-      <InventoryFilters
-        value={filters}
-        brands={brands}
-        categories={categories}
-        onChange={setFilters}
-      />
+      <div className="inventory-filter-area">
+        <div className="inventory-filter-topline">
+          <button
+            type="button"
+            className="inventory-filter-toggle"
+            aria-expanded={filtersOpen}
+            aria-controls="inventory-filter-panel"
+            onClick={() => setFiltersOpen((current) => !current)}
+          >
+            <span>필터</span>
+            <span aria-hidden="true">{filtersOpen ? "⌃" : "⌄"}</span>
+          </button>
 
-      <div
-        className="notice"
-        role="status"
-      >
-        현재 화면은 확정된 재고 Snapshot 계약만 표시합니다.
-        예상재고·입고예정·위험 값은 계약에 없는 값을 임의 생성하지 않습니다.
-      </div>
-
-      {staleCount > 0 && (
-        <div
-          className="notice"
-          role="status"
-          data-testid="inventory-stale-warning"
-        >
-          <strong>
-            오래된 재고 데이터 {staleCount}건이 있습니다.
-          </strong>
-
-          <div className="muted">
-            최신 수량을 확인하기 전에는 재고 위험을 확정하지 않습니다.
-          </div>
+          <span className="inventory-query-time">
+            조회 기준{" "}
+            <time dateTime={inventory.as_of}>
+              {new Date(inventory.as_of).toLocaleString("ko-KR")}
+            </time>
+          </span>
         </div>
-      )}
+
+        <div
+          id="inventory-filter-panel"
+          className="inventory-filter-panel"
+          hidden={!filtersOpen}
+        >
+          <InventoryFilters
+            value={filters}
+            brands={brands}
+            categories={categories}
+            onChange={setFilters}
+          />
+        </div>
+      </div>
+
+      <details className="inventory-safety-notice">
+        <summary>
+          <span className="inventory-safety-notice-heading">
+            재고 데이터 확인 안내
+          </span>
+
+          <span className="inventory-safety-notice-summary">
+            {staleCount > 0
+              ? `오래된 데이터 ${staleCount}건 · 최신 재고 및 위험 판단 확인 필요`
+              : "재고 수량 및 판단 기준 확인"}
+          </span>
+
+          <span className="inventory-safety-notice-action">
+            상세 안내
+          </span>
+        </summary>
+
+        <div className="inventory-safety-notice-detail">
+          <p>
+            현재 화면은 확인된 재고 Snapshot 계약의 값만 표시합니다.
+            예상재고·입고예정·위험 값은 계약에 없는 값을 임의 생성하지 않습니다.
+          </p>
+
+          {staleCount > 0 && (
+            <div data-testid="inventory-stale-warning" role="status">
+              <strong>
+                오래된 재고 데이터 {staleCount}건이 있습니다.
+              </strong>
+              <p>
+                최신 수량을 확인하기 전에는 재고 위험을 확정하지 않습니다.
+              </p>
+            </div>
+          )}
+        </div>
+      </details>
 
       {sortedInventory.length === 0 ? (
         <SystemState
@@ -327,8 +359,8 @@ function InventorySnapshotSection() {
           description="선택한 필터 조건을 변경해 다시 확인하세요."
         />
       ) : (
-        <section className="card">
-          <table className="dense-table">
+        <section className="card inventory-table-card">
+            <table className="dense-table">
             <thead>
               <tr>
                 <th>SKU</th>
@@ -467,13 +499,62 @@ function InventorySnapshotSection() {
   );
 }
 
+type InventoryTab = "catalog" | "snapshot";
+
 export default function InventoryPage() {
+  const [activeTab, setActiveTab] = useState<InventoryTab>("catalog");
+
   return (
-    <div className="page" data-testid="route-inventory">
-      <h1>상품·재고</h1>
-      <CatalogBrowser />
-      <section aria-label="재고 Snapshot" data-testid="inventory-snapshot-section">
-        <h2>재고 Snapshot</h2>
+    <div className="page inventory-page" data-testid="route-inventory">
+      <div className="inventory-page-heading">
+        <h1>상품 · 재고</h1>
+      </div>
+
+      <div className="inventory-page-tabs" role="tablist" aria-label="상품·재고 보기">
+        <button
+          type="button"
+          id="inventory-catalog-tab"
+          role="tab"
+          aria-selected={activeTab === "catalog"}
+          aria-controls="inventory-catalog-panel"
+          tabIndex={activeTab === "catalog" ? 0 : -1}
+          onClick={() => setActiveTab("catalog")}
+        >
+          상품 목록
+        </button>
+
+        <button
+          type="button"
+          id="inventory-snapshot-tab"
+          role="tab"
+          aria-selected={activeTab === "snapshot"}
+          aria-controls="inventory-snapshot-panel"
+          tabIndex={activeTab === "snapshot" ? 0 : -1}
+          onClick={() => setActiveTab("snapshot")}
+        >
+          재고 현황
+        </button>
+      </div>
+
+      <section
+        id="inventory-catalog-panel"
+        role="tabpanel"
+        aria-labelledby="inventory-catalog-tab"
+        className="inventory-tab-panel"
+        hidden={activeTab !== "catalog"}
+      >
+        <CatalogBrowser />
+      </section>
+
+      <section
+        id="inventory-snapshot-panel"
+        role="tabpanel"
+        aria-labelledby="inventory-snapshot-tab"
+        aria-label="재고 Snapshot"
+        className="inventory-tab-panel"
+        data-testid="inventory-snapshot-section"
+        hidden={activeTab !== "snapshot"}
+      >
         <InventorySnapshotSection />
       </section>
     </div>

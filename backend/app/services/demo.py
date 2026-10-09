@@ -8,7 +8,15 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from zoneinfo import ZoneInfo
+from uuid import UUID
 
+from sqlalchemy import select
+
+from backend.app.models_v2.operations import (
+    IncomingShipmentV2,
+    TaskIncomingDependencyV2,
+    TaskV2,
+)
 from fastapi.encoders import jsonable_encoder
 
 from backend.app.core.config import Environment
@@ -38,7 +46,15 @@ from contracts.events import CanonicalCommerceEvent
 
 FIXED_TIME = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
 SCHEDULE_C08_SNAPSHOT_ID = "c08-r08-synthetic-v1"
-
+DEMO_HERO_INCOMING_ID = UUID(
+    "d95b3071-4683-5944-97a8-c15aa4073fb1"
+)
+DEMO_HERO_TASK_ID = UUID(
+    "bd436abf-81ad-556c-bf4e-8d363d5d0273"
+)
+DEMO_HERO_INCOMING_REFERENCE = "DEMO-INCOMING-HERO-001"
+DEMO_HERO_TASK_TYPE = "RESERVATION_SHORTAGE"
+DEMO_HERO_TASK_INCOMING_DEPENDENCY_TYPE = "AFFECTS_TASK"
 
 def prepare_synthetic_schedule_c08(app_state, *, tenant_id: str) -> tuple[int, int, str, str]:
     """Register the fixed C08 calculation in memory after an explicit Demo call."""
@@ -233,9 +249,114 @@ SYNTHETIC_RESERVATION_INPUTS = (
             freshness="FRESH", source_classification="SYNTHETIC_DEMO",
         ),),
     ),
+    SyntheticReservationInput(
+        reservation_id="DEMO-RES-HERO",
+        sku_id="DEMO-SKU-0009-01",
+        required_qty=5,
+        secured_qty=1,
+        incoming=(
+            IncomingEvidence(
+                evidence_id=(
+                    "demo_incoming_confirmed_hero"
+                ),
+                quantity=2,
+                confirmation_status="CONFIRMED",
+                quality_status="CONFIRMED",
+                freshness="FRESH",
+                source_classification="SYNTHETIC_DEMO",
+            ),
+        ),
+        aging_hours=24,
+    ),
 )
 
+def _ensure_demo_hero_task_incoming_dependency(app_state) -> int:
+    """확정된 Hero Incoming→Task 관계를 V2 PostgreSQL에 멱등 저장한다."""
 
+    settings = app_state.settings
+    session_factory = getattr(
+        app_state,
+        "v2_db_session_factory",
+        None,
+    )
+    configured_tenant_id = getattr(
+        settings,
+        "v2_tenant_id",
+        None,
+    )
+
+    # 기존 in-memory Demo 시험과 호환성을 유지한다.
+    # V2 DB가 실제 연결된 Public Demo에서만 관계 row를 영속화한다.
+    if session_factory is None or configured_tenant_id is None:
+        return 0
+
+    tenant_id = UUID(str(configured_tenant_id))
+
+    with session_factory() as db:
+        incoming = db.scalar(
+            select(IncomingShipmentV2).where(
+                IncomingShipmentV2.tenant_id == tenant_id,
+                IncomingShipmentV2.id == DEMO_HERO_INCOMING_ID,
+            )
+        )
+        task = db.scalar(
+            select(TaskV2).where(
+                TaskV2.tenant_id == tenant_id,
+                TaskV2.id == DEMO_HERO_TASK_ID,
+            )
+        )
+
+        if incoming is None or task is None:
+            raise ValueError(
+                "SYNTHETIC_RESERVATION_V2_RELATION_SOURCE_MISSING"
+            )
+
+        # 같은 SKU라는 이유만으로 관계를 만들지 않는다.
+        # 고정 Synthetic identity와 업무 의미가 모두 맞아야 한다.
+        if (
+            incoming.external_reference
+            != DEMO_HERO_INCOMING_REFERENCE
+            or task.task_type != DEMO_HERO_TASK_TYPE
+            or task.product_id is None
+            or incoming.product_id != task.product_id
+        ):
+            raise ValueError(
+                "SYNTHETIC_RESERVATION_V2_RELATION_IDENTITY_CONFLICT"
+            )
+
+        existing = db.scalar(
+            select(TaskIncomingDependencyV2).where(
+                TaskIncomingDependencyV2.tenant_id == tenant_id,
+                TaskIncomingDependencyV2.task_id
+                == DEMO_HERO_TASK_ID,
+                TaskIncomingDependencyV2.incoming_shipment_id
+                == DEMO_HERO_INCOMING_ID,
+            )
+        )
+
+        if existing is not None:
+            if (
+                existing.dependency_type
+                != DEMO_HERO_TASK_INCOMING_DEPENDENCY_TYPE
+            ):
+                raise ValueError(
+                    "SYNTHETIC_RESERVATION_V2_RELATION_IDENTITY_CONFLICT"
+                )
+            return 0
+
+        db.add(
+            TaskIncomingDependencyV2(
+                tenant_id=tenant_id,
+                task_id=DEMO_HERO_TASK_ID,
+                incoming_shipment_id=DEMO_HERO_INCOMING_ID,
+                dependency_type=(
+                    DEMO_HERO_TASK_INCOMING_DEPENDENCY_TYPE
+                ),
+            )
+        )
+        db.commit()
+
+    return 1
 def prepare_synthetic_reservations(app_state, *, tenant_id: str) -> tuple[int, int]:
     """Explicit, in-memory Demo caller for the existing Day9 services."""
     settings = app_state.settings
@@ -297,10 +418,17 @@ def prepare_synthetic_reservations(app_state, *, tenant_id: str) -> tuple[int, i
             created += 1
 
         total = sum(
-            item.tenant_id == tenant_id and item.data_mode == "SYNTHETIC_DEMO"
+            item.tenant_id == tenant_id
+            and item.data_mode == "SYNTHETIC_DEMO"
             and item.reservation_id in {
-                seed.reservation_id for seed in SYNTHETIC_RESERVATION_INPUTS
+                seed.reservation_id
+                for seed in SYNTHETIC_RESERVATION_INPUTS
             }
             for item in app_state.reservation_risk_projections
         )
+
+        _ensure_demo_hero_task_incoming_dependency(
+            app_state
+        )
+
     return created, total

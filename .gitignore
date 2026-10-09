@@ -64,4 +64,5 @@ r04*
 
 *bak
 
-backend/app/db/migrations_v2/versions
+backend/app/db/migrations_v2/versions/*
+!backend/app/db/migrations_v2/versions/c16e20261006_add_rag_chunk_embedding.py
