@@ -10,7 +10,6 @@ import {
 } from "../../api/catalog";
 import SystemState from "../../components/SystemStates";
 import {
-  catalogPageNumbers,
   readCatalogUrl,
   writeCatalogUrl,
   type CatalogSortBy,
@@ -20,7 +19,6 @@ import {
   useOptionalCommonAiDrawer,
 } from "../../app/CommonAiDrawerContext";
 const pageSize = 50;
-
 export function CatalogPagination({
   page,
   currentPage,
@@ -31,23 +29,74 @@ export function CatalogPagination({
   onPageChange: (page: number) => void;
 }) {
   const totalPages = Math.ceil(page.total / pageSize);
+  const current = Math.max(1, Math.min(currentPage, totalPages || 1));
+
+  const visiblePages = Array.from(
+    { length: Math.min(5, totalPages) },
+    (_, index) => {
+      const start = Math.max(
+        1,
+        Math.min(current - 2, totalPages - 4),
+      );
+      return start + index;
+    },
+  );
+
   return (
-    <nav className="catalog-pagination" aria-label="Catalog 상품 페이지">
-      <small>{page.total === 0 ? "0건" : `${page.offset + 1}–${page.offset + page.items.length} / 총 ${page.total}건`}</small>
-      <div className="catalog-page-buttons">
-        <button type="button" aria-label="이전 페이지" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>‹</button>
-        {catalogPageNumbers(currentPage, totalPages).map((item, index) => item === "ellipsis" ? (
-          <span key={`ellipsis-${index}`} aria-hidden="true">…</span>
-        ) : (
-          <button key={item} type="button" aria-label={`${item} 페이지`}
-            aria-current={currentPage === item ? "page" : undefined}
-            className={currentPage === item ? "active" : undefined}
-            onClick={() => onPageChange(item)}>{item}</button>
+    <footer className="orders-pagination catalog-pagination">
+      <span>
+        {`총 ${page.total.toLocaleString("ko-KR")}건 · ${
+          totalPages === 0 ? 0 : current
+        } / ${totalPages} 페이지`}
+      </span>
+
+      <nav className="catalog-page-buttons" aria-label="상품 목록 페이지">
+        <button
+          type="button"
+          disabled={current <= 1}
+          onClick={() => onPageChange(1)}
+        >
+          처음
+        </button>
+
+        <button
+          type="button"
+          disabled={current <= 1}
+          onClick={() => onPageChange(current - 1)}
+        >
+          이전
+        </button>
+
+        {visiblePages.map((number) => (
+          <button
+            key={number}
+            type="button"
+            className={number === current ? "active" : ""}
+            aria-label={`${number}페이지`}
+            aria-current={number === current ? "page" : undefined}
+            onClick={() => onPageChange(number)}
+          >
+            {number}
+          </button>
         ))}
-        <button type="button" aria-label="다음 페이지" disabled={totalPages === 0 || currentPage >= totalPages}
-          onClick={() => onPageChange(currentPage + 1)}>›</button>
-      </div>
-    </nav>
+
+        <button
+          type="button"
+          disabled={totalPages === 0 || current >= totalPages}
+          onClick={() => onPageChange(current + 1)}
+        >
+          다음
+        </button>
+
+        <button
+          type="button"
+          disabled={totalPages === 0 || current >= totalPages}
+          onClick={() => onPageChange(totalPages)}
+        >
+          마지막
+        </button>
+      </nav>
+    </footer>
   );
 }
 
@@ -304,13 +353,22 @@ export default function CatalogBrowser() {
     )}
       <div className="catalog-toolbar catalog-toolbar-compact">
         <div className="catalog-primary-controls">
-          <form onSubmit={submitSearch} className="catalog-search">
-            <input aria-label="Catalog 검색어" placeholder="상품 번호 · 코드 · 판매가 · 카테고리 검색"
-              value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} />
+          <form
+            id="catalog-search-form"
+            onSubmit={submitSearch}
+            className="catalog-search"
+          >
+            <input
+              aria-label="Catalog 검색어"
+              placeholder="상품 번호 · 코드 · 판매가 · 카테고리 검색"
+              value={searchDraft}
+              onChange={(event) => setSearchDraft(event.target.value)}
+            />
           </form>
-          <button
+
+         <button
             type="button"
-            className="catalog-filter-toggle"
+            className="orders-filter-toggle"
             aria-expanded={filtersOpen}
             aria-controls="catalog-advanced-filters"
             onClick={() => {
@@ -318,10 +376,7 @@ export default function CatalogBrowser() {
               setPriceOpen(false);
             }}
           >
-            필터
-            <span aria-hidden="true">
-              {filtersOpen ? "⌃" : "⌄"}
-            </span>
+            상세 필터
           </button>
             </div>
 
@@ -429,7 +484,6 @@ export default function CatalogBrowser() {
                       상품 번호{sortArrow("cafe24_product_no")}
                     </button>
                   </th>
-                  {aiDrawer && <th className="catalog-ai-column">운영 AI</th>}
                   <th>상품명</th><th>상품 코드</th><th>사용자 상품 코드</th>
                   <th aria-sort={urlState.sort_by === "sale_price" ?
                     urlState.sort_dir === "desc" ? "descending" : "ascending" : "none"}>
@@ -439,10 +493,11 @@ export default function CatalogBrowser() {
                 </tr></thead>
                 <tbody>{productsPage.items.map((product) => <tr key={product.id}>
                   <td>{product.cafe24_product_no}</td>
-                  {aiDrawer && (
-                    <td className="catalog-ai-column">
+                  <td>
+                    {aiDrawer ? (
                       <button
                         type="button"
+                        className="catalog-product-ai-link"
                         onClick={() =>
                           aiDrawer.openAiDrawer({
                             targetType: "PRODUCT",
@@ -452,13 +507,15 @@ export default function CatalogBrowser() {
                             asOf: product.source_as_of,
                           })
                         }
-                        aria-label={`${product.product_name} 운영 AI 열기`}
+                        title={`${product.product_name} 운영 AI에서 확인`}
+                        aria-label={`${product.product_name} 운영 AI에서 확인`}
                       >
-                        운영 AI
+                        {product.product_name}
                       </button>
-                    </td>
-                  )}
-                  <td>{product.product_name}</td>
+                    ) : (
+                      product.product_name
+                    )}
+                  </td>
                   <td>{product.product_code}</td><td>{product.custom_product_code ?? "미확인"}</td>
                   <td>{product.sale_price === null ? "미확인" : product.sale_price.toLocaleString("ko-KR")}</td>
                   <td>{product.display_status === "T" ? "진열" : "미진열"}</td>

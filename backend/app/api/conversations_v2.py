@@ -291,6 +291,10 @@ def append_natural_question(
         _fail(error)
 
     target = payload.context.canonical()
+    # Non-Product questions can be saved in the owned conversation, but the
+    # existing grounded analysis routes are Product-only. Return a local HOLD.
+    if target.target_type != "PRODUCT":
+        analysis_kind = "DETERMINISTIC"
     
     with session_factory() as session:
         _require_catalog_tenant(

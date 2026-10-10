@@ -171,6 +171,15 @@ export async function appendAnalysis(
   ));
 }
 
+export async function followRelatedContext(
+  conversationId: string, context: ConversationContext, signal?: AbortSignal,
+) {
+  return parseConversationResponse(await backendRequest(
+    `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`, "POST",
+    { context, intent: "FOLLOW_RELATED_TARGET" }, signal,
+  ));
+}
+
 export async function appendNaturalQuestion(
   conversationId: string,
   context: EntityContext,

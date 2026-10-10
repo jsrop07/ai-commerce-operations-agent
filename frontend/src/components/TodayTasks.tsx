@@ -10,11 +10,13 @@ import { getTaskFeedback, postTaskFeedback } from "../api/day10";
 import { RiskLevelBadge } from "./StatusBadges";
 import { taskStatusLabel } from "./statusLabels";
 import SystemState from "./SystemStates";
+import type { DashboardQueueItem } from "../api/dashboardQueue";
 
 type TodayTasksProps = {
   tasks: (TaskSummary | ScheduleTask)[];
   compact?: boolean;
   shortageTasks?: ReservationShortageTask[];
+  storedTasks?: DashboardQueueItem[];
   reservations?: ReservationRiskItem[];
   emptyMessage?: string;
   emptyDescription?: string;
@@ -76,7 +78,6 @@ function ShortageTask({ task, reservation }: { task: ReservationShortageTask; re
   return <article className="today-task-card shortage-task-card" data-testid={`shortage-task-${task.id}`}>
     <header className="shortage-task-heading">
       <h3>{task.title}</h3>
-      <small className="muted">예약 ID: {task.reservation_id}</small>
     </header>
 
     <section className="shortage-task-section" aria-label="예약 수량">
@@ -177,6 +178,7 @@ export default function TodayTasks({
   tasks,
   compact = false,
   shortageTasks = [],
+  storedTasks = [],
   reservations = [],
   emptyMessage,
   emptyDescription,
@@ -206,14 +208,14 @@ export default function TodayTasks({
 
         <span className="badge source">
           {countUnavailable
-            ? tasks.length + shortageTasks.length > 0
-              ? `표시 ${tasks.length + shortageTasks.length}건`
+            ? tasks.length + shortageTasks.length + storedTasks.length > 0
+              ? `표시 ${tasks.length + shortageTasks.length + storedTasks.length}건`
               : "—"
-            : `${tasks.length + shortageTasks.length}건`}
+            : `${tasks.length + shortageTasks.length + storedTasks.length}건`}
         </span>
       </div>
 
-      {tasks.length === 0 && shortageTasks.length === 0 ? (
+      {tasks.length === 0 && shortageTasks.length === 0 && storedTasks.length === 0 ? (
         <SystemState
           state="empty"
           title={emptyMessage ?? "오늘 예정된 확인 업무가 없습니다"}
@@ -224,6 +226,43 @@ export default function TodayTasks({
         />
       ) : (
         <div className="today-task-list">
+          {storedTasks.map((task) => (
+            <article className="today-task-card" key={task.id}>
+              <h3>예약 수량 확인 업무</h3>
+
+              <p>
+                상태{" "}
+                {task.task_status === "PROPOSED"
+                  ? "검토 대기"
+                  : task.task_status === "BLOCKED"
+                    ? "진행 확인 필요"
+                    : "확인 필요"}
+                {" · 마감 "}
+                {formatDateTime(task.task_due_at)}
+              </p>
+
+              <p className="muted">
+                등록된 업무입니다. 조건부 예약 계산과 별개의 확정 위험을
+                뜻하지 않습니다.
+              </p>
+
+              <a
+                className="today-task-link"
+                href="/schedule?focus=tasks"
+                onClick={(event) => {
+                  event.preventDefault();
+                  window.history.pushState(
+                    {},
+                    "",
+                    "/schedule?focus=tasks",
+                  );
+                  window.dispatchEvent(new PopStateEvent("popstate"));
+                }}
+              >
+                관련 업무 확인 →
+              </a>
+            </article>
+          ))}
           {shortageTasks.map((task) => <ShortageTask key={task.id} task={task} reservation={reservations.find((item) => item.reservation_id === task.reservation_id)} />)}
           {tasks.map((task) => (
             <article

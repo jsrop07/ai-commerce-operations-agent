@@ -42,7 +42,9 @@ from backend.app.services.conversation_v2 import (
     ContractErrorStatus,
     Intent,
     MessageResponseStatus,
+    ResolvedTarget,
     TargetInput,
+    _same_context,
     analyze_turn,
     append_turn,
     begin_analysis_request,
@@ -176,6 +178,11 @@ def c09_db():
             source_reason=None,
         )
         session.add_all([incoming, task])
+        session.flush()
+        session.add(TaskIncomingDependencyV2(
+            tenant_id=tenant.id, task_id=task.id,
+            incoming_shipment_id=incoming.id, dependency_type="AFFECTS_TASK",
+        ))
         session.commit()
         ids = {
             "tenant": tenant.id,
@@ -945,6 +952,84 @@ def test_related_continuation_orders_messages_and_freezes_prior_context(c09_db):
         ]
         assert view["current_context_revision"] == 3
         assert view["messages"][0]["context"]["target_id"] == "101"
+
+
+def test_incoming_question_keeps_owned_history_and_returns_provider_free_hold(c09_db, monkeypatch):
+    factory, ids = c09_db
+    monkeypatch.setattr("openai.OpenAI", lambda *a, **kw: pytest.fail("provider called"))
+    client = _configured_app(c09_db, Environment.TEST, "actor.one")
+    target = {
+        "targetType": "INCOMING", "targetId": str(ids["incoming"]),
+        "targetLabel": f"INCOMING {ids['incoming']}",
+        "source": "OPERATIONS_INCOMING", "asOf": None,
+    }
+    created = client.post("/api/v1/conversations", json={"context": target})
+    assert created.status_code == 201, created.text
+    cid = created.json()["data"]["conversation_id"]
+    question = "이 입고 상태를 확인해 줘"
+    answer = client.post(f"/api/v1/conversations/{cid}/questions", json={
+        "context": target, "question": question, "request_revision": 1,
+    })
+    assert answer.status_code == 200, answer.text
+    data = answer.json()["data"]
+    assert data["conversation_id"] == cid
+    assert data["current_context_revision"] == 1
+    assert data["messages"][-2]["content"] == question
+    assert data["messages"][-2]["analysis_kind"] == "DETERMINISTIC"
+    assert data["messages"][-1]["response_status"] == "HOLD"
+    assert data["messages"][-1]["evidence_ids"] == []
+    assert client.get(f"/api/v1/conversations/{cid}").json()["data"]["messages"] == data["messages"]
+    other = _configured_app(c09_db, Environment.TEST, "actor.two")
+    assert other.get(f"/api/v1/conversations/{cid}").status_code == 404
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(ConversationV2)) == 1
+
+
+def test_context_revision_boundary_includes_source_timestamp():
+    product_id = UUID("11111111-1111-4111-8111-111111111111")
+    earlier = datetime(2026, 10, 8, tzinfo=UTC)
+    later = datetime(2026, 10, 9, tzinfo=UTC)
+    prior = MessageContextV2(
+        page_type="PRODUCT", product_id=product_id,
+        source="CAFE24_CATALOG", data_as_of=earlier,
+    )
+    target = ResolvedTarget(
+        "PRODUCT", "101", "Catalog A", "CAFE24_CATALOG",
+        earlier, "LOCAL_V2_CATALOG_MASTER", product_id, product_id,
+    )
+    assert _same_context(prior, target)
+    assert not _same_context(prior, ResolvedTarget(
+        "PRODUCT", "101", "Catalog A", "CAFE24_CATALOG",
+        later, "LOCAL_V2_CATALOG_MASTER", product_id, product_id,
+    ))
+
+
+def test_same_product_unlinked_incoming_cannot_inherit_task_context(c09_db):
+    factory, ids = c09_db
+    with factory() as session:
+        second = IncomingShipmentV2(
+            tenant_id=ids["tenant"], product_id=ids["a"], product_variant_id=None,
+            expected_quantity=1, expected_arrival_at=None, incoming_status="EXPECTED",
+            confidence_status="TENTATIVE", source_system="SYNTHETIC_DEMO",
+        )
+        session.add(second)
+        session.commit()
+        conversation = create_conversation(
+            session, tenant_id=ids["tenant"], actor_id="actor.one",
+            target=incoming_target(second.id),
+        )
+        with pytest.raises(C09ContractError) as raised:
+            append_turn(
+                session, tenant_id=ids["tenant"], actor_id="actor.one",
+                conversation_id=conversation.id, target=task_target(ids["task"]),
+                intent="FOLLOW_RELATED_TARGET",
+            )
+        assert raised.value.code == "UNRELATED_TARGET_NEW_CONVERSATION_REQUIRED"
+        view = read_conversation(
+            session, tenant_id=ids["tenant"], actor_id="actor.one",
+            conversation_id=conversation.id,
+        )
+        assert view["current_context_revision"] == 1
 
 
 def test_unrelated_target_requires_new_conversation_and_recent_reopen_are_owned(c09_db):

@@ -61,12 +61,20 @@ useEffect(() => {
     >
       <div className="inventory-detail-header">
         <div>
-          <div className="muted">
-            재고 상세 · {item.provider}
-          </div>
-          <h2 id={titleId} className="inventory-detail-title">
-            {item.sku_id}
-          </h2>
+          <div className="muted">재고 기록 상세</div>
+            <h2 id={titleId} className="inventory-detail-title">
+              {item.sku_id}
+            </h2>
+
+            <div className="inventory-detail-freshness">
+              <span className="inventory-freshness-chip">
+                {item.freshness === "STALE"
+                  ? "최신성 확인 필요"
+                  : item.freshness === "FRESH"
+                    ? "최신성 기준 충족"
+                    : "최신성 미확인"}
+              </span>
+            </div>
         </div>
 
         <button
@@ -86,12 +94,12 @@ useEffect(() => {
           aria-label="재고 수량 요약"
         >
           <div className="inventory-detail-quantity-card">
-            <span>현재 수량</span>
-            <strong>{item.on_hand}</strong>
+            <span>기록된 재고</span>
+            <strong>{item.on_hand}개</strong>
           </div>
           <div className="inventory-detail-quantity-card">
-            <span>예약 수량</span>
-            <strong>{item.reserved}</strong>
+            <span>Snapshot 예약</span>
+            <strong>{item.reserved}개</strong>
           </div>
         </section>
 
@@ -100,41 +108,46 @@ useEffect(() => {
           aria-labelledby="inventory-detail-status-title"
         >
           <h3 id="inventory-detail-status-title">
-            데이터 상태
+            데이터 확인 상태
           </h3>
 
           <div className="inventory-detail-status-row">
             <span>최신성</span>
-            <FreshnessLabel
-              freshness={item.freshness}
-              source={item.provider}
-              asOf={item.as_of}
-              showMetadata={false}
-            />
+            <strong>
+              {item.freshness === "FRESH"
+                ? "최신성 기준 충족"
+                : item.freshness === "STALE"
+                  ? "오래된 자료"
+                  : "확인 필요"}
+            </strong>
           </div>
 
           <div className="inventory-detail-status-row">
             <span>기준 시각</span>
             <time dateTime={item.as_of}>
               {item.as_of
-                ? new Date(item.as_of).toLocaleString("ko-KR")
+                ? new Date(item.as_of).toLocaleString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                  })
                 : "미확인"}
             </time>
           </div>
 
           <div className="inventory-detail-status-row">
-            <span>품질 상태</span>
-            {item.quality_status ? (
-              <QualityStatus
-                status={item.quality_status}
-                provider={item.provider}
-                confirmedForTotal={item.confirmed_for_total}
-              />
-            ) : (
-              <span>미제공</span>
-            )}
+            <span>재고 합계 반영</span>
+            <strong>
+              {item.confirmed_for_total === true
+                ? "반영 가능"
+                : "확정 합계에서 제외"}
+            </strong>
           </div>
-        </section>
+
+          <p className="muted inventory-detail-status-note">
+            {item.freshness === "STALE"
+              ? "최신 재고가 확인되지 않아 현재 재고 위험을 확정할 수 없습니다."
+              : "재고 수량은 원천의 품질 및 확인 조건에 따라 판단해야 합니다."}
+          </p>
+</section>
 
         <details className="inventory-detail-disclosure">
           <summary>계산 근거 및 판단 제한</summary>
@@ -157,12 +170,45 @@ useEffect(() => {
             </div>
             <div className="inventory-detail-status-row">
               <span>위험</span>
-              <strong>{item.risk_level ?? "미제공"}</strong>
+              <strong>
+                {item.risk_level === "UNKNOWN" || item.risk_level == null
+                  ? "판정 불가"
+                  : item.risk_level === "HIGH"
+                    ? "높음"
+                    : item.risk_level === "MEDIUM"
+                      ? "보통"
+                      : item.risk_level === "LOW"
+                        ? "낮음"
+                        : item.risk_level === "PROHIBITED"
+                          ? "사용 제한"
+                          : "확인 필요"}
+              </strong>
             </div>
-            <p className="muted">
-              제공되지 않은 계산값이나 위험값은 화면에서
-              임의로 생성하지 않습니다.
-            </p>
+            <div className="inventory-evidence-notes">
+  <div>
+    <strong>재고 수량 기준</strong>
+    <p>
+      기록된 재고는 과거 Snapshot 기준입니다.
+      최신 재고가 확인되기 전까지 현재 보유 수량으로 확정하지 않습니다.
+    </p>
+  </div>
+
+  <div>
+    <strong>예약 수량 기준</strong>
+    <p>
+      표시된 예약 {item.reserved}개는 Snapshot에 기록된 값입니다.
+      별도로 관리되는 예약주문 필요 수량과는 다릅니다.
+    </p>
+  </div>
+
+  <div>
+    <strong>예정 입고 기준</strong>
+    <p>
+      입고예정 미제공은 입고 일정이 없다는 뜻이 아닙니다.
+      운영 일정의 입고 정보와 자동 합산하지 않습니다.
+    </p>
+  </div>
+</div>
           </div>
         </details>
 

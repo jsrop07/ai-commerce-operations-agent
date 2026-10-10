@@ -50,7 +50,7 @@ export default function App({ environment }: { environment?: EnvironmentVariant 
   };
 
     return (
-    <CommonAiDrawerHost sessionRequired={publicDemo}>
+    <CommonAiDrawerHost sessionRequired={publicDemo} currentPage={pathname}>
       <div className="app commerce-app">
         {activeEnvironment !== "DEMO" && (
           <EnvironmentBanner variant={activeEnvironment} />

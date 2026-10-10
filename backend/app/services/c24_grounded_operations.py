@@ -29,11 +29,7 @@ from backend.app.services.demo_provider_quota import (
     call_with_demo_quota,
 )
 
-from ai.services.grounded_explanation import (
-    ExplanationEvidence,
-    GroundedExplanationInput,
-    build_reservation_grounded_explanation_input,
-)
+
 from backend.app.services.reservation_projection import (
     ReservationRiskProjection,
 )

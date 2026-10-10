@@ -40,6 +40,7 @@ const product = {
   selling_status: "T",
   sold_out: false,
   operational: true,
+  source_as_of: null,
   category_nos: [3, 8],
   categories: [
     { cafe24_category_no: 3, category_name: "Games" },

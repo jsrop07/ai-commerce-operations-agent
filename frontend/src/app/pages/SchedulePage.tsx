@@ -23,6 +23,7 @@ import {
 import ImpactPanel from "../../features/schedule/ImpactPanel";
 import ReplanReview from "../../features/schedule/ReplanReview";
 import ScheduleBoard from "../../features/schedule/ScheduleBoard";
+import IncomingScheduleSection from "../../features/schedule/IncomingScheduleSection";
 import type { ScheduleTask, ReservationShortageTask, ScheduleDelayImpact } from "../../types/contracts";
 
 const scheduleTasks = (tasks: (ScheduleTask | ReservationShortageTask)[]): ScheduleTask[] =>
@@ -364,20 +365,12 @@ export default function SchedulePage() {
         <div>
           <h2>운영 일정</h2>
 
-          <p className="muted">
-            출시·입고 일정, 지연 영향,
-            재계획 제안을 검토합니다.
-          </p>
-        </div>
-
-        <div>
-          <span className="badge">
-            {useRealBackend
-              ? "Actual Backend"
-              : "Fixture / Demo"}
-          </span>
+        <p className="muted">
+          입고 및 출시 일정과 관련 업무를 확인합니다.
+        </p>
         </div>
       </header>
+      <IncomingScheduleSection />
       {demoEnabled && <section className="card"><div className="card-body stack">
         <p>격리 합성 예시 검증 (SYNTHETIC_DEMO) · 실제 사업 입고 자료 아님</p>
         <button type="button" disabled={actionState !== "IDLE"} onClick={() => void prepareDemo()}>
@@ -443,15 +436,10 @@ export default function SchedulePage() {
                 입고 지연 영향
               </h2>
 
-              {impacts.length === 0 ? (
-                <div className="card">
-                  <div className="card-body">
-                    <p>
-                      현재 표시할 지연 영향 데이터가
-                      없습니다.
-                    </p>
-                  </div>
-                </div>
+             {impacts.length === 0 ? (
+                <p className="schedule-empty-inline">
+                  확인된 입고 지연 영향이 없습니다.
+                </p>
               ) : (
                 <>
                   <label htmlFor="schedule-incoming">Incoming 선택</label>
@@ -478,14 +466,9 @@ export default function SchedulePage() {
               </h2>
 
               {replans.length === 0 ? (
-                <div className="card">
-                  <div className="card-body">
-                    <p>
-                      현재 검토할 재계획 제안이
-                      없습니다.
-                    </p>
-                  </div>
-                </div>
+                <p className="schedule-empty-inline">
+                  검토 대기 중인 재계획 제안이 없습니다.
+                </p>
               ) : (
                 replans.filter((replan) => selectedIncomingId === null || replan.sourceIncomingId === undefined || replan.sourceIncomingId === selectedIncomingId).map((replan) => (
                   <ReplanReview

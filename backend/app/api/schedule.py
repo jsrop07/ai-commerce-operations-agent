@@ -9,8 +9,12 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.app.api.catalog_v2 import _require_catalog_tenant, _require_v2_runtime
+from backend.app.core.config import Environment
+from backend.app.models_v2.operations import IncomingShipmentV2, TaskIncomingDependencyV2, TaskV2
 from backend.app.services.delay_impact import (
     DelayImpactResult,
     FreshnessStatus,
@@ -19,6 +23,7 @@ from backend.app.services.delay_impact import (
     SourceClassification,
     SourceQuality,
 )
+from backend.app.services.demo_session import COOKIE_NAME, resolve_demo_session
 from backend.app.services.schedule_replan import (
     ScheduleItem,
     build_replan_proposal,
@@ -38,6 +43,121 @@ router = APIRouter(
     prefix="/api/v1",
     tags=["schedule"],
 )
+
+
+class IncomingRelatedTaskData(BaseModel):
+    id: str
+    task_type: Literal["RESERVATION_SHORTAGE"]
+    title: str
+    status: str
+    due_at: datetime | None
+    priority: str | None
+    dependency_type: str
+
+
+class IncomingScheduleData(BaseModel):
+    id: str
+    external_reference: str | None
+    expected_arrival_at: datetime | None
+    incoming_status: str
+    confidence_status: str
+    source_system: Literal["SYNTHETIC_DEMO"]
+    source_as_of: None
+    product_id: str
+    product_variant_id: str | None
+    related_tasks: list[IncomingRelatedTaskData]
+
+
+class IncomingSchedulesData(BaseModel):
+    items: list[IncomingScheduleData]
+    total: int
+
+
+@router.get(
+    "/schedule/incoming-shipments",
+    response_model=ApiEnvelope[IncomingSchedulesData],
+)
+def synthetic_incoming_schedules(request: Request) -> ApiEnvelope[IncomingSchedulesData]:
+    """Read stored Demo incoming dates and their explicit shortage-task links."""
+    if request.app.state.settings.environment != Environment.DEMO:
+        raise HTTPException(status_code=403, detail="SCHEDULE_DEMO_ONLY")
+    if request.query_params:
+        raise HTTPException(status_code=422, detail="SCHEDULE_FILTER_UNSUPPORTED")
+    factory, tenant_id, environment = _require_v2_runtime(request)
+    with factory() as db:
+        _require_catalog_tenant(db, tenant_id, environment)
+        if resolve_demo_session(
+            db, tenant_id=tenant_id, token=request.cookies.get(COOKIE_NAME), touch=False,
+        ) is None:
+            raise HTTPException(status_code=401, detail="DEMO_SESSION_REQUIRED")
+
+        incoming = db.scalars(
+            select(IncomingShipmentV2)
+            .where(
+                IncomingShipmentV2.tenant_id == tenant_id,
+                IncomingShipmentV2.source_system == "SYNTHETIC_DEMO",
+            )
+            .order_by(
+                IncomingShipmentV2.expected_arrival_at.asc().nulls_last(),
+                IncomingShipmentV2.id.asc(),
+            )
+        ).all()
+        linked: dict[str, list[IncomingRelatedTaskData]] = {
+            str(row.id): [] for row in incoming
+        }
+        if incoming:
+            relations = db.execute(
+                select(TaskIncomingDependencyV2, TaskV2)
+                .join(
+                    TaskV2,
+                    (TaskV2.tenant_id == TaskIncomingDependencyV2.tenant_id)
+                    & (TaskV2.id == TaskIncomingDependencyV2.task_id),
+                )
+                .where(
+                    TaskIncomingDependencyV2.tenant_id == tenant_id,
+                    TaskIncomingDependencyV2.incoming_shipment_id.in_(
+                        [row.id for row in incoming]
+                    ),
+                    TaskV2.task_type == "RESERVATION_SHORTAGE",
+                )
+                .order_by(TaskIncomingDependencyV2.incoming_shipment_id, TaskV2.id)
+            ).all()
+            for relation, task in relations:
+                linked[str(relation.incoming_shipment_id)].append(
+                    IncomingRelatedTaskData(
+                        id=str(task.id),
+                        task_type="RESERVATION_SHORTAGE",
+                        title=task.task_title,
+                        status=task.task_status,
+                        due_at=task.due_at,
+                        priority=str(task.priority) if task.priority is not None else None,
+                        dependency_type=relation.dependency_type,
+                    )
+                )
+        items = [
+            IncomingScheduleData(
+                id=str(row.id),
+                external_reference=row.external_reference,
+                expected_arrival_at=row.expected_arrival_at,
+                incoming_status=row.incoming_status,
+                confidence_status=row.confidence_status,
+                source_system="SYNTHETIC_DEMO",
+                source_as_of=None,
+                product_id=str(row.product_id),
+                product_variant_id=(
+                    str(row.product_variant_id) if row.product_variant_id is not None else None
+                ),
+                related_tasks=linked[str(row.id)],
+            )
+            for row in incoming
+        ]
+
+    return _envelope(
+        request=request,
+        data=IncomingSchedulesData(items=items, total=len(items)),
+        evidence_ids=[],
+        warnings=[] if items else ["SYNTHETIC_INCOMING_EMPTY"],
+    )
 
 
 class ScheduleItemInput(BaseModel):

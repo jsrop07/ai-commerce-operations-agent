@@ -1,37 +1,28 @@
-import { useEffect, useRef, useState } from "react";
-import { AIBadge } from "../../components/Badges";
+import { useEffect, useState, type MouseEvent } from "react";
 import { FreshnessBadge } from "../../components/StatusBadges";
 import {
   getProviderFailureReasonLabel,
   getProviderLabel,
 } from "../../components/statusLabels";
 import { mockApiGet } from "../../mocks/handlers";
-import { mockGetEvidenceByRequestId } from "../../mocks/evidence";
 import type {
   ApiEnvelope,
   DashboardData,
-  InsightSummary,
   InventorySnapshot,
   ReservationRiskItem,
   ReservationShortageTask,
   ScheduleTask,
 } from "../../types/contracts";
-import EvidenceDrawer from "../../components/EvidenceDrawer";
 import SystemState from "../../components/SystemStates";
-import UrgentQueue from "../../components/UrgentQueue";
-import { urgentQueueFixtures } from "../../mocks/fixtures/urgentQueue";
 import TodayTasks from "../../components/TodayTasks";
+import OperationalUrgentQueue from "../../components/OperationalUrgentQueue";
+import { getDashboardQueue, type DashboardQueueData } from "../../api/dashboardQueue";
 import { getDay10Tasks } from "../../api/day10";
 import { getDay09Reservations } from "../../api/day09";
 
-import {
-  getDay04Insights,
-  toUrgentQueueItems,
-  useRealBackend,
-  type C04Key,
-} from "../../api/day04";
+import { useRealBackend } from "../../api/day04";
+import { useOptionalCommonAiDrawer } from "../CommonAiDrawerContext";
 import { providerFailureFixture } from "../../mocks/fixtures/degradedDashboard";
-import type { UrgentQueueInsight } from "../../components/UrgentQueue";
 import { getCatalogSummary } from "../../api/catalog";
 import { getDay08Inventory } from "../../api/day08";
 import {
@@ -39,7 +30,14 @@ import {
   type RecentOrderSummary,
 } from "../../api/orders";
 
+function navigateDashboard(event: MouseEvent<HTMLAnchorElement>, path: string) {
+  event.preventDefault();
+  window.history.pushState({}, "", path);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
 export default function DashboardPage() {
+  const sessionState = useOptionalCommonAiDrawer()?.sessionState ?? "ready";
   const degraded =
     new URLSearchParams(window.location.search).get("degraded") === "true";
   const [dashboard, setDashboard] =
@@ -61,12 +59,6 @@ export default function DashboardPage() {
 
   const [inventoryUnavailable, setInventoryUnavailable] = useState(false);
 
-  const [urgentItems, setUrgentItems] =
-    useState<ApiEnvelope<UrgentQueueInsight>[]>(
-      useRealBackend ? [] : urgentQueueFixtures,
-    );
-  const [insightsUnavailable, setInsightsUnavailable] = useState(false);
-  const [insightsLoaded, setInsightsLoaded] = useState(false);
   const [shortageTasks, setShortageTasks] = useState<ReservationShortageTask[]>([]);
   const [allTasks, setAllTasks] =
   useState<(ScheduleTask | ReservationShortageTask)[]>([]);
@@ -78,18 +70,25 @@ export default function DashboardPage() {
   const [reservationsLoaded, setReservationsLoaded] = useState(false);
   const [reservationsUnavailable, setReservationsUnavailable] = useState(false);
   const [reservationRiskEmpty, setReservationRiskEmpty] = useState(false);
+  const [queue, setQueue] = useState<DashboardQueueData | null>(null);
+  const [queueError, setQueueError] = useState(false);
+  const [queueRequest, setQueueRequest] = useState(0);
 
-  const [selectedInsight, setSelectedInsight] =
-    useState<InsightSummary | null>(null);
-  const [selectedC04Key, setSelectedC04Key] = useState<C04Key | undefined>();
+  useEffect(() => {
+    if (!useRealBackend || sessionState !== "ready") return;
+    const controller = new AbortController();
+    setQueue(null);
+    setQueueError(false);
+    void getDashboardQueue(controller.signal).then((data) => {
+      if (!controller.signal.aborted) setQueue(data);
+    }).catch(() => {
+      if (!controller.signal.aborted) setQueueError(true);
+    });
+    return () => controller.abort();
+  }, [queueRequest, sessionState]);
 
-  const [evidenceMissing, setEvidenceMissing] =
-    useState(false);
-  const mountedRef = useRef(true);
-  const evidenceRequestRef = useRef(0);
   useEffect(() => {
     let active = true;
-    mountedRef.current = true;
     const controller = new AbortController();
 
     if (useRealBackend) {
@@ -211,75 +210,24 @@ export default function DashboardPage() {
 
           setReservationRiskEmpty(false);
         });
-      setUrgentItems([]);
-      getDay04Insights(controller.signal)
-        .then((response) => {
-          if (!active || controller.signal.aborted) return;
-
-          setUrgentItems(toUrgentQueueItems(response));
-          setInsightsUnavailable(false);
-          setInsightsLoaded(true);
-        })
-        .catch((error: unknown) => {
-          if (
-            active &&
-            !(error instanceof DOMException && error.name === "AbortError")
-          ) {
-            setUrgentItems([]);
-            setInsightsUnavailable(true);
-            setInsightsLoaded(false);
-          }
-        });
     }
 
     return () => {
       active = false;
-      mountedRef.current = false;
-      evidenceRequestRef.current += 1;
       controller.abort();
     };
   }, []);
-
-  async function openEvidence(requestId: string) {
-    const requestNumber = ++evidenceRequestRef.current;
-    setEvidenceMissing(false);
-
-    // Actual evidence is selected by insight, never by envelope request_id.
-    if (useRealBackend) {
-      setSelectedInsight(null);
-      setEvidenceMissing(true);
-      return;
-    }
-
-    const response =
-      await mockGetEvidenceByRequestId(requestId);
-
-    if (!mountedRef.current || requestNumber !== evidenceRequestRef.current) {
-      return;
-    }
-
-    if (!response) {
-      setSelectedInsight(null);
-      setEvidenceMissing(true);
-      return;
-    }
-
-    setSelectedInsight(response.data);
-  }
-
-  function openActualEvidence(insight: UrgentQueueInsight) {
-    evidenceRequestRef.current += 1;
-    setSelectedInsight(null);
-    setEvidenceMissing(false);
-    setSelectedC04Key(insight.c04_lookup);
-  }
 
   // 사람이 검토하거나 별도 조치해야 하는 업무만 집계
   const reviewTaskCount = allTasks.filter(
     (task) =>
       task.status === "PROPOSED" ||
       task.status === "BLOCKED"
-  ).length;
+  ).length + (queue?.items.filter((item) => item.kind === "TASK_REVIEW").length ?? 0);
+  const storedReviewTasks = queue?.items.filter((item) => item.kind === "TASK_REVIEW") ?? [];
+  const conditionalReservationCount = queue?.items.filter(
+    (item) => item.kind === "CONDITIONAL_RESERVATION",
+  ).length ?? 0;
 
   // 품질과 최신성이 확인된 재고 중 위험도가 높은 항목
   const confirmedInventoryRiskCount = inventoryItems.filter(
@@ -337,10 +285,11 @@ export default function DashboardPage() {
         className="dashboard-kpi-strip"
         aria-label="핵심 운영 지표"
       >
-        <article className="kpi kpi-product">
+        <a className="kpi kpi-product dashboard-kpi-link" href="/inventory"
+          onClick={(event) => navigateDashboard(event, "/inventory")}>
           <div className="kpi-top">
             <span className="kpi-icon" aria-hidden="true">▦</span>
-            <span className="kpi-status">Catalog</span>
+            <span className="kpi-status">합성 상품</span>
           </div>
           <div className="kpi-value">
             {productCountError
@@ -350,11 +299,12 @@ export default function DashboardPage() {
                 : `${productCount.toLocaleString("ko-KR")}개`}
           </div>
           <div className="kpi-label">총 상품</div>
-        </article>
+        </a>
 
         {[
           {
             label: "최근 주문",
+            href: "/orders",
             description: recentOrdersUnavailable
               ? "주문 정보 조회 실패"
               : !recentOrdersLoaded
@@ -386,12 +336,13 @@ export default function DashboardPage() {
           },
           {
             label: "재고 위험",
+            href: "/inventory?tab=snapshot",
             description: inventoryUnavailable
               ? "재고 정보 조회 실패"
               : !inventoryLoaded
                 ? "재고 정보 조회 중"
                 : inventoryItems.length === 0
-                  ? "조회된 재고 Snapshot 없음"
+                  ? "조회된 재고 자료 없음"
                   : unverifiedInventoryCount > 0
                     ? `판정 불가 ${unverifiedInventoryCount}건 별도`
                     : "확정된 고위험 재고",
@@ -418,12 +369,15 @@ export default function DashboardPage() {
           },
           {
             label: "예약 부족",
+            href: "/schedule?focus=reservation",
             description: reservationsUnavailable
               ? "예약 정보 조회 실패"
               : !reservationsLoaded
                 ? "예약 정보 조회 중"
-                : reservationRiskEmpty
-                  ? "사용 가능한 예약 위험 데이터 없음"
+                : reservationRiskEmpty && conditionalReservationCount > 0
+                  ? "예약·입고 자료 기반 조건부 확보 검토"
+                  : reservationRiskEmpty
+                    ? "사용 가능한 예약 위험 데이터 없음"
                   : unverifiedReservationCount > 0
                     ? `판정 불가 ${unverifiedReservationCount}건 별도`
                     : "확정된 부족 예약",
@@ -433,8 +387,10 @@ export default function DashboardPage() {
               ? "조회 실패"
               : !reservationsLoaded
                 ? "조회 중"
-                : reservationRiskEmpty
-                  ? "데이터 없음"
+                : reservationRiskEmpty && conditionalReservationCount > 0
+                  ? "조건부 검토"
+                  : reservationRiskEmpty
+                    ? "데이터 없음"
                   : unverifiedReservationCount > 0
                     ? "일부 미확인"
                     : "조회 완료",
@@ -442,17 +398,20 @@ export default function DashboardPage() {
               ? "확인 불가"
               : !reservationsLoaded
                 ? "조회 중"
-                : reservationRiskEmpty
-                  ? "—"
+                : reservationRiskEmpty && conditionalReservationCount > 0
+                  ? `검토 ${conditionalReservationCount}건`
+                  : reservationRiskEmpty
+                    ? "—"
                   : `${confirmedShortageCount}건`,
           },
           {
             label: "확인 업무",
+            href: "/schedule?focus=tasks",
             description: tasksUnavailable
               ? "업무 조회 실패"
               : !tasksLoaded
                 ? "업무 데이터 조회 중"
-                : taskProjectionEmpty
+                : taskProjectionEmpty && storedReviewTasks.length === 0
                   ? "사용 가능한 업무 데이터 없음"
                   : "검토 및 조치 대상",
             icon: "✓",
@@ -461,20 +420,22 @@ export default function DashboardPage() {
               ? "조회 실패"
               : !tasksLoaded
                 ? "조회 중"
-                : taskProjectionEmpty
+                : taskProjectionEmpty && storedReviewTasks.length === 0
                   ? "데이터 없음"
                   : "조회 완료",
             value: tasksUnavailable
               ? "확인 불가"
               : !tasksLoaded
                 ? "조회 중"
-                : taskProjectionEmpty
+                : taskProjectionEmpty && storedReviewTasks.length === 0
                   ? "—"
                   : `${reviewTaskCount}건`,
           },
         ].map((item) => (
-          <article
-            className={`kpi kpi-${item.type}`}
+          <a
+            className={`kpi kpi-${item.type} dashboard-kpi-link`}
+            href={item.href}
+            onClick={(event) => navigateDashboard(event, item.href)}
             key={item.label}
           >
             <div className="kpi-top">
@@ -489,39 +450,19 @@ export default function DashboardPage() {
             </div>
             <div className="kpi-label">{item.label}</div>
             <small className="muted">{item.description}</small>
-          </article>
+          </a>
         ))}
       </section>
       <div className="dashboard-operations-grid">
       <section className="dashboard-operations-panel" aria-label="운영 위험 모니터링">
-        <UrgentQueue
-          items={urgentItems}
-          onSelect={openEvidence}
-          onSelectActual={openActualEvidence}
-          dataStatus={
-            insightsUnavailable
-              ? "UNAVAILABLE"
-              : !insightsLoaded
-                ? "LOADING"
-                : urgentItems.length === 0
-                  ? "NO_DATA"
-                  : "READY"
-          }
-        />
-
-        {insightsUnavailable && (
-          <p role="alert">운영 발견 목록을 확인할 수 없습니다.</p>
-        )}
-
-        {evidenceMissing && (
-          <SystemState state="empty" title="판단 근거를 찾을 수 없습니다" />
-        )}
+        <OperationalUrgentQueue data={queue} error={queueError}
+          onRefresh={() => setQueueRequest((value) => value + 1)} />
       </section>
-
       <section className="dashboard-operations-panel" aria-label="오늘 할 일">
         <TodayTasks
           tasks={scheduleTasks}
           shortageTasks={shortageTasks}
+          storedTasks={storedReviewTasks}
           reservations={reservations}
           compact
           emptyMessage={
@@ -529,7 +470,7 @@ export default function DashboardPage() {
               ? "업무 데이터를 확인할 수 없습니다"
               : !tasksLoaded || !reservationsLoaded
                 ? "업무 데이터 조회 중"
-                : taskProjectionEmpty && reservationRiskEmpty
+                : taskProjectionEmpty && reservationRiskEmpty && storedReviewTasks.length === 0
                   ? "사용 가능한 업무 데이터가 없습니다"
                   : undefined
           }
@@ -538,8 +479,8 @@ export default function DashboardPage() {
               ? "Backend 조회에 실패했습니다."
               : !tasksLoaded || !reservationsLoaded
                 ? "업무 및 예약 데이터를 불러오고 있습니다."
-                : taskProjectionEmpty && reservationRiskEmpty
-                  ? "Backend에서 현재 사용할 수 있는 Task 및 예약 위험 Projection을 제공하지 않습니다."
+                : taskProjectionEmpty && reservationRiskEmpty && storedReviewTasks.length === 0
+                  ? "현재 사용할 수 있는 확인 업무와 예약 위험 자료가 없습니다."
                   : undefined
           }
           countUnavailable={
@@ -547,7 +488,7 @@ export default function DashboardPage() {
               reservationsUnavailable ||
               !tasksLoaded ||
               !reservationsLoaded ||
-              (taskProjectionEmpty && reservationRiskEmpty)
+              (taskProjectionEmpty && reservationRiskEmpty && storedReviewTasks.length === 0)
             }
         />
 
@@ -560,8 +501,6 @@ export default function DashboardPage() {
         )}
       </section>
     </div>
-      <EvidenceDrawer open={selectedC04Key !== undefined} insight={null} c04Key={selectedC04Key}
-        onClose={() => { setSelectedC04Key(undefined); setEvidenceMissing(false); }} />
     </div>;
   }
 
@@ -585,14 +524,6 @@ export default function DashboardPage() {
   const visibleTasks = useRealBackend ? [] : data.tasks;
   const proposedTaskCount = visibleTasks.filter(
     (task) => task.status === "PROPOSED",
-  ).length;
-
-  const identifiedModelCount = data.insights.filter(
-    (item) => item.model_run_id !== null,
-  ).length;
-
-  const unknownProvenanceCount = data.insights.filter(
-    (item) => item.model_run_id === null,
   ).length;
 
   const kpis = [
@@ -625,12 +556,6 @@ export default function DashboardPage() {
       `${visibleTasks.length + shortageTasks.length}건`,
       "사람이 확인할 업무",
       "warning",
-    ],
-    [
-      "오늘 발견",
-      `${data.insights.length}건`,
-      "규칙·AI 운영 발견",
-      "",
     ],
   ];
 
@@ -669,33 +594,6 @@ export default function DashboardPage() {
       {/* 메인 운영 영역 */}
       <div className="dashboard-console-grid">
         <main className="dashboard-console-main">
-          <UrgentQueue
-            items={urgentItems}
-            onSelect={openEvidence}
-            onSelectActual={useRealBackend ? openActualEvidence : undefined}
-          />
-
-          {insightsUnavailable && (
-            <div className="notice" role="status">
-              실제 운영 발견 목록을 확인할 수 없습니다. 응답 형식과 연결 상태를 확인하세요.
-            </div>
-          )}
-
-          {evidenceMissing && (
-            <div
-              role="status"
-              aria-live="polite"
-            >
-              <SystemState
-                state="empty"
-                title="판단 근거를 찾을 수 없습니다"
-                description={useRealBackend
-                  ? "근거 연결 없음"
-                  : "선택한 위험 항목의 근거 데이터를 찾을 수 없습니다. 다른 위험 항목을 확인하거나 연결 상태를 확인하세요."}
-              />
-            </div>
-          )}
-
           <TodayTasks
             tasks={visibleTasks}
             shortageTasks={shortageTasks}
@@ -770,32 +668,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* 발견 요약 */}
-          <section className="card">
-            <div className="card-header">
-              <AIBadge>발견 요약</AIBadge>
-            </div>
-
-            <div className="card-body stack">
-              <div className="dashboard-summary-row">
-                <span>출처 확인 필요</span>
-                <strong>{unknownProvenanceCount}건</strong>
-              </div>
-
-              <div className="dashboard-summary-row">
-                <span>모델 실행 ID 있음</span>
-                <strong>{identifiedModelCount}건</strong>
-              </div>
-
-              <div className="dashboard-summary-row">
-                <span>전체 운영 발견</span>
-                <strong>
-                  {data.insights.length}건
-                </strong>
-              </div>
-            </div>
-          </section>
-
           {/* 준비된 제안 */}
           <section className="card">
             <div className="card-header">
@@ -807,13 +679,6 @@ export default function DashboardPage() {
                 <span>검토 대기 업무</span>
                 <strong>
                   {proposedTaskCount}건
-                </strong>
-              </div>
-
-              <div className="dashboard-summary-row">
-                <span>업무 생성 제안</span>
-                <strong>
-                  {data.insights.length}건
                 </strong>
               </div>
 
@@ -832,18 +697,6 @@ export default function DashboardPage() {
         </aside>
       </div>
 
-      {/* 판단 근거 Drawer */}
-      <EvidenceDrawer
-        open={selectedInsight !== null || selectedC04Key !== undefined}
-        insight={selectedInsight}
-        c04Key={selectedC04Key}
-        onClose={() => {
-          evidenceRequestRef.current += 1;
-          setSelectedInsight(null);
-          setSelectedC04Key(undefined);
-          setEvidenceMissing(false);
-        }}
-      />
     </div>
   );
 }

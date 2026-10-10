@@ -56,6 +56,10 @@ from backend.app.services.reservation_projection import (
 from backend.app.services.c17_graph_runtime import (
     analyze_product_graph,
 )
+from backend.app.services.reservation_chat_read import (
+    read_product_reservation_facts,
+)
+
 TargetType = Literal["PRODUCT", "INCOMING", "TASK"]
 Intent = Literal["INSPECT_TARGET", "FOLLOW_RELATED_TARGET"]
 AnalysisKind = Literal["NONE", "DETERMINISTIC", "HYBRID", "RELATION_DOCUMENT"]
@@ -190,7 +194,7 @@ def validate_pre_storage(actor_id: str, target: ContextInput, intent: Intent) ->
             raise C09ContractError("HOLD", "INVALID_TARGET_ID") from exc
 
 def classify_operational_question(question: str) -> tuple[AnalysisKind, str]:
-    """상품 운영 질문을 기존 분석 경로 또는 안전한 HOLD로 분류한다."""
+    """운영 질문을 기존 검증 가능한 분석 경로로 분류한다."""
     if not isinstance(question, str):
         raise C09ContractError("HOLD", "INVALID_QUESTION")
 
@@ -207,16 +211,38 @@ def classify_operational_question(question: str) -> tuple[AnalysisKind, str]:
     ):
         raise C09ContractError("HOLD", "FORBIDDEN_QUESTION_INPUT")
 
-    if any(word in text for word in ("재고", "품절", "가용수량", "가용 수량")):
+    # 예약 수량은 일반 주문 추세 및 재고 Snapshot과 구분한다.
+    if any(word in text for word in (
+        "예약", "미확보", "확보 수량", "선주문",
+        "preorder", "pre-order",
+    )):
+        return "DETERMINISTIC", "RESERVATION"
+
+    # 입고 예정 및 실제 입고는 서로 다른 업무 상태다.
+    if any(word in text for word in (
+        "입고", "납품", "입고 예정", "도착 예정",
+    )):
+        return "DETERMINISTIC", "INCOMING"
+
+    if any(word in text for word in (
+        "재고", "품절", "가용수량", "가용 수량",
+    )):
         return "DETERMINISTIC", "INVENTORY_UNAVAILABLE"
 
-    if any(word in text for word in ("주문", "판매량", "판매 추세", "수요", "매출")):
-        return "DETERMINISTIC", "DEMAND"
-
-    if any(word in text for word in ("관계", "연결된", "연관", "영향", "의존")):
+    if any(word in text for word in (
+        "관계", "연결된", "연관", "영향", "의존",
+    )):
         return "RELATION_DOCUMENT", "RELATION"
 
-    if any(word in text for word in ("상품 설명", "제품 설명", "상품 정보", "제품 정보", "특징", "소개")):
+    if any(word in text for word in (
+        "주문", "판매량", "판매 추세", "수요", "매출",
+    )):
+        return "DETERMINISTIC", "DEMAND"
+
+    if any(word in text for word in (
+        "상품 설명", "제품 설명", "상품 정보",
+        "제품 정보", "특징", "소개",
+    )):
         return "HYBRID", "PRODUCT_INFO"
 
     return "DETERMINISTIC", "UNSUPPORTED"
@@ -283,6 +309,16 @@ def _view_metadata(target: ResolvedTarget) -> dict | None:
     return {VIEW_SNAPSHOT_KEY: target.view_snapshot} if target.view_snapshot is not None else None
 
 
+def _same_context(prior: MessageContextV2, target: ResolvedTarget) -> bool:
+    return (
+        prior.page_type == target.target_type
+        and _context_entity(prior) == target.entity_id
+        and prior.source == target.source
+        and prior.data_as_of == target.as_of
+        and prior.source_versions == _view_metadata(target)
+    )
+
+
 def _related(
     session: Session, tenant_id: UUID, prior: MessageContextV2, target: ResolvedTarget
 ) -> bool:
@@ -307,8 +343,6 @@ def _related(
                 TaskV2.id == prior.task_id,
             )
         )
-    if previous_product is not None and target.product_id == previous_product:
-        return True
     pair = {prior.page_type, target.target_type}
     if pair == {"INCOMING", "TASK"}:
         incoming_id = prior.incoming_shipment_id or target.entity_id
@@ -323,6 +357,8 @@ def _related(
             )
             is not None
         )
+    if previous_product is not None and target.product_id == previous_product:
+        return True
     return False
 
 
@@ -514,11 +550,7 @@ def append_turn(
     _, last_context = previous
     if not _related(session, tenant_id, last_context, resolved):
         raise C09ContractError("CONFLICT", "UNRELATED_TARGET_NEW_CONVERSATION_REQUIRED")
-    same_target = (
-        last_context.page_type == resolved.target_type
-        and _context_entity(last_context) == resolved.entity_id
-        and last_context.source_versions == _view_metadata(resolved)
-    )
+    same_target = _same_context(last_context, resolved)
     revision = last_context.context_revision if same_target else last_context.context_revision + 1
     last_order = session.scalar(
         select(func.max(MessageV2.message_order)).where(
@@ -635,9 +667,18 @@ def _product_demand_answer(
                 f"{aggregate.previous_10d_effective_quantity}"
             ),
             (
-                f"추세: {aggregate.trend_direction} "
-                f"(증감 {aggregate.trend_delta:+d}, "
-                f"{ratio_text})"
+                (
+                    f"최근 10일 주문 수량: "
+                    f"{aggregate.recent_10d_effective_quantity}개"
+                ),
+                (
+                    f"직전 10일 주문 수량: "
+                    f"{aggregate.previous_10d_effective_quantity}개"
+                ),
+                (
+                    f"직전 기간 대비 주문 수량 변화: "
+                    f"{aggregate.trend_delta:+d}개"
+                ),
             ),
             (
                 "취소/불확실/미결제 수량: "
@@ -779,12 +820,106 @@ def dispatch_analysis_request(
     neo4j_driver=None,
 ) -> AnalysisRuntimeResult:
     """Route a persisted C09 request without changing its frozen context."""
+    if request_message.content != "선택 대상 확인 요청" and frozen_target.target_type != "PRODUCT":
+        answer = AiAnswerContract(
+            conclusion="이 대상의 자연어 분석은 아직 지원되지 않아 판단을 보류합니다.",
+            key_facts=("현재 질문과 업무 대상은 대화 이력에 보존했습니다.",),
+            evidence_ids=(),
+            next_checks=("운영 일정의 확인된 입고·업무 정보를 직접 확인하세요.",),
+            status=ConversationStatus.HOLD,
+        )
+        validate_answer_contract(answer)
+        return AnalysisRuntimeResult(answer)
     if request_message.content != "선택 대상 확인 요청":
         _, question_type = classify_operational_question(
             request_message.content
         )
+        if question_type in {"RESERVATION", "INCOMING"}:
+            facts = read_product_reservation_facts(
+                session,
+                tenant_id=tenant_id,
+                product_id=frozen_target.product_id,
+            )
 
-        if question_type in {"INVENTORY_UNAVAILABLE", "UNSUPPORTED"}:
+            if facts["status"] == "HOLD":
+                answer = AiAnswerContract(
+                    conclusion=(
+                        "이 상품의 예약 수량을 판단할 "
+                        "충분한 자료가 확인되지 않았습니다."
+                    ),
+                    key_facts=(),
+                    evidence_ids=(),
+                    next_checks=(
+                        f"확인 필요: {facts['reason']}",
+                    ),
+                    status=ConversationStatus.HOLD,
+                )
+            else:
+                baseline = facts["baseline_unsecured_quantity"]
+                conditional = facts["conditional_shortage_quantity"]
+
+                conclusion = (
+                    f"현재 확보된 수량만 기준으로 보면 "
+                    f"예약 물량 {baseline}개가 미확보 상태입니다."
+                )
+
+                details = [
+                    f"예약 필요 수량: {facts['required_quantity']}개",
+                    f"현재 확보 수량: {facts['secured_quantity']}개",
+                    f"현재 미확보 수량: {baseline}개",
+                ]
+
+                if conditional is not None:
+                    conclusion += (
+                        f" 예정 입고 {facts['conditional_incoming_quantity']}개를 "
+                        f"예약에 사용할 수 있다고 가정하면 "
+                        f"잔여 미확보 수량은 {conditional}개입니다."
+                    )
+                    details.append(
+                        f"예정 입고 반영 시 조건부 미확보 수량: {conditional}개"
+                    )
+
+                answer = AiAnswerContract(
+                    conclusion=conclusion,
+                    key_facts=tuple(details),
+                    evidence_ids=(
+                        f"reservation-risk:{facts['reservation_id']}",
+                    ),
+                    next_checks=(
+                        "예정 입고의 실제 수령 여부와 "
+                        "해당 예약에 배분할 수 있는지 확인하세요.",
+                    ),
+                    status=ConversationStatus.ANSWER,
+                )
+
+            validate_answer_contract(answer)
+            return AnalysisRuntimeResult(answer)
+        if question_type in {
+            "INVENTORY_UNAVAILABLE",
+            "RESERVATION",
+            "INCOMING",
+            "UNSUPPORTED",
+        }:
+            if question_type == "RESERVATION":
+                conclusion = (
+                    "예약 수량은 일반 주문 추세와 별도로 계산해야 합니다. "
+                    "현재 대화 경로에는 검증된 예약 수량 결과가 "
+                    "연결되지 않아 충분 여부를 판단할 수 없습니다."
+                )
+                next_check = (
+                    "예약 필요 수량, 확보 수량 및 사용 가능한 "
+                    "예정 입고를 확인해야 합니다."
+                )
+            elif question_type == "INCOMING":
+                conclusion = (
+                    "예정된 입고가 있는지와 예약에 사용할 수 있는지는 "
+                    "서로 다른 문제입니다. 현재 질문에 대한 "
+                    "입고 배분 근거가 연결되지 않았습니다."
+                )
+                next_check = (
+                    "입고 예정 수량, 상태, SKU 및 예약 배분 가능성을 "
+                    "확인해야 합니다."
+                )
             if question_type == "INVENTORY_UNAVAILABLE":
                 conclusion = (
                     "현재 상품은 확인했지만 실제 재고 Snapshot이 "
@@ -1170,9 +1305,9 @@ def begin_analysis_request(
 
     if question is not None:
         expected_kind, _ = classify_operational_question(question)
-        if not isinstance(target, TargetInput) or target.target_type != "PRODUCT":
+        if not isinstance(target, TargetInput):
             raise C09ContractError("HOLD", "QUESTION_CONTEXT_UNSUPPORTED")
-        if analysis_kind != expected_kind:
+        if analysis_kind != (expected_kind if target.target_type == "PRODUCT" else "DETERMINISTIC"):
             raise C09ContractError("HOLD", "QUESTION_ANALYSIS_MISMATCH")
 
     if analysis_kind not in {"DETERMINISTIC", "HYBRID", "RELATION_DOCUMENT"}:
@@ -1203,11 +1338,7 @@ def begin_analysis_request(
     resolved = resolve_target(session, tenant_id=tenant_id, target=target)
     if not _related(session, tenant_id, last_context, resolved):
         raise C09ContractError("CONFLICT", "UNRELATED_TARGET_NEW_CONVERSATION_REQUIRED")
-    same_target = (
-        last_context.page_type == resolved.target_type
-        and _context_entity(last_context) == resolved.entity_id
-        and last_context.source_versions == _view_metadata(resolved)
-    )
+    same_target = _same_context(last_context, resolved)
     revision = last_context.context_revision if same_target else request_revision + 1
     last_order = session.scalar(
         select(func.max(MessageV2.message_order)).where(

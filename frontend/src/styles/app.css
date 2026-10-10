@@ -771,6 +771,53 @@ button, a { -webkit-tap-highlight-color: transparent; }
   font-weight: 700;
 }
 
+/* 재고 현황 목록 */
+.inventory-summary-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.inventory-summary-table th,
+.inventory-summary-table td {
+  vertical-align: middle;
+}
+
+.inventory-summary-table td:first-child {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.inventory-summary-table th.number,
+.inventory-summary-table td.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-state-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.inventory-state-ok {
+  color: #486447;
+  background: #eaf2e7;
+}
+
+.inventory-state-review {
+  color: #92611a;
+  background: #fff2d9;
+}
+
+.inventory-summary-table .inventory-detail-hint {
+  color: #515f46;
+  font-weight: 600;
+}
+
 .inventory-detail-panel {
   position: fixed;
   top: 0;
@@ -1134,6 +1181,18 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .dashboard-kpi-strip .kpi:hover {
   border-color: #d1d9e5;
   box-shadow: 0 5px 16px rgba(20, 34, 60, 0.07);
+}
+
+.dashboard-kpi-strip .dashboard-kpi-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.dashboard-kpi-strip .dashboard-kpi-link:focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 3px;
 }
 
 /* 기존 KPI 구분선 스타일 무효화 */
@@ -2076,7 +2135,35 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .inventory-detail-status-row > :last-child {
   min-width: 0;
   text-align: right;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+
+.inventory-detail-status-row strong {
+  font-size: 12px;
+  font-weight: 650;
+  color: #484d3e;
+}
+
+.inventory-detail-status-note {
+  margin: 2px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid #eee7dc;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.inventory-freshness-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border: 1px solid #e7c477;
+  border-radius: 6px;
+  background: #fff5df;
+  color: #8c5b12;
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .inventory-detail-disclosure {
@@ -2182,3 +2269,649 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 
+/* 주문·매출 화면 전용: 기존 상품·재고 탭과 Commerce 색상 토큰을 재사용 */
+.commerce-main .orders-page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.commerce-main .orders-data-label,
+.commerce-main .orders-muted { color: var(--color-text-tertiary); font-size: 11px; }
+.commerce-main .orders-tab-content[hidden] { display: none !important; }
+.commerce-main .orders-tab-content { display: grid; gap: 18px; min-width: 0; }
+.commerce-main .orders-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.commerce-main .orders-summary-grid--sales { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.commerce-main .orders-summary-card {
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: 8px; min-width: 0; padding: 18px;
+}
+.commerce-main .orders-card-label { font-size: 12px; color: var(--color-text-secondary); }
+.commerce-main .orders-card-value { font-size: 25px; line-height: 1.25; font-weight: 750; font-variant-numeric: tabular-nums; }
+.commerce-main .orders-card-value--text { font-size: 17px; }
+.commerce-main .orders-card-caption { font-size: 11px; color: var(--color-text-tertiary); }
+.commerce-main .orders-placeholder { padding: 0; }
+.commerce-main .orders-section-heading {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 10px;
+}
+.commerce-main .orders-placeholder > .orders-section-heading {
+  margin: 0; padding: 15px 18px; border-bottom: 1px solid var(--color-border);
+}
+.commerce-main .orders-section-heading h2 { margin: 0; font-size: 15px; color: var(--color-text); }
+.commerce-main .orders-table-state { padding: 24px 18px; }
+.commerce-main .orders-table-state strong { font-size: 13px; }
+.commerce-main .orders-table-state p { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: var(--color-text-secondary); }
+.commerce-main .orders-reservation-results { display: grid; gap: 12px; }
+.commerce-main .orders-reservation-section .dense-table { min-width: 920px; }
+.commerce-main .orders-reservation-section .table-scroll { overflow-x: auto; }
+@media (max-width: 1000px) {
+  .commerce-main .orders-summary-grid,
+  .commerce-main .orders-summary-grid--sales { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* 주문 목록 검색·필터·테이블: 기존 카드 토큰 사용 */
+.commerce-main .orders-browser > .orders-section-heading { margin: 0; padding: 15px 18px; border-bottom: 1px solid var(--color-border); }
+.commerce-main .orders-search-form { display: grid; gap: 10px; padding: 14px 18px; }
+.commerce-main .orders-search-line { display: flex; gap: 8px; align-items: center; }
+.commerce-main .orders-search-field { flex: 1; min-width: 0; }
+.commerce-main .orders-search-field input { width: 100%; }
+.commerce-main .orders-search-form input, .commerce-main .orders-search-form select { min-height: 39px; padding: 8px 11px; background: #fffcf8; color: var(--color-text); border: 1px solid #d9d0c3; border-radius: 9px; }
+.commerce-main .orders-action-button, .commerce-main .orders-filter-toggle, .commerce-main .orders-filter-actions button, .commerce-main .orders-pagination button, .commerce-main .orders-detail-toggle { padding: 9px 13px; border: 1px solid #d2c6b5; border-radius: 9px; background: #fffcf8; color: #62523c; cursor: pointer; white-space: nowrap; }
+.commerce-main .orders-action-button { background: #626c51; color: white; border-color: #626c51; }
+.commerce-main .orders-advanced-filters { display: grid; grid-template-columns: repeat(5, minmax(115px, 1fr)); gap: 10px; padding: 12px; background: #f0ebe3; border: 1px solid #ded6ca; border-radius: 10px; }
+.commerce-main .orders-advanced-filters[hidden] { display: none !important; }
+.commerce-main .orders-advanced-filters label { display: grid; gap: 5px; font-size: 11px; color: #696354; }
+.commerce-main .orders-filter-actions { display: flex; align-items: end; gap: 6px; }
+.commerce-main .orders-validation-error { margin: 0; font-size: 12px; color: #a53f36; }
+.commerce-main .orders-table-scroll { overflow-x: auto; }
+.commerce-main .orders-data-table { min-width: 920px; }
+.commerce-main .orders-data-table td, .commerce-main .orders-data-table th { padding: 12px 11px; vertical-align: middle; }
+.commerce-main .orders-data-table .orders-table-state { padding: 28px 12px; }
+.commerce-main .orders-data-table .orders-table-state p { margin: 8px 0 0; }
+.commerce-main .orders-item-details { display: grid; gap: 8px; padding: 6px 12px; background: #f7f3ec; }
+.commerce-main .orders-item-details ul { margin: 0; padding-left: 20px; }
+.commerce-main .orders-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: 12px; }
+.commerce-main .orders-pagination > div { display: flex; gap: 7px; }
+.commerce-main .orders-pagination button:disabled { opacity: .5; cursor: not-allowed; }
+.commerce-main .orders-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 1100px) { .commerce-main .orders-advanced-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* 매출 분석 UI — 집계 API 연결 전에도 구조를 확인할 수 있는 상태 */
+.commerce-main .orders-sales-analysis { display: grid; gap: 16px; min-width: 0; }
+.commerce-main .orders-sales-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.commerce-main .orders-sales-intro h2 { margin: 0 0 5px; font-size: 16px; }
+.commerce-main .orders-sales-intro p { margin: 0; color: var(--color-text-secondary); font-size: 12px; }
+.commerce-main .orders-sales-panels { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr); align-items: stretch; gap: 14px; }
+.commerce-main .orders-analysis-card { min-width: 0; }
+.commerce-main .orders-analysis-card > .orders-section-heading { margin: 0; padding: 17px 18px; border-bottom: 1px solid var(--color-border); }
+.commerce-main .orders-analysis-card h3 { margin: 0 0 5px; color: var(--color-text); font-size: 14px; }
+.commerce-main .orders-analysis-card .orders-section-heading p { margin: 0; color: var(--color-text-tertiary); font-size: 11px; }
+.commerce-main .orders-analysis-empty { min-height: 210px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 30px 18px; text-align: center; color: var(--color-text-secondary); }
+.commerce-main .orders-analysis-empty strong { color: var(--color-text); font-size: 13px; }
+.commerce-main .orders-analysis-empty p { margin: 0; font-size: 12px; line-height: 1.6; }
+
+
+/* 매출 분석: 고정 Y축 + 가로 스크롤 막대그래프 */
+
+/* 매출 분석: 간결한 금액 축 + 고정 정보 표시 */
+
+.commerce-main .orders-trend-layout {
+  min-width: 0;
+  padding: 12px 14px 16px;
+}
+
+.commerce-main .orders-trend-readout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  margin-bottom: 10px;
+  color: #77766d;
+  font-size: 11px;
+}
+
+.commerce-main .orders-trend-readout strong {
+  color: #454a3b;
+}
+
+.commerce-main .orders-trend-plot {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 7px;
+  min-width: 0;
+}
+
+.commerce-main .orders-trend-y-axis {
+  position: relative;
+  height: 220px;
+  align-self: start;
+  padding: 0;
+  color: #77766d;
+  font-size: 10px;
+}
+
+.commerce-main .orders-trend-y-tick {
+  position: absolute;
+  right: 0;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateY(50%);
+}
+
+.commerce-main .orders-trend-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 0 12px;
+}
+
+.commerce-main .orders-trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: max-content;
+  min-width: 100%;
+  height: 246px;
+}
+
+.commerce-main .orders-trend-item {
+  flex: 0 0 54px;
+  min-width: 54px;
+  display: grid;
+  gap: 8px;
+  text-align: center;
+}
+
+.commerce-main .orders-trend-bar-track {
+  position: relative;
+  height: 220px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-bottom: 1px solid #d6cfc5;
+  background-image:
+    linear-gradient(to bottom, #e9e4dc 1px, transparent 1px);
+  background-size: 100% 25%;
+}
+
+.commerce-main .orders-trend-bar {
+  width: 34px;
+  position: relative;
+  background: #7b8869;
+  border-radius: 5px 5px 0 0;
+  cursor: pointer;
+}
+
+.commerce-main .orders-trend-bar:hover,
+.commerce-main .orders-trend-bar:focus-visible {
+  background: #505f43;
+  outline: 2px solid #505f43;
+  outline-offset: 2px;
+}
+
+.commerce-main .orders-trend-date {
+  color: #85847c;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+
+.commerce-main .orders-chart-unknown { font-size: 10px; color: var(--color-text-tertiary); }
+.commerce-main .orders-state-bars { display: grid; gap: 18px; padding: 24px 18px; }
+.commerce-main .orders-state-row { display: grid; gap: 8px; }
+.commerce-main .orders-state-row-header { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
+.commerce-main .orders-state-row-header strong { font-variant-numeric: tabular-nums; }
+.commerce-main .orders-state-track { height: 9px; overflow: hidden; border-radius: 10px; background: #ece7df; }
+.commerce-main .orders-state-fill { height: 100%; border-radius: 10px; background: #8c977b; }
+.commerce-main .orders-analysis-notice { padding: 14px 18px; border: 1px solid #ded6ca; border-radius: 11px; background: #f8f4ec; font-size: 12px; }
+.commerce-main .orders-analysis-notice summary { cursor: pointer; font-weight: 650; color: #62523c; }
+.commerce-main .orders-analysis-notice p { margin: 10px 0 0; line-height: 1.6; color: var(--color-text-secondary); }
+@media (max-width: 1050px) { .commerce-main .orders-sales-panels { grid-template-columns: 1fr; } }
+
+/* 주문·매출 화면 2차 세부 보정: 기존 주문 스타일 아래에 추가 */
+.commerce-main .orders-filter-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 39px; }
+/* 주문 목록: 테이블 열 너비와 정렬 */
+.commerce-main .orders-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.commerce-main .orders-data-table {
+  width: 100%;
+  min-width: 1080px;
+  table-layout: fixed;
+}
+
+.commerce-main .orders-data-table .orders-col-id {
+  width: 26%;
+}
+
+.commerce-main .orders-data-table .orders-col-date {
+  width: 16%;
+}
+
+.commerce-main .orders-data-table .orders-col-product {
+  width: 18%;
+}
+
+.commerce-main .orders-data-table .orders-col-qty {
+  width: 5%;
+}
+
+.commerce-main .orders-data-table .orders-col-money {
+  width: 10%;
+}
+
+.commerce-main .orders-data-table .orders-col-status {
+  width: 5%;
+}
+
+.commerce-main .orders-data-table .orders-col-detail {
+  width: 10%;
+}
+
+.commerce-main .orders-data-table th,
+.commerce-main .orders-data-table td {
+  vertical-align: middle;
+}
+
+.commerce-main .orders-data-table .orders-align-end,
+.commerce-main .orders-data-table td.number {
+  text-align: right;
+}
+
+.commerce-main .orders-data-table .orders-align-center {
+  text-align: center;
+}
+
+.commerce-main .orders-data-table .orders-detail-toggle {
+  padding: 7px 10px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.commerce-main .orders-data-table td.mono {
+  overflow-wrap: anywhere;
+}
+.commerce-main .orders-pagination.catalog-pagination { flex-direction: column; justify-content: center; align-items: center; gap: 8px; }
+.commerce-main .orders-pagination .catalog-page-buttons { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 5px; }
+.commerce-main .orders-pagination .catalog-page-buttons button { min-width: 32px; height: 32px; padding: 0 9px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text); }
+.commerce-main .orders-pagination .catalog-page-buttons button.active { background: #a58b68; border-color: #a58b68; color: #fff; font-weight: 700; }
+.commerce-main .orders-pagination .catalog-page-buttons button:disabled { opacity: .45; cursor: default; }
+
+.commerce-main .orders-reservation-disclosure {
+  border: 1px solid #ded8cf;
+  border-radius: 11px;
+  background: #fffcf8;
+  overflow: hidden;
+}
+
+.commerce-main .orders-reservation-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 18px;
+  cursor: pointer;
+  color: #454a3b;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.commerce-main .orders-reservation-hint {
+  color: #85847c;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.commerce-main .orders-reservation-disclosure
+  > .orders-reservation-section {
+  padding: 0 16px 16px;
+}
+
+.commerce-main .orders-reservation-disclosure
+  .orders-reservation-section > .orders-section-heading {
+  display: none;
+}
+
+/* 매출 분석 기간 조회 UI: 기존 주문/매출 CSS 아래에 추가 */
+.commerce-main .orders-sales-period { padding: 14px 16px; border: 1px solid #ded8cf; border-radius: 12px; background: #fffcf8; }
+.commerce-main .orders-sales-period-fields { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
+.commerce-main .orders-sales-period-fields label { display: grid; gap: 6px; color: #66675f; font-size: 12px; }
+.commerce-main .orders-sales-period-fields input { min-height: 38px; padding: 7px 10px; border: 1px solid #d9d0c3; border-radius: 8px; background: #fffcf8; color: #30332e; }
+.commerce-main .orders-sales-period-fields button { min-height: 38px; padding: 7px 15px; border: 1px solid #cbbda9; border-radius: 8px; cursor: pointer; }
+.commerce-main .orders-sales-apply { background: #626c51; color: #fff; }
+.commerce-main .orders-sales-reset { background: #fffcf8; color: #62523c; }
+.commerce-main .orders-sales-period-fields button:disabled { cursor: not-allowed; opacity: .55; }
+.commerce-main .orders-sales-period-note, .commerce-main .orders-sales-period-error { margin: 10px 0 0; font-size: 11px; line-height: 1.5; }
+.commerce-main .orders-sales-period-note { color: #85847c; }
+.commerce-main .orders-sales-period-error { color: #ad453b; }
+.commerce-main .orders-sales-loading { color: #66675f; }
+.commerce-main .orders-trend-item { min-width: 78px; }
+.commerce-main .orders-trend-value { font-size: 10px; color: #66675f; white-space: nowrap; }
+.commerce-main .orders-trend-scroll { overflow-x: auto; }
+
+/* 운영 일정 전용: 다른 업무 화면에 영향이 없도록 범위 제한 */
+.commerce-main .schedule-overview { min-width: 0; }
+.commerce-main .schedule-overview-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 16px 18px; }
+.commerce-main .schedule-overview-header h3 { margin: 0; font-size: 15px; }
+.commerce-main .schedule-overview-header p { margin: 5px 0 0; font-size: 11px; font-weight: 400; }
+.commerce-main .schedule-overview-count { color: #777367; font-size: 11px; font-weight: 500; }
+.commerce-main .schedule-overview-empty { padding: 22px 18px; }
+.commerce-main .schedule-overview-empty strong { display: block; font-size: 13px; }
+.commerce-main .schedule-overview-empty p { margin: 8px 0 0; color: var(--color-text-secondary); font-size: 12px; line-height: 1.6; }
+.commerce-main .schedule-overview-content { display: grid; gap: 20px; padding: 16px 18px 20px; }
+.commerce-main .schedule-overview-meta { display: flex; gap: 8px 18px; flex-wrap: wrap; color: var(--color-text-tertiary); font-size: 11px; }
+.commerce-main .schedule-overview-group { min-width: 0; }
+.commerce-main .schedule-overview-group-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 9px; border-bottom: 1px solid #e8e2d9; }
+.commerce-main .schedule-overview-group-heading h4 { margin: 0; font-size: 13px; }
+.commerce-main .schedule-overview-group-heading span { color: var(--color-text-tertiary); font-size: 11px; }
+.commerce-main .schedule-overview-group-empty { margin: 12px 0 0; color: var(--color-text-secondary); font-size: 12px; }
+.commerce-main .schedule-overview-items { display: grid; gap: 8px; margin-top: 10px; }
+.commerce-main .schedule-overview-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 16px; align-items: start; padding: 13px 14px; background: #f8f5ef; border: 1px solid #e7dfd5; border-radius: 10px; }
+.commerce-main .schedule-overview-item-main { display: grid; gap: 5px; min-width: 0; font-size: 12px; }
+.commerce-main .schedule-overview-item-main strong { font-size: 13px; }
+.commerce-main .schedule-overview-item-main small, .commerce-main .schedule-overview-asof { color: var(--color-text-tertiary); font-size: 11px; overflow-wrap: anywhere; }
+.commerce-main .schedule-overview-badges { display: flex; gap: 5px; justify-content: flex-end; flex-wrap: wrap; }
+.commerce-main .schedule-overview-asof { grid-column: 1 / -1; }
+.commerce-main .schedule-overview-dependency { display: grid; gap: 8px; padding: 12px 14px; background: #f8f5ef; border: 1px solid #e7dfd5; border-radius: 10px; }
+.commerce-main .schedule-overview-dependency-main, .commerce-main .schedule-overview-dependency-detail { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.commerce-main .schedule-overview-dependency-main strong { overflow-wrap: anywhere; }
+.commerce-main .schedule-overview-dependency-detail { color: var(--color-text-secondary); }
+.commerce-main .schedule-overview-dependency small { color: var(--color-text-tertiary); font-size: 11px; overflow-wrap: anywhere; }
+@media (max-width: 750px) { .commerce-main .schedule-overview-item { grid-template-columns: minmax(0, 1fr); } .commerce-main .schedule-overview-badges { justify-content: flex-start; } }
+
+/* 운영 일정 2차: 지연 영향 및 재계획 전용. 기존 스타일은 삭제하지 않습니다. */
+.commerce-main .schedule-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:15px 18px}
+.commerce-main .schedule-panel-heading h3{margin:0 0 4px;font-size:15px}
+.commerce-main .schedule-panel-heading p{margin:0;font-size:11px}
+.commerce-main .schedule-panel-badges{display:flex;flex-wrap:wrap;gap:6px}
+.commerce-main .schedule-impact-body,.commerce-main .schedule-replan-body{display:grid;gap:16px;padding:18px}
+.commerce-main .schedule-safety-note{margin:0;padding:11px 13px;background:#fff8ea;border:1px solid #e8d9ba;border-radius:9px;color:#785b34;font-size:12px;line-height:1.6}
+.commerce-main .schedule-impact-summary{display:grid;gap:6px;padding:14px 16px;border-radius:10px;background:#f2eee7}
+.commerce-main .schedule-impact-summary strong{font-size:14px;color:#454a3b}
+.commerce-main .schedule-impact-summary .muted{font-size:12px}
+.commerce-main .schedule-impact-change h4,.commerce-main .schedule-replan-reason h4{margin:0 0 9px;font-size:13px}
+.commerce-main .schedule-change-pair{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
+.commerce-main .schedule-change-pair>div{display:grid;gap:6px;min-width:0;padding:13px;background:#f8f5ef;border:1px solid #e1dbd1;border-radius:9px}
+.commerce-main .schedule-change-pair>div>span{font-size:11px;color:#79766e}
+.commerce-main .schedule-change-pair strong{overflow-wrap:anywhere;font-size:13px}
+.commerce-main .schedule-impact-group-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.commerce-main .schedule-impact-group-heading h4{margin:0;font-size:13px}
+.commerce-main .schedule-count{font-size:11px;color:#777367;background:#f2eee7;border-radius:9px;padding:3px 8px}
+.commerce-main .schedule-impact-group>.muted{margin:0;font-size:12px}
+.commerce-main .schedule-impact-items{display:grid;gap:9px}
+.commerce-main .schedule-impact-item{display:grid;gap:9px;padding:13px 15px;border:1px solid #e1dbd1;border-radius:10px;background:#fffcf8;min-width:0}
+.commerce-main .schedule-impact-item-main{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px}
+.commerce-main .schedule-impact-item-shift{color:#454a3b;overflow-wrap:anywhere}
+.commerce-main .schedule-impact-lag{margin-left:auto;color:#9a633c;font-weight:650}
+.commerce-main .schedule-impact-item p{margin:0;font-size:12px}
+.commerce-main .schedule-evidence{border:1px solid #e4ddd3;border-radius:9px;background:#faf7f2;overflow:hidden}
+.commerce-main .schedule-evidence>summary{padding:10px 12px;cursor:pointer;color:#62523c;font-weight:650;font-size:12px}
+.commerce-main .schedule-evidence[open]>summary{border-bottom:1px solid #e4ddd3}
+.commerce-main .schedule-evidence dl{display:grid;gap:9px;margin:0;padding:12px}
+.commerce-main .schedule-evidence dl>div{display:grid;grid-template-columns:100px minmax(0,1fr);gap:9px;font-size:11px}
+.commerce-main .schedule-evidence dt{color:#79766e}
+.commerce-main .schedule-evidence dd{margin:0;overflow-wrap:anywhere}
+.commerce-main .schedule-evidence>p{margin:12px 12px 0;font-size:12px;line-height:1.5}
+.commerce-main .schedule-replan-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.commerce-main .schedule-replan-column{min-width:0;padding:14px;border:1px solid #e1dbd1;border-radius:10px;background:#f8f5ef}
+.commerce-main .schedule-replan-column>.muted{margin:0;font-size:12px}
+.commerce-main .schedule-replan-values{display:grid;gap:8px;list-style:none;padding:0;margin:0}
+.commerce-main .schedule-replan-values li{display:grid;gap:5px;min-width:0;padding:10px;background:#fffcf8;border:1px solid #e7e1d8;border-radius:8px;font-size:12px}
+.commerce-main .schedule-replan-values li span,.commerce-main .schedule-replan-values li small{overflow-wrap:anywhere}
+.commerce-main .schedule-replan-reason p{margin:0;font-size:12px;line-height:1.7}
+@media(max-width:900px){.commerce-main .schedule-replan-comparison{grid-template-columns:1fr}}
+
+/* 운영 일정 입고 카드 — 기존 schedule-incoming 관련 CSS 블록을 이것으로 교체 */
+.commerce-main .schedule-incoming-section { margin-bottom: 16px; }
+.commerce-main .schedule-incoming-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.commerce-main .schedule-incoming-heading h3 { margin:0; font-size:14px; }
+.commerce-main .schedule-incoming-count { font-size:12px; color:var(--color-text-secondary); }
+.commerce-main .schedule-incoming-list { display:grid; }
+.commerce-main .schedule-incoming-item { padding:18px; border-bottom:1px solid var(--color-border); }
+.commerce-main .schedule-incoming-item:last-child { border-bottom:0; }
+.commerce-main .schedule-incoming-title { display:flex; align-items:center; flex-wrap:wrap; gap:10px; font-size:15px; }
+.commerce-main .schedule-incoming-title strong { color:var(--color-text); overflow-wrap:anywhere; }
+.commerce-main .schedule-incoming-meta { display:flex; gap:12px 28px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--color-text-secondary); }
+.commerce-main .schedule-incoming-meta strong { color:var(--color-text); font-weight:650; }
+.commerce-main .schedule-incoming-subtle { margin:8px 0 0; color:var(--color-text-tertiary); font-size:11px; }
+.commerce-main .schedule-incoming-tasks { margin-top:12px; border:1px solid var(--color-border); border-radius:9px; background:#f4f0e9; }
+.commerce-main .schedule-incoming-tasks > summary { padding:11px 13px; cursor:pointer; font-size:12px; font-weight:650; }
+.commerce-main .schedule-incoming-task-list { display:grid; gap:8px; padding:0 12px 12px; }
+.commerce-main .schedule-incoming-task { display:grid; gap:4px; padding:11px 13px; border-radius:8px; background:#fffcf8; font-size:12px; }
+.commerce-main .schedule-incoming-technical { margin-top:10px; font-size:11px; color:var(--color-text-tertiary); }
+.commerce-main .schedule-incoming-technical > summary { width:fit-content; cursor:pointer; }
+.commerce-main .schedule-incoming-technical dl { display:grid; gap:7px; margin:10px 0 0; padding:12px; background:#f7f3ed; border-radius:8px; }
+.commerce-main .schedule-incoming-technical dl > div { display:grid; grid-template-columns:110px minmax(0,1fr); gap:10px; }
+.commerce-main .schedule-incoming-technical dt { color:var(--color-text-secondary); }
+.commerce-main .schedule-incoming-technical dd { margin:0; overflow-wrap:anywhere; }
+
+/* 운영 일정: 데이터가 없는 분석 영역을 간결하게 표시 */
+.commerce-main .schedule-empty-inline {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  background: #fffcf8;
+  border: 1px solid #ded8cf;
+  border-radius: 10px;
+  color: #78776f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+
+/* 운영 일정 화면 전용 시각 보정안. Backend·API·AI 로직은 변경하지 않음. */
+/* Codex 병렬 작업 중이므로 검토 후 app.css 맨 아래에 적용 */
+.commerce-main .schedule-incoming-section {
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.commerce-main .schedule-incoming-heading {
+  min-height: 48px;
+  padding: 12px 18px;
+}
+.commerce-main .schedule-incoming-list {
+  display: grid;
+  gap: 0;
+}
+.commerce-main .schedule-incoming-item {
+  padding: 20px 22px;
+}
+.commerce-main .schedule-incoming-item + .schedule-incoming-item {
+  border-top: 1px solid var(--color-border, #dfd9ce);
+}
+.commerce-main .schedule-incoming-title {
+  gap: 8px;
+  font-size: 15px;
+}
+.commerce-main .schedule-incoming-title .badge {
+  font-size: 11px;
+}
+.commerce-main .schedule-incoming-meta {
+  margin-top: 10px;
+  gap: 10px 24px;
+  line-height: 1.6;
+}
+.commerce-main .schedule-incoming-tasks {
+  margin-top: 14px;
+  background: #f4f1ea;
+  border: 1px solid #dfd9ce;
+}
+.commerce-main .schedule-incoming-tasks > summary {
+  padding: 12px 14px;
+}
+.commerce-main .schedule-incoming-task {
+  background: #fffdf9;
+  border: 1px solid #eee9df;
+}
+.commerce-main .schedule-incoming-technical {
+  margin-top: 12px;
+}
+.commerce-main .schedule-incoming-technical > summary {
+  padding: 4px 0;
+}
+.commerce-main .schedule-incoming-tasks > summary:focus-visible,
+.commerce-main .schedule-incoming-technical > summary:focus-visible {
+  outline: 2px solid #687951;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+@media (max-width: 640px) {
+  .commerce-main .schedule-incoming-item { padding: 16px; }
+  .commerce-main .schedule-incoming-meta { display: grid; gap: 3px; }
+  .commerce-main .schedule-incoming-technical dl > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* 상품 검색창 · 검색 · 상세 필터 한 줄 정렬 */
+.catalog-toolbar-compact .catalog-primary-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.catalog-toolbar-compact .catalog-primary-controls .catalog-search {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+}
+
+.catalog-toolbar-compact .catalog-primary-controls .catalog-search input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.catalog-toolbar-compact .catalog-primary-controls > .orders-action-button,
+.catalog-toolbar-compact .catalog-primary-controls > .orders-filter-toggle {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* 상품명으로 공통 운영 AI 열기 */
+.catalog-product-ai-link {
+  appearance: none;
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #405944;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.catalog-product-ai-link:hover {
+  color: #263d2d;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.catalog-product-ai-link:focus-visible {
+  outline: 2px solid #5c765b;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.inventory-evidence-notes {
+  display: grid;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e9e3da;
+}
+
+.inventory-evidence-notes > div {
+  display: grid;
+  gap: 4px;
+}
+
+.inventory-evidence-notes strong {
+  color: #454a3b;
+  font-size: 12px;
+}
+
+.inventory-evidence-notes p {
+  margin: 0;
+  color: #79766e;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* 재고 현황: 운영 관리 테이블 */
+.inventory-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.inventory-summary-table {
+  width: 100%;
+  min-width: 960px;
+  table-layout: fixed;
+}
+
+.inventory-summary-table th,
+.inventory-summary-table td {
+  vertical-align: middle;
+  padding: 13px 14px;
+}
+
+.inventory-summary-table th.number,
+.inventory-summary-table td.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-product-cell {
+  text-align: left;
+}
+
+.inventory-product-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: #454a3b;
+}
+
+.inventory-product-sku {
+  display: block;
+  margin-top: 5px;
+  color: #79766e;
+  font-size: 11px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.inventory-muted-value {
+  color: #8b867c;
+  font-size: 12px;
+}
+
+.inventory-summary-table .inventory-state-badge {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.inventory-summary-note {
+  margin: 0;
+  padding: 12px 16px;
+  border-top: 1px solid #e9e3da;
+  color: #79766e;
+  font-size: 12px;
+  line-height: 1.6;
+}

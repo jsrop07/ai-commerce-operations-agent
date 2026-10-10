@@ -1,6 +1,5 @@
 import DashboardPage from "./pages/DashboardPage";
 import InquiriesPage from "./pages/InquiriesPage";
-import InsightsPage from "./pages/InsightsPage";
 import InventoryPage from "./pages/InventoryPage";
 import OrdersPage from "./pages/OrdersPage";
 import SchedulePage from "./pages/SchedulePage";
@@ -12,7 +11,6 @@ export const routes = [
   { path: "/orders", label: "주문 & 매출", navLabel: "주문 & 매출", icon: "▤", Component: OrdersPage },
   { path: "/inquiries", label: "고객 문의 / AI 초안", navLabel: "고객 문의 / AI 초안", icon: "□", badge: "31", Component: InquiriesPage },
   { path: "/schedule", label: "운영 일정", navLabel: "운영 일정", icon: "◫", Component: SchedulePage },
-  { path: "/insights", label: "AI 인사이트", navLabel: "AI 인사이트", icon: "✦", Component: InsightsPage },
   { path: "/settings", label: "연동 & 설정", navLabel: "연동 & 설정", icon: "⚙", Component: SettingsPage },
 ] as const;
 

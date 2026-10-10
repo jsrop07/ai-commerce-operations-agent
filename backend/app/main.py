@@ -1,7 +1,7 @@
 """FastAPI application factory."""
 
 from threading import Lock
-from backend.app.api.orders_summary import router as orders_summary_router
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.engine import Engine
@@ -18,9 +18,11 @@ from backend.app.api.catalog_v2 import (
 )
 from backend.app.api.conversations_v2 import router as conversations_v2_router
 from backend.app.api.demo import router as demo_router
+from backend.app.api.dashboard_queue import router as dashboard_queue_router
 from backend.app.api.inventory import router as inventory_router
 from backend.app.api.mappings import router as mappings_router
 from backend.app.api.meta import router as meta_router
+from backend.app.api.orders_summary import router as orders_summary_router
 from backend.app.api.reservations import (
     router as reservations_router,
 )
@@ -93,7 +95,7 @@ def create_app(
             "http://localhost:55174",
             "http://127.0.0.1:55174",
         ],
-        allow_credentials=False,
+        allow_credentials=resolved.environment == Environment.DEMO,
         allow_methods=[
             "GET",
             "POST",
@@ -221,6 +223,7 @@ def create_app(
     application.include_router(c04_router)
     application.include_router(retrieval_router)
     application.include_router(demo_router)
+    application.include_router(dashboard_queue_router)
     application.include_router(cafe24_oauth_router)
     application.include_router(cafe24_smoke_router)
     application.include_router(inventory_router)

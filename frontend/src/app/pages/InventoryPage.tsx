@@ -280,20 +280,18 @@ function InventorySnapshotSection() {
     <div
       className="inventory-snapshot-content"
     >
-
-      <div className="inventory-filter-area">
-        <div className="inventory-filter-topline">
+      {!usingBackend && (
+        <div className="inventory-filter-area">
+          <div className="inventory-filter-topline">
           <button
             type="button"
-            className="inventory-filter-toggle"
+            className="orders-filter-toggle"
             aria-expanded={filtersOpen}
             aria-controls="inventory-filter-panel"
             onClick={() => setFiltersOpen((current) => !current)}
           >
-            <span>필터</span>
-            <span aria-hidden="true">{filtersOpen ? "⌃" : "⌄"}</span>
+            상세 필터
           </button>
-
           <span className="inventory-query-time">
             조회 기준{" "}
             <time dateTime={inventory.as_of}>
@@ -315,7 +313,7 @@ function InventorySnapshotSection() {
           />
         </div>
       </div>
-
+    )}
       <details className="inventory-safety-notice">
         <summary>
           <span className="inventory-safety-notice-heading">
@@ -360,133 +358,130 @@ function InventorySnapshotSection() {
         />
       ) : (
         <section className="card inventory-table-card">
-            <table className="dense-table">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>채널</th>
-                <th>현재 Snapshot</th>
-                <th>예약</th>
-                <th>예상재고</th>
-                <th>입고예정</th>
-                <th>위험</th>
-                <th>최신성</th>
-                <th>기준 시각</th>
-                <th>품질 상태</th>
-              </tr>
-            </thead>
+          <div className="inventory-table-scroll">
+            <table className="dense-table inventory-summary-table">
+              <colgroup>
+                <col style={{ width: "24%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "14%" }} />
+              </colgroup>
 
-            <tbody>
-              {sortedInventory.map((item) => (
-                <tr
-                  key={`${item.provider}-${item.sku_id}`}
-                  tabIndex={0}
-                  className={
-                    selectedInventory?.provider === item.provider &&
-                    selectedInventory?.sku_id === item.sku_id
-                      ? "inventory-row selected"
-                      : "inventory-row"
-                  }
-                  aria-selected={
-                    selectedInventory?.provider === item.provider &&
-                    selectedInventory?.sku_id === item.sku_id
-                  }
-                  aria-expanded={
-                    selectedInventory?.provider === item.provider &&
-                    selectedInventory?.sku_id === item.sku_id
-                  }
-                  aria-controls="inventory-detail-panel"
-                  aria-label={`${item.sku_id} ${item.provider} 재고 상세 열기`}
-                  onClick={(event) => {
-                    selectInventory(
-                      item,
-                      event.currentTarget,
-                    );
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === "Enter" ||
-                      event.key === " "
-                    ) {
-                      event.preventDefault();
-
-                      selectInventory(
-                        item,
-                        event.currentTarget,
-                      );
-                    }
-                  }}
-                >
-                  <td className="mono">
-                    {item.sku_id}
-                  </td>
-
-                  <td>
-                    <SourceBadge>
-                      {item.provider}
-                    </SourceBadge>
-                  </td>
-
-                  <td className="number">
-                    {item.on_hand}
-                  </td>
-
-                  <td className="number">
-                    {item.reserved}
-                  </td>
-
-                  <td className="number">
-                    {displayNullableNumber(
-                      item.expected_inventory,
-                    )}
-                  </td>
-
-                  <td className="number">
-                    {displayNullableNumber(
-                      item.confirmed_incoming,
-                    )}
-                  </td>
-
-                  <td>
-                    {displayRiskLevel(item.risk_level)}
-                  </td>
-
-                  <td>
-                    <FreshnessLabel
-                      freshness={item.freshness}
-                      source={item.provider}
-                      asOf={item.as_of}
-                      showMetadata={false}
-                    />
-                  </td>
-
-                  <td>
-                    <time dateTime={item.as_of}>
-                      {new Date(
-                        item.as_of,
-                      ).toLocaleString("ko-KR")}
-                    </time>
-                  </td>
-
-                  <td>
-                    {item.quality_status ? (
-                      <QualityStatus
-                        status={item.quality_status}
-                        provider={item.provider}
-                        confirmedForTotal={
-                          item.confirmed_for_total
-                        }
-                      />
-                    ) : (
-                      <span className="muted">
-                        미제공
-                      </span>
-                    )}
-                  </td>
+              <thead>
+                <tr>
+                  <th>상품명 / SKU</th>
+                  <th>판매 상태</th>
+                  <th className="number">현재 재고</th>
+                  <th className="number">예약 수량</th>
+                  <th>입고 예정</th>
+                  <th className="number">판매 가능 수량</th>
+                  <th>재고 상태</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {sortedInventory.map((item) => {
+                  const selected =
+                    selectedInventory?.provider === item.provider &&
+                    selectedInventory?.sku_id === item.sku_id;
+
+                  const inventoryVerified =
+                    item.freshness === "FRESH" &&
+                    item.confirmed_for_total === true &&
+                    (item.quality_status === "USABLE" ||
+                      item.quality_status === "CONFIRMED");
+
+                  return (
+                    <tr
+                      key={`${item.provider}-${item.sku_id}`}
+                      tabIndex={0}
+                      className={
+                        selected
+                          ? "inventory-row selected"
+                          : "inventory-row"
+                      }
+                      aria-selected={selected}
+                      aria-expanded={selected}
+                      aria-controls="inventory-detail-panel"
+                      aria-label={`${item.sku_id} 재고 상세 열기`}
+                      onClick={(event) =>
+                        selectInventory(item, event.currentTarget)
+                      }
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === "Enter" ||
+                          event.key === " "
+                        ) {
+                          event.preventDefault();
+                          selectInventory(item, event.currentTarget);
+                        }
+                      }}
+                    >
+                      <td className="inventory-product-cell">
+                        <strong className="inventory-product-name">
+                          상품명 확인 필요
+                        </strong>
+                        <span className="inventory-product-sku">
+                          {item.sku_id}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="inventory-muted-value">
+                          확인 필요
+                        </span>
+                      </td>
+
+                      <td className="number">
+                        {inventoryVerified
+                          ? `${item.on_hand}개`
+                          : "확인 필요"}
+                      </td>
+
+                      <td className="number">
+                        확인 필요
+                      </td>
+
+                      <td>
+                        <span className="inventory-muted-value">
+                          별도 일정 확인
+                        </span>
+                      </td>
+
+                      <td className="number">
+                        확인 필요
+                      </td>
+
+                      <td>
+                        <span
+                          className={
+                            inventoryVerified &&
+                            item.risk_level === "LOW"
+                              ? "inventory-state-badge inventory-state-ok"
+                              : "inventory-state-badge inventory-state-review"
+                          }
+                        >
+                          {inventoryVerified &&
+                          item.risk_level === "LOW"
+                            ? "위험 낮음"
+                            : "재고 확인 필요"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="inventory-summary-note">
+            최신 재고·판매 가능 수량·예약 배분 상태는
+            검증된 운영 데이터가 연결된 경우에만 표시합니다.
+            행을 선택하면 저장된 재고 기록과 판단 근거를 확인할 수 있습니다.
+          </p>
         </section>
       )}
       <InventoryDetailPanel
@@ -502,7 +497,9 @@ function InventorySnapshotSection() {
 type InventoryTab = "catalog" | "snapshot";
 
 export default function InventoryPage() {
-  const [activeTab, setActiveTab] = useState<InventoryTab>("catalog");
+  const [activeTab, setActiveTab] = useState<InventoryTab>(() =>
+    new URLSearchParams(window.location.search).get("tab") === "snapshot" ? "snapshot" : "catalog",
+  );
 
   return (
     <div className="page inventory-page" data-testid="route-inventory">

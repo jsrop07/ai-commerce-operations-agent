@@ -8,10 +8,11 @@ import "./CommonAiDrawerChat.css";
 import {
   appendAnalysis, appendNaturalQuestion, appendProductSearch,
   contextIdentity, createConversation,
+  followRelatedContext,
 
   createProductSearchConversation, getConversation, getConversations, reopenConversation,
 
-  type AnalysisKind, type ContextView, type ConversationContext, type ConversationView, type MessageView,
+  type AnalysisKind, type ContextView, type ConversationContext, type ConversationView, type EntityContext, type MessageView,
 
 } from "../api/conversations";
 
@@ -31,6 +32,8 @@ interface CommonAiDrawerProps {
 
   context: AiPanelContext | null;
 
+  currentPage?: string;
+
   onClose: () => void;
 
   sessionState?: SessionState;
@@ -48,6 +51,25 @@ interface CommonAiDrawerProps {
 type DrawerStatus = "idle" | "loading" | "creating" | "analyzing" | "loaded" | "error";
 
 const AI_CONVERSATION_STORAGE_KEY = "commerce-ai-active-conversation";
+
+function contextDisplayLabel(context: ContextView | ConversationContext): string {
+  if ("targetLabel" in context) {
+    if (/^(INCOMING|TASK) [0-9a-f-]{36}$/i.test(context.targetLabel)) {
+      return context.targetType === "INCOMING" ? "입고 예정 항목" : "등록된 업무";
+    }
+    return context.targetLabel;
+  }
+  if (context.scope === "VIEW") return context.page ?? "업무 화면";
+  const label = context.target_label ?? "업무 대상";
+  if (/^(INCOMING|TASK) [0-9a-f-]{36}$/i.test(label)) {
+    return context.target_type === "INCOMING" ? "입고 예정 항목" : "등록된 업무";
+  }
+  return label;
+}
+
+function conversationStatusLabel(status: string): string {
+  return status === "ACTIVE" || status === "OPEN" ? "진행 중" : status === "CLOSED" ? "종료" : "저장됨";
+}
 
 function isBootstrapMessage(message: MessageView): boolean {
 
@@ -126,6 +148,10 @@ export function aiProblem(cause: unknown): { message: string; sessionExpired: bo
     if (cause.code === "PRODUCT_SEARCH_INPUT_FORBIDDEN")
 
       return { message: "이 검색어는 Demo Product 검색에 사용할 수 없습니다.", sessionExpired: false };
+
+    if (cause.code === "CONVERSATION_NOT_FOUND")
+
+      return { message: "이 대화는 현재 세션에서 열 수 없습니다. 새 대화를 시작하거나 최근 대화를 확인해 주세요.", sessionExpired: false };
 
     if (cause.status >= 500)
 
@@ -213,11 +239,13 @@ function AnalysisContent({
 
 function contextInput(view: ContextView): ConversationContext | null {
 
-  if (view.scope !== "ENTITY" || view.target_type !== "PRODUCT" || !view.target_id || !view.target_label || !view.source)
+  if (view.scope !== "ENTITY" || !["PRODUCT", "INCOMING", "TASK"].includes(view.target_type ?? "") ||
+      !view.target_id || !view.target_label || !view.source)
 
     return null;
 
-  return { targetType: "PRODUCT", targetId: view.target_id, targetLabel: view.target_label,
+  return { targetType: view.target_type as "PRODUCT" | "INCOMING" | "TASK",
+    targetId: view.target_id, targetLabel: view.target_label,
 
     source: view.source, asOf: view.source_as_of };
 
@@ -225,7 +253,7 @@ function contextInput(view: ContextView): ConversationContext | null {
 
 
 
-export default function CommonAiDrawer({ open, context, onClose,
+export default function CommonAiDrawer({ open, context, currentPage = "/", onClose,
 
   sessionState = "ready", onStartNewSession, onSessionExpired, publicMode = false }: CommonAiDrawerProps) {
 
@@ -267,6 +295,7 @@ export default function CommonAiDrawer({ open, context, onClose,
   const operationRef = useRef(0);
 
   const key = context ? contextIdentity(context) : null;
+  const previousKeyRef = useRef(key);
 
   const activeRef = useRef({ key, open, conversationId: null as string | null, revision: 0 });
 
@@ -275,7 +304,7 @@ export default function CommonAiDrawer({ open, context, onClose,
   activeRef.current.open = open;
 
   useEffect(() => {
-  if (!conversation?.conversation_id || !conversation.context) return;
+  if (!conversation?.conversation_id || !conversation.context || contextIdentity(conversation.context) !== key) return;
 
   try {
     sessionStorage.setItem(
@@ -293,16 +322,16 @@ export default function CommonAiDrawer({ open, context, onClose,
 
   useEffect(() => {
 
+    if (previousKeyRef.current === key) return;
+    previousKeyRef.current = key;
     operationRef.current += 1;
 
-    activeRef.current.conversationId = null;
+    activeRef.current.conversationId = conversation?.conversation_id ?? null;
 
-    activeRef.current.revision = 0;
+    activeRef.current.revision = conversation?.current_context_revision ?? 0;
 
 
     setRecentError("");
-
-    setConversation(null);
 
     setResult(null);
 
@@ -315,6 +344,63 @@ export default function CommonAiDrawer({ open, context, onClose,
     setAnalysisKind("DETERMINISTIC");
 
   }, [key]);
+
+  async function continueRelatedContext() {
+    if (!context || !conversation || !conversation.context || sessionState !== "ready") return;
+    if (contextIdentity(conversation.context) === key) return;
+    const operation = ++operationRef.current;
+    const priorId = conversation.conversation_id;
+    const targetKey = key;
+    setStatus("loading");
+    setError("");
+    try {
+      const next = (await followRelatedContext(priorId, context)).data;
+      if (operationRef.current !== operation || !activeRef.current.open || activeRef.current.key !== targetKey) return;
+      if (next.conversation_id !== priorId || !next.context ||
+          contextIdentity(next.context) !== targetKey ||
+          next.current_context_revision <= conversation.current_context_revision) {
+        throw new Error("관련 업무 전환의 대화·revision이 일치하지 않습니다.");
+      }
+      activeRef.current.conversationId = priorId;
+      activeRef.current.revision = next.current_context_revision;
+      setConversation(next);
+      setResolvedContext(next.context);
+      setResult(null);
+      setStatus("idle");
+    } catch (cause) {
+      if (operationRef.current !== operation || activeRef.current.key !== targetKey) return;
+      const problem = aiProblem(cause);
+      if (problem.sessionExpired) onSessionExpired?.();
+      setError(cause instanceof BackendHttpError && cause.code === "UNRELATED_TARGET_NEW_CONVERSATION_REQUIRED"
+        ? "기존 업무와 관련성이 확인되지 않았습니다. 새 대화를 시작해 주세요." : problem.message);
+      setStatus("error");
+    }
+  }
+
+  async function beginContextConversation() {
+    if (!context || conversation || sessionState !== "ready") return;
+    const operation = ++operationRef.current;
+    const targetKey = key;
+    setStatus("creating");
+    setError("");
+    try {
+      const created = (await createConversation(context)).data;
+      if (operationRef.current !== operation || !activeRef.current.open || activeRef.current.key !== targetKey) return;
+      if (!created.context || contextIdentity(created.context) !== targetKey ||
+          created.current_context_revision !== 1) throw new Error("새 업무 대화의 대상이 일치하지 않습니다.");
+      activeRef.current.conversationId = created.conversation_id;
+      activeRef.current.revision = 1;
+      setConversation(created);
+      setResolvedContext(created.context);
+      setStatus("idle");
+    } catch (cause) {
+      if (operationRef.current !== operation || activeRef.current.key !== targetKey) return;
+      const problem = aiProblem(cause);
+      if (problem.sessionExpired) onSessionExpired?.();
+      setError(problem.message);
+      setStatus("error");
+    }
+  }
 
 
 
@@ -432,7 +518,7 @@ useEffect(() => {
   }, [visible]);
 
 useEffect(() => {
-  if (!open || sessionState !== "ready") return;
+  if (!open || sessionState !== "ready" || conversation) return;
 
   let stored: {
     contextKey: string | null;
@@ -448,10 +534,8 @@ useEffect(() => {
 
     stored = JSON.parse(raw);
 
-    if (
-      typeof stored.conversationId !== "string" ||
-      stored.contextKey !== key
-    ) {
+    if (typeof stored.conversationId !== "string" ||
+        (stored.contextKey !== null && typeof stored.contextKey !== "string")) {
       return;
     }
   } catch {
@@ -486,14 +570,30 @@ useEffect(() => {
 
       setConversation(data);
       setResolvedContext(data.context);
-      setResult(latestSavedAssistant(data.messages));
-      setStatus("loaded");
+      const currentAssistant = latestLinkedAssistant(
+        data.messages, data.current_context_revision, contextIdentity(data.context),
+      );
+      setResult(currentAssistant);
+      setStatus(currentAssistant ? "loaded" : "idle");
       shouldAutoScrollRef.current = true;
     })
     .catch((cause: unknown) => {
       if (cancelled || operationRef.current !== operation) return;
 
       const problem = aiProblem(cause);
+
+      if (cause instanceof BackendHttpError && cause.code === "CONVERSATION_NOT_FOUND") {
+        // The server conversation stays intact; only this browser pointer is stale.
+        try { sessionStorage.removeItem(AI_CONVERSATION_STORAGE_KEY); } catch { /* unavailable */ }
+        activeRef.current.conversationId = null;
+        activeRef.current.revision = 0;
+        setConversation(null);
+        setResolvedContext(null);
+        setResult(null);
+        setError(problem.message);
+        setStatus("error");
+        return;
+      }
 
       if (problem.sessionExpired) {
         onSessionExpired?.();
@@ -506,7 +606,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [open, key, sessionState]);
+}, [open, key, sessionState, conversation]);
 
   async function runAnalysis(question?: string) {
 
@@ -595,10 +695,7 @@ useEffect(() => {
           naturalQuestion
             ? appendNaturalQuestion(
                 analysisSnapshot.conversationId,
-                analysisSnapshot.context as Extract<
-                  ConversationContext,
-                  { targetType: "PRODUCT" }
-                >,
+                analysisSnapshot.context as EntityContext,
                 analysisSnapshot.revision,
                 naturalQuestion,
               )
@@ -785,7 +882,9 @@ async function openRecentConversations() {
 
       setResolvedContext(restored.context);
 
-      const assistant = latestSavedAssistant(restored.messages);
+      const assistant = latestLinkedAssistant(
+        restored.messages, restored.current_context_revision, contextIdentity(restored.context),
+      );
 
       setResult(assistant);
 
@@ -858,6 +957,11 @@ function handleChatScroll() {
   const displayContext = resolvedContext ? contextInput(resolvedContext) : context;
 
   const isEntity = displayContext !== null && "targetType" in displayContext;
+  const pendingTransition = Boolean(conversation?.context && context &&
+    contextIdentity(conversation.context) !== key);
+  const pageLabel = currentPage === "/orders" ? "주문·매출" :
+    currentPage === "/schedule" ? "운영 일정" :
+      currentPage === "/inventory" ? "상품·재고" : "운영 대시보드";
 
   const history = (conversation?.messages ?? [])
 
@@ -874,7 +978,8 @@ function handleChatScroll() {
 
 
   const busy = status === "loading" || status === "creating" || status === "analyzing";
-  const canAnalyze = displayContext !== null && sessionState === "ready" && !busy;
+  const canAnalyze = isEntity && displayContext.targetType === "PRODUCT" &&
+    sessionState === "ready" && !busy && !pendingTransition;
   const latestInHistory = result && history.some((message) => message.message_id === result.message_id);
 
   return (
@@ -943,8 +1048,8 @@ function handleChatScroll() {
                   <button type="button" className="common-ai-conversation-row"
                     aria-current={conversation?.conversation_id === item.conversation_id ? "true" : undefined}
                     onClick={() => void selectConversation(item)}>
-                    <span className="common-ai-conversation-name">{item.context?.target_label ?? item.context?.page ?? "업무 대화"}</span>
-                    <span className="common-ai-conversation-meta">{item.conversation_status} · revision {item.current_context_revision}</span>
+                    <span className="common-ai-conversation-name">{item.context ? contextDisplayLabel(item.context) : "업무 대화"}</span>
+                    <span className="common-ai-conversation-meta">{conversationStatusLabel(item.conversation_status)}</span>
                   </button>
                 </li>
               ))}
@@ -961,12 +1066,18 @@ function handleChatScroll() {
           >
             {displayContext ? (
               <section className="common-ai-context-card" aria-label="현재 분석 범위">
-                <div className="common-ai-context-kicker">현재 업무 Context</div>
-                <strong>{isEntity ? displayContext.targetLabel : displayContext.page}</strong>
+                <div className="common-ai-context-kicker">현재 업무 대상</div>
+                <p>현재 화면: {pageLabel} · 대화 대상과 별도로 표시</p>
+                <strong>{contextDisplayLabel(displayContext)}</strong>
                 <p>{isEntity
-                  ? `${displayContext.targetType} · ${displayContext.source} · ${displayContext.asOf ?? "기준 시각 미확인"}`
+                  ? `${displayContext.targetType === "INCOMING" ? "입고" : displayContext.targetType === "TASK" ? "업무" : "상품"} · ${displayContext.asOf ?? "기준 시각 미확인"}`
                   : `적용 필터 ${Object.keys(displayContext.filters).length}개${displayContext.search ? ` · 검색 ${displayContext.search}` : ""}`}</p>
                 {!isEntity && displayContext.date_range && <p>기간: {displayContext.date_range.from_date} ~ {displayContext.date_range.to_date}</p>}
+                {conversation && <p>업무 대화 기록 연결됨</p>}
+                {pendingTransition && context && <p>
+                  새 선택 대상: {contextDisplayLabel(context)} ·
+                  기존 대화와의 관계를 Backend에서 확인해야 합니다.
+                </p>}
               </section>
             ) : (
               <div className="common-ai-welcome"><span className="common-ai-welcome-icon"><Sparkles size={25} /></span>
@@ -1036,25 +1147,26 @@ function handleChatScroll() {
           <footer className="common-ai-chat-footer">
             {displayContext && (
               <div className="common-ai-analysis-tools">
-                {isEntity && displayContext.targetType === "PRODUCT" && (
-                  <label>분석 방식
-                    <select aria-label="분석 방식" value={analysisKind} onChange={(event) => setAnalysisKind(event.target.value as AnalysisKind)}>
-                      <option value="DETERMINISTIC">규칙 기반</option>
-                      <option value="HYBRID">상품 근거 검색</option>
-                      <option value="RELATION_DOCUMENT">관계 조회</option>
-                    </select>
-                  </label>
-                )}
-                <button type="button" className="common-ai-analysis-button" onClick={() => void runAnalysis()} disabled={!canAnalyze}>분석 실행</button>
+                {pendingTransition && <button type="button" className="common-ai-analysis-button"
+                  disabled={busy || sessionState !== "ready"} onClick={() => void continueRelatedContext()}>
+                    관련 업무로 이어가기
+                  </button>}
+                {!pendingTransition && isEntity && displayContext.targetType !== "PRODUCT" && !conversation &&
+                  <button type="button" className="common-ai-analysis-button" disabled={busy || sessionState !== "ready"}
+                    onClick={() => void beginContextConversation()}>이 업무 대화 시작</button>}
+                {isEntity && displayContext.targetType === "PRODUCT" &&
+                  <button type="button" className="common-ai-analysis-button" onClick={() => void runAnalysis()} disabled={!canAnalyze}>분석 실행</button>}
+                {isEntity && displayContext.targetType !== "PRODUCT" && !pendingTransition && conversation &&
+                  <p className="common-ai-muted">이 대상의 원인 분석은 현재 지원되지 않습니다. 대화 이력과 검증된 관계만 유지합니다.</p>}
               </div>
             )}
             {publicMode ? (
               <form
                 className="common-ai-chat-composer"
                 onSubmit={(event) => {
-                  if (isEntity && displayContext.targetType === "PRODUCT") {
+                  if (isEntity) {
                     event.preventDefault();
-                    if (searchDraft.trim() && !busy) {
+                    if (searchDraft.trim() && !busy && !pendingTransition) {
                       shouldAutoScrollRef.current = true;
                       void runAnalysis(searchDraft.trim());
                     }
@@ -1063,33 +1175,35 @@ function handleChatScroll() {
                   }
                 }}
               >
-                <label className="common-ai-sr-only" htmlFor="common-ai-search-input">Demo 상품 검색</label>
+                <label className="common-ai-sr-only" htmlFor="common-ai-search-input">{isEntity ? "운영 AI 질문" : "Demo 상품 검색"}</label>
                 <input
                   id="common-ai-search-input"
                   aria-label={
-                    isEntity && displayContext.targetType === "PRODUCT"
+                    isEntity
                       ? "운영 AI 질문"
                       : "Product 검색 질문"
                   }
                   placeholder={
-                    isEntity && displayContext.targetType === "PRODUCT"
-                      ? "이 상품 주문량이 어떻게 돼?"
+                    isEntity
+                      ? displayContext.targetType === "PRODUCT"
+                        ? "이 상품 주문량이 어떻게 돼?"
+                        : "이 업무에 대해 질문을 남겨 주세요"
                       : "상품명 또는 상품 코드를 입력하세요..."
                   }
                   value={searchDraft}
-                  maxLength={isEntity && displayContext.targetType === "PRODUCT" ? 500 : 200}
+                  maxLength={isEntity ? 500 : 200}
                   onChange={(event) => setSearchDraft(event.target.value)}
-                  disabled={sessionState !== "ready" || busy}
+                  disabled={sessionState !== "ready" || busy || pendingTransition}
                 />
                 <button
                   type="submit"
                   aria-label={
-                    isEntity && displayContext.targetType === "PRODUCT"
+                    isEntity
                       ? "질문 전송"
                       : "상품 검색 전송"
                   }
                   title="전송"
-                  disabled={!searchDraft.trim() || busy}
+                  disabled={!searchDraft.trim() || busy || pendingTransition}
                 >
                   <Send size={18} />
                 </button>
@@ -1103,7 +1217,9 @@ function handleChatScroll() {
             <p className="common-ai-composer-note">{publicMode
                 ? isEntity && displayContext.targetType === "PRODUCT"
                   ? "현재 상품 질문 · 고객 개인정보와 주문 원문은 입력하지 마세요."
-                  : "상품 검색 · 상품명 또는 상품 코드를 입력하세요."
+                  : isEntity
+                    ? "질문과 대화 이력을 저장합니다. 이 대상의 분석 근거가 부족하면 판단 보류로 안내합니다."
+                    : "상품 검색 · 상품명 또는 상품 코드를 입력하세요."
               : "자유 입력은 미지원 · 분석 실행으로 현재 범위를 확인할 수 있습니다."}</p>
           </footer>
         </>

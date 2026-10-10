@@ -8,7 +8,6 @@ import {
 import CommonAiDrawer, {
   type AiPanelContext,
 } from "../components/CommonAiDrawer";
-import { contextIdentity } from "../api/conversations";
 import {
   bootstrapDemoSession,
   getDemoSessionStatus,
@@ -80,6 +79,7 @@ export type AiDrawerActions = {
   closeAiDrawer: () => void;
   toggleAiDrawer: () => void;
   isAiDrawerOpen: boolean;
+  sessionState: SessionState;
 };
 
 const AiDrawerActionsContext =
@@ -102,9 +102,11 @@ export function useOptionalCommonAiDrawer(): AiDrawerActions | null {
 export function CommonAiDrawerHost({
   children,
   sessionRequired = false,
+  currentPage = "/",
 }: {
   children: ReactNode;
   sessionRequired?: boolean;
+  currentPage?: string;
 }) {
   const [sessionState, setSessionState] = useState<SessionState>(sessionRequired ? "loading" : "ready");
   const [sessionGeneration, setSessionGeneration] = useState(0);
@@ -172,14 +174,15 @@ export function CommonAiDrawerHost({
         closeAiDrawer,
         toggleAiDrawer,
         isAiDrawerOpen: state.status === "IDLE_CONTEXT",
+        sessionState,
       }}
     >
       {children}
 
       <CommonAiDrawer
-        key={`${sessionGeneration}:${state.context ? contextIdentity(state.context) : "search"}`}
         open={state.status === "IDLE_CONTEXT"}
         context={state.context}
+        currentPage={currentPage}
         onClose={closeAiDrawer}
         sessionState={sessionState}
         onStartNewSession={startNewSession}
